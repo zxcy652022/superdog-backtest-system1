@@ -1,8 +1,9 @@
 """
-Metrics Module v0.1
+Metrics Module v0.2
 
 Compute backtest performance metrics.
-Includes basic metrics: total return, max drawdown, number of trades, win rate, average return.
+Includes basic and advanced metrics: total return, max drawdown, number of trades, win rate,
+average return, profit factor, avg win/loss, win/loss ratio, expectancy, consecutive wins/losses.
 """
 
 import pandas as pd
@@ -39,7 +40,14 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
             'win_rate': 0.0,
             'avg_trade_return': 0.0,
             'total_pnl': 0.0,
-            'avg_pnl': 0.0
+            'avg_pnl': 0.0,
+            'profit_factor': np.nan,
+            'avg_win': np.nan,
+            'avg_loss': np.nan,
+            'win_loss_ratio': np.nan,
+            'expectancy': np.nan,
+            'max_consecutive_win': 0,
+            'max_consecutive_loss': 0
         }
 
     # 1. Total return
@@ -81,6 +89,72 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
     else:
         avg_pnl = 0.0
     metrics['avg_pnl'] = avg_pnl
+
+    # v0.2: Additional metrics
+    # 8. Profit Factor
+    if num_trades > 0:
+        total_win = sum(trade.pnl for trade in trades if trade.pnl > 0)
+        total_loss = abs(sum(trade.pnl for trade in trades if trade.pnl < 0))
+
+        if total_loss == 0:
+            profit_factor = float('inf') if total_win > 0 else np.nan
+        else:
+            profit_factor = total_win / total_loss
+    else:
+        profit_factor = np.nan
+    metrics['profit_factor'] = profit_factor
+
+    # 9. Average Win
+    winning_trades_list = [trade.pnl for trade in trades if trade.pnl > 0]
+    if len(winning_trades_list) > 0:
+        avg_win = sum(winning_trades_list) / len(winning_trades_list)
+    else:
+        avg_win = np.nan
+    metrics['avg_win'] = avg_win
+
+    # 10. Average Loss
+    losing_trades_list = [trade.pnl for trade in trades if trade.pnl < 0]
+    if len(losing_trades_list) > 0:
+        avg_loss = sum(losing_trades_list) / len(losing_trades_list)
+    else:
+        avg_loss = np.nan
+    metrics['avg_loss'] = avg_loss
+
+    # 11. Win/Loss Ratio
+    if not np.isnan(avg_win) and not np.isnan(avg_loss) and avg_loss != 0:
+        win_loss_ratio = abs(avg_win / avg_loss)
+    else:
+        win_loss_ratio = np.nan
+    metrics['win_loss_ratio'] = win_loss_ratio
+
+    # 12. Expectancy
+    if num_trades > 0:
+        expectancy = avg_pnl
+    else:
+        expectancy = np.nan
+    metrics['expectancy'] = expectancy
+
+    # 13. Max Consecutive Wins (optional)
+    max_consecutive_win = 0
+    current_wins = 0
+    for trade in trades:
+        if trade.pnl > 0:
+            current_wins += 1
+            max_consecutive_win = max(max_consecutive_win, current_wins)
+        else:
+            current_wins = 0
+    metrics['max_consecutive_win'] = max_consecutive_win
+
+    # 14. Max Consecutive Losses (optional)
+    max_consecutive_loss = 0
+    current_losses = 0
+    for trade in trades:
+        if trade.pnl < 0:
+            current_losses += 1
+            max_consecutive_loss = max(max_consecutive_loss, current_losses)
+        else:
+            current_losses = 0
+    metrics['max_consecutive_loss'] = max_consecutive_loss
 
     return metrics
 

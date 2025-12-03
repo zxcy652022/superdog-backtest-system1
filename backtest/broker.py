@@ -1,8 +1,8 @@
 """
-Simulated Broker Module v0.1
+Simulated Broker Module v0.2
 
 模擬交易所，負責處理買入、賣出、權益更新等操作。
-只支援全倉進出（buy_all / sell_all），不支援部分倉位。
+支援全倉進出（buy_all / sell_all）和指定倉位（buy / sell）。
 """
 
 from dataclasses import dataclass
@@ -130,6 +130,101 @@ class SimulatedBroker:
         self.position_qty = 0.0
         self.position_entry_price = 0.0
         self.position_entry_time = None
+
+        return True
+
+    def buy(self, size: float, price: float, time: pd.Timestamp) -> bool:
+        """
+        買入指定數量（v0.2 新增）
+
+        Args:
+            size: 買入數量（允許小數）
+            price: 買入價格
+            time: 買入時間
+
+        Returns:
+            bool: 是否成功買入
+        """
+        # size <= 0 則忽略
+        if size <= 0:
+            return False
+
+        # 如果已有持倉，不能再買
+        if self.has_position:
+            return False
+
+        # 計算成本
+        cost = size * price
+        fee = cost * self.fee_rate
+        total_cost = cost + fee
+
+        # 檢查資金是否足夠
+        if total_cost > self.cash:
+            return False
+
+        # 執行買入
+        self.position_qty = size
+        self.position_entry_price = price
+        self.position_entry_time = time
+        self.cash -= total_cost
+
+        return True
+
+    def sell(self, size: float, price: float, time: pd.Timestamp) -> bool:
+        """
+        賣出指定數量（v0.2 新增）
+
+        Args:
+            size: 賣出數量（允許小數，若 >= position_qty 則全部賣出）
+            price: 賣出價格
+            time: 賣出時間
+
+        Returns:
+            bool: 是否成功賣出
+        """
+        # size <= 0 則忽略
+        if size <= 0:
+            return False
+
+        # 如果沒有持倉，不能賣
+        if not self.has_position:
+            return False
+
+        # 實際賣出數量（不能超過持倉）
+        actual_size = min(size, self.position_qty)
+
+        # 計算賣出收益
+        revenue = actual_size * price
+        fee = revenue * self.fee_rate
+        net_revenue = revenue - fee
+
+        # 計算損益
+        entry_cost = actual_size * self.position_entry_price
+        entry_fee = entry_cost * self.fee_rate
+        pnl = net_revenue - entry_cost - entry_fee
+        return_pct = (price - self.position_entry_price) / self.position_entry_price
+
+        # 記錄交易
+        trade = Trade(
+            entry_time=self.position_entry_time,
+            exit_time=time,
+            entry_price=self.position_entry_price,
+            exit_price=price,
+            qty=actual_size,
+            pnl=pnl,
+            return_pct=return_pct
+        )
+        self.trades.append(trade)
+
+        # 更新現金
+        self.cash += net_revenue
+
+        # 更新持倉（若全部賣出則清空）
+        self.position_qty -= actual_size
+        if self.position_qty <= 1e-10:  # 處理浮點數精度
+            self.position_qty = 0.0
+            self.position_entry_price = 0.0
+            self.position_entry_time = None
 
         return True
 
