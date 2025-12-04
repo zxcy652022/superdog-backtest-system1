@@ -122,3 +122,17 @@ entry_reason, exit_reason, holding_bars, mae, mfe, equity_after
 ## 版本狀態
 v0.2 已具備研究級回測能力。  
 下一版本（v0.3）將聚焦：多商品、多策略、做空與報表模組。
+
+[v0.3] Multi-Strategy & Multi-Asset Upgrade（規劃中）
+
+本版本將回測系統從「單策略研究」推向「多策略、多商品」的批次研究架構。  
+v0.3 將新增：
+
+1. Portfolio Runner：批量回測層，可同時執行多策略、多幣種
+2. Strategy Registry：策略模組 plug-in 化
+3. 做空＋槓桿支援（簡化模型）
+4. Text Reporter：標準文字報表（單策略＋排行）
+5. CLI v0.3：提供初步回測指令（superdog bt run）
+6. 新增 v0.3 單元測試（runner、registry、short、reports）
+
+本版本將讓 SuperDog Backtest 系統開始具備「自動化策略研究」的能力。

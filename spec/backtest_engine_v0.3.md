@@ -1,0 +1,223 @@
+# Backtest Engine v0.3 Specification
+版本：v0.3  
+狀態：設計完成  
+目標：讓引擎從「單策略研究」進化到「多策略、多商品、可批量執行」的研究架構，並建立策略 plug-in 系統、簡化做空/槓桿模型、批次回測與 CLI 介面基礎。
+
+---
+
+# 1. 版本定位（Objectives）
+
+v0.3 是系統邁向「自動化研究」的關鍵版本：
+
+1. 新增 **多策略、多商品的批量回測能力（Portfolio Runner）**
+2. 建立 **策略註冊中心（Strategy Registry）**，實現策略 plug-in 化
+3. 支援 **做空 + 槓桿（簡化模型）**
+4. 新增 **標準文字報表（Text Reporter）**
+5. 建立 **CLI v0.3 基礎骨架（只有 backtest 指令）**
+
+v0.3 不會動現有回測核心（v0.2 engine / broker / metrics），  
+只會新增「統籌層」與「策略 plug-in 層」。
+
+---
+
+# 2. Portfolio Runner（批次回測模組）
+
+新增檔案：
+
+```
+execution_engine/portfolio_runner.py
+```
+
+## 2.1 功能
+
+- 接收多個回測任務（runs）
+- 每個 run 由以下組成：
+
+```python
+{
+  "strategy": "simple_sma",
+  "symbol": "BTCUSDT",
+  "timeframe": "1h",
+  "start": "2024-01-01",
+  "end": "2024-03-01",
+  "risk_profile": {...},
+}
+```
+
+- Runner 依序呼叫 `run_backtest()`，收集結果
+- 輸出：
+
+```python
+[
+  {
+    "strategy": "simple_sma",
+    "symbol": "BTCUSDT",
+    "metrics": {...},
+    "result": BacktestResult,
+  },
+  {
+    "strategy": "breakout_v1",
+    ...
+  }
+]
+```
+
+## 2.2 用途
+
+- 多策略對比
+- 多商品 sweep
+- 自動化研究的基礎
+
+---
+
+# 3. Strategy Registry（策略註冊中心）
+
+新增檔案：
+
+```
+strategies/registry.py
+```
+
+內容形式：
+
+```python
+from .simple_sma import SimpleSMAStrategy
+from .breakout_v1 import BreakoutV1Strategy
+
+STRATEGY_REGISTRY = {
+    "simple_sma": SimpleSMAStrategy,
+    "breakout_v1": BreakoutV1Strategy,
+}
+```
+
+## 3.1 使用方式
+
+- Portfolio Runner 或 CLI 會用：
+
+```python
+cls = STRATEGY_REGISTRY[strategy_name]
+```
+
+- 未來新增策略，只要：
+  1. 寫一個檔案  
+  2. 加一個 mapping  
+  3. 不需要改 Engine / Runner
+
+這是 v0.3 的核心可擴充設計。
+
+---
+
+# 4. 做空 / 槓桿（簡化模型）
+
+v0.3 導入「基礎做空 & 槓桿」：
+
+## 4.1 新增策略方向輸出
+
+策略 on_bar 要能輸出：
+
+- `"long"`
+- `"short"`
+- `"flat"`
+
+## 4.2 Engine 行為
+
+- 多單：size > 0  
+- 空單：size < 0  
+- 槓桿：position_value = equity * pos_pct * leverage
+
+## 4.3 計算
+
+- 多單：pnl = size * (exit - entry)
+- 空單：pnl = size * (entry - exit)
+- 不模擬爆倉、不模擬保證金、不模擬滑價
+
+## 4.4 限制
+
+- 空單仍只有「一次建倉」→ 不支援多腿
+- 不支援部分平倉
+- 這是簡化版，完整模型 v0.4+
+
+---
+
+# 5. Text Reporter（標準文字報表）
+
+新增檔案：
+
+```
+reports/text_reporter.py
+```
+
+## 5.1 方法
+
+### A. render_single(result)
+
+輸出 summary：
+
+- 基本資訊（策略 / symbol / tf /期間）
+- metrics（total return / maxdd / pf / expectancy）
+- risk（avg win/loss, wl ratio）
+- 行為（holding bars, mae/mfe）
+- ASCII equity curve
+- 建議判讀（簡短一行）
+
+### B. render_portfolio(results)
+
+輸出 ranking table：
+
+```
+Strategy     Symbol   TF   TotalRet   MaxDD   PF    Trades
+-----------------------------------------------------------
+simple_sma   BTCUSDT  1h   +18.9%     -8.3%   1.42  47
+breakout_v1  BTCUSDT  1h   +32.1%    -15.4%   1.75  63
+```
+
+---
+
+# 6. CLI v0.3（backtest 子指令）
+
+新增：
+
+```
+cli/backtest.py
+```
+
+### CLI 指令：
+
+```bash
+superdog bt run --strategy simple_sma --symbol BTCUSDT --tf 1h --start 2024-01-01 --end 2024-03-01
+```
+
+或使用 config：
+
+```bash
+superdog bt run -c configs/sma_btc_1h.yml
+```
+
+CLI 執行流程：
+
+1. 讀 CLI 或 config  
+2. 找 Strategy Registry  
+3. 呼叫 Portfolio Runner  
+4. 用 Text Reporter 輸出  
+5. 若使用者指定 export → 匯出 CSV / TXT 報表  
+
+---
+
+# 7. 已知限制（v0.3）
+
+- 做空/槓桿為簡化模型，不模擬爆倉  
+- 不支援多 timeframe  
+- 不支援資金池 / 權重再平衡  
+- 不支援圖像化報表  
+- 不支援 web dashboard  
+
+---
+
+# 8. Definition of Done
+
+- Portfolio Runner 可處理多策略 / 多幣種
+- Strategy Registry 可 plug-in 策略
+- 做空/槓桿功能正常
+- Reporter 正常輸出文字報表
+- CLI 可執行基本回測流程
+- 測試通過  

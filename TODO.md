@@ -93,3 +93,21 @@ Low Priority / Future
 - 可視化（損益曲線 / MFE/MAE 圖）
 - 多週期回測
 - 進階 SL/TP（移動停損、分批）
+
+High Priority（v0.3）
+- 新增 Portfolio Runner（批量回測）
+- 新增 Strategy Registry（策略 plug-in 系統）
+- 簡化版做空 / 槓桿支援
+- 新增 Text Reporter（標準文字報表）
+- 建立 CLI v0.3（backtest 指令）
+- 新增 v0.3 專屬測試案例
+
+Medium Priority
+- 進階報表模組（HTML / 圖像化）
+- Config 設計（YAML）與 Profile 管理
+- 進階策略參數化（param sweeps）
+
+Low Priority / Future
+- Multi-Timeframe 支援
+- Portfolio 資金池、再平衡
+- 進階 risk model（R 倉位 / 波動調整）
