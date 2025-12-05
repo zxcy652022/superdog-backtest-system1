@@ -6,6 +6,29 @@
 
 ---
 
+## [0.3.0] - 2025-12-05
+
+### Added
+- 做空交易支援 (Short Selling)
+- 槓桿交易 (Leverage 1-100x)
+- 方向感知的 SL/TP (Direction-aware Stop Loss / Take Profit)
+- 策略註冊系統 (Strategy Registry)
+- 批量回測引擎 (Portfolio Runner)
+- 文本報表生成器 (Text Reporter)
+- 命令行介面 (CLI)
+- YAML 配置支援
+
+### Changed
+- Broker: `buy()` / `sell()` 語義變更（支援做空）
+- Engine: `_check_sl_tp()` 增加 direction 參數
+- Trade: 新增 `direction` 和 `leverage` 字段
+
+### Fixed
+- 浮點數精度問題（broker 資金檢查）
+- 空單平倉邏輯錯誤
+
+---
+
 ## [v0.2.0] - 2024-12-03
 
 ### 新增
@@ -69,9 +92,5 @@
 
 ## [Unreleased]
 
-### 規劃中 (v0.3)
-- Portfolio Runner（批量回測）
-- Strategy Registry（策略註冊中心）
-- 做空與槓桿支援（簡化模型）
-- Text Reporter（文字報表）
-- CLI 工具（基礎版）
+### 規劃中
+準備中

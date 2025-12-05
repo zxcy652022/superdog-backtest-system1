@@ -1,14 +1,20 @@
 """
-Backtest Engine v0.2
+Backtest Engine v0.3
 
 Core backtest engine module with position sizing, stop-loss, take-profit, and detailed trade logging.
 Handles main backtest loop: iterate bars, call strategy, manage positions, compute metrics.
+
+v0.3 新增：
+- SL/TP 方向感知（支援多單和空單）
+- 支援槓桿參數傳遞
+
+Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §3
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Type, Optional
+from typing import Dict, List, Type, Optional, Literal
 import pandas as pd
-from backtest.broker import SimulatedBroker, Trade
+from backtest.broker import SimulatedBroker, Trade, DirectionType
 from backtest.metrics import compute_basic_metrics
 from backtest.position_sizer import BasePositionSizer, AllInSizer
 
@@ -40,7 +46,8 @@ def run_backtest(
     fee_rate: float = 0.0005,
     position_sizer: Optional[BasePositionSizer] = None,
     stop_loss_pct: Optional[float] = None,
-    take_profit_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None,
+    leverage: float = 1.0  # v0.3 新增
 ) -> BacktestResult:
     """
     Run backtest with position sizing, stop-loss, and take-profit support
@@ -53,6 +60,7 @@ def run_backtest(
         position_sizer: Position sizer (default AllInSizer)
         stop_loss_pct: Stop loss percentage (e.g., 0.02 = 2%)
         take_profit_pct: Take profit percentage (e.g., 0.05 = 5%)
+        leverage: Leverage multiplier (default 1.0, range 1-100) - v0.3
 
     Returns:
         BacktestResult containing equity curve, trades, metrics, and trade log
@@ -63,7 +71,8 @@ def run_backtest(
     if position_sizer is None:
         position_sizer = AllInSizer(fee_rate=fee_rate)
 
-    broker = SimulatedBroker(initial_cash=initial_cash, fee_rate=fee_rate)
+    # v0.3: Pass leverage to broker
+    broker = SimulatedBroker(initial_cash=initial_cash, fee_rate=fee_rate, leverage=leverage)
 
     # v0.2: Wrap broker.buy_all to respect position_sizer
     # This allows v0.1 strategies (that call buy_all) to work with position_sizer
@@ -98,6 +107,7 @@ def run_backtest(
             sl_triggered, tp_triggered, exit_price, exit_reason = _check_sl_tp(
                 row=row,
                 entry_price=broker.position_entry_price,
+                direction=broker.position_direction,  # v0.3: 傳入方向
                 stop_loss_pct=stop_loss_pct,
                 take_profit_pct=take_profit_pct
             )
@@ -112,8 +122,13 @@ def run_backtest(
                 mfe = position_tracker.get_mfe(broker.position_entry_price)
                 holding_bars = i - position_tracker.entry_bar_index
 
-                # Close position
-                success = broker.sell(broker.position_qty, exit_price, timestamp)
+                # Close position (v0.3: direction-aware)
+                if broker.is_long:
+                    success = broker.sell(broker.position_qty, exit_price, timestamp)
+                elif broker.is_short:
+                    success = broker.buy(broker.position_qty, exit_price, timestamp)
+                else:
+                    success = False
 
                 if success and len(broker.trades) > 0:
                     # Update last trade with additional info
@@ -190,46 +205,83 @@ def run_backtest(
 def _check_sl_tp(
     row: pd.Series,
     entry_price: float,
+    direction: DirectionType,  # v0.3 新增
     stop_loss_pct: Optional[float],
     take_profit_pct: Optional[float]
 ) -> tuple:
     """
-    Check if stop-loss or take-profit is triggered
+    Check if stop-loss or take-profit is triggered (v0.3 - 方向感知)
 
     Args:
         row: Current bar with 'low' and 'high'
         entry_price: Entry price
+        direction: Position direction ("long" | "short" | "flat")
         stop_loss_pct: Stop loss percentage (e.g., 0.02 = 2%)
         take_profit_pct: Take profit percentage (e.g., 0.05 = 5%)
 
     Returns:
         (sl_triggered, tp_triggered, exit_price, exit_reason)
+
+    Notes:
+        - 多單: SL價 < 進場價, TP價 > 進場價
+        - 空單: SL價 > 進場價, TP價 < 進場價
+        - SL 優先於 TP
     """
     sl_triggered = False
     tp_triggered = False
     exit_price = row['close']  # Default to close
     exit_reason = "strategy_signal"
 
-    # Calculate SL/TP prices
-    if stop_loss_pct is not None and stop_loss_pct > 0:
-        sl_price = entry_price * (1 - stop_loss_pct)
-    else:
-        sl_price = 0
+    # === 多單的 SL/TP ===
+    if direction == "long":
+        # 止損價: entry * (1 - stop_loss_pct)
+        if stop_loss_pct is not None and stop_loss_pct > 0:
+            sl_price = entry_price * (1 - stop_loss_pct)
+        else:
+            sl_price = 0
 
-    if take_profit_pct is not None and take_profit_pct > 0:
-        tp_price = entry_price * (1 + take_profit_pct)
-    else:
-        tp_price = float('inf')
+        # 止盈價: entry * (1 + take_profit_pct)
+        if take_profit_pct is not None and take_profit_pct > 0:
+            tp_price = entry_price * (1 + take_profit_pct)
+        else:
+            tp_price = float('inf')
 
-    # Check triggers (SL has priority over TP if both triggered in same bar)
-    if sl_price > 0 and row['low'] <= sl_price:
-        sl_triggered = True
-        exit_price = sl_price
-        exit_reason = "stop_loss"
-    elif tp_price < float('inf') and row['high'] >= tp_price:
-        tp_triggered = True
-        exit_price = tp_price
-        exit_reason = "take_profit"
+        # 檢查觸發（SL 優先）
+        if sl_price > 0 and row['low'] <= sl_price:
+            sl_triggered = True
+            exit_price = sl_price
+            exit_reason = "stop_loss"
+        elif tp_price < float('inf') and row['high'] >= tp_price:
+            tp_triggered = True
+            exit_price = tp_price
+            exit_reason = "take_profit"
+
+    # === 空單的 SL/TP ===
+    elif direction == "short":
+        # 止損價: entry * (1 + stop_loss_pct)  # 注意: 空單止損是價格上漲
+        if stop_loss_pct is not None and stop_loss_pct > 0:
+            sl_price = entry_price * (1 + stop_loss_pct)
+        else:
+            sl_price = float('inf')
+
+        # 止盈價: entry * (1 - take_profit_pct)  # 注意: 空單止盈是價格下跌
+        if take_profit_pct is not None and take_profit_pct > 0:
+            tp_price = entry_price * (1 - take_profit_pct)
+        else:
+            tp_price = 0
+
+        # 檢查觸發（SL 優先）
+        if sl_price < float('inf') and row['high'] >= sl_price:
+            sl_triggered = True
+            exit_price = sl_price
+            exit_reason = "stop_loss"
+        elif tp_price > 0 and row['low'] <= tp_price:
+            tp_triggered = True
+            exit_price = tp_price
+            exit_reason = "take_profit"
+
+    # === flat 方向（無持倉，不應該進入這個函數） ===
+    # 如果 direction == "flat"，返回預設值（不觸發）
 
     return sl_triggered, tp_triggered, exit_price, exit_reason
 

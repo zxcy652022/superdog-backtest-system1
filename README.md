@@ -1,65 +1,84 @@
-# SuperDog Backtest System
+# SuperDog Backtest v0.3
 
-研究級加密貨幣回測引擎，專為量化交易策略研究設計。
+研究級加密貨幣回測引擎，專為量化交易策略研究設計。v0.3 聚焦於多策略批量回測、方向感知風控、純文本報表與 CLI 入口。
 
-## 🚀 快速開始
+## 新功能 (v0.3)
+
+### 核心功能
+- ✅ 做空交易支援 (Short Selling)
+- ✅ 槓桿交易 (Leverage 1-100x)
+- ✅ 方向感知的 SL/TP (Long/Short)
+- ✅ 批量回測 (Portfolio Runner)
+- ✅ 文本報表生成器
+- ✅ 命令行介面 (CLI)
+
+## 快速開始
 
 ### 安裝
 
 ```bash
-git clone https://github.com/zxcy652022/superdog-backtest-system1.git
-cd superdog-backtest-system1
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+pip install click  # CLI 依賴
 ```
 
-### 基本使用
-
-```python
-from data.storage import load_ohlcv
-from backtest.engine import run_backtest
-from backtest.position_sizer import PercentOfEquitySizer
-from strategies.simple_sma import SimpleSMAStrategy
-
-# 載入資料
-data = load_ohlcv("data/raw/BTCUSDT_1h_test.csv")
-
-# 執行回測
-result = run_backtest(
-    data=data,
-    strategy_cls=SimpleSMAStrategy,
-    initial_cash=10000,
-    fee_rate=0.0005,
-    position_sizer=PercentOfEquitySizer(percent=0.95)
-)
-
-# 查看結果
-print(result.metrics)
-print(result.trade_log)
-```
-
-### 執行測試
+### 單策略回測
 
 ```bash
-pytest
+superdog run -s simple_sma -m BTCUSDT -t 1h --sl 0.02 --tp 0.05
 ```
 
-## 📊 目前功能
+### 批量回測
 
-### ✅ v0.2 (已完成)
-- **Position Sizer 系統**：AllIn / FixedCash / PercentOfEquity
-- **停損停利**：盤中觸發（使用 high/low）
-- **完整 Trade Log**：含 MAE/MFE、holding_bars、entry/exit_reason
-- **進階 Metrics**：profit_factor、expectancy、win_loss_ratio、consecutive wins/losses
+```bash
+superdog portfolio -c configs/multi_strategy.yml -o report.txt
+```
 
-### 📋 v0.3 (規劃中)
-- Portfolio Runner（批量回測）
-- Strategy Registry（策略插件系統）
-- 做空與槓桿支援（簡化模型）
-- CLI 工具
+### Python API
 
-## 📖 文件
+```python
+from execution_engine.portfolio_runner import RunConfig, run_portfolio
+
+config = RunConfig(
+    strategy="simple_sma",
+    symbol="BTCUSDT",
+    timeframe="1h",
+    leverage=2.0,
+    stop_loss_pct=0.02
+)
+
+result = run_portfolio([config], verbose=True)
+print(result.summary())
+```
+
+## API 文檔
+
+- **Broker v0.3**  
+  `buy(size, price, time, leverage)` 開多/平空；`sell(...)` 開空/平多；`position_direction`；`is_long`/`is_short`
+- **Engine v0.3**  
+  `run_backtest(..., leverage=1.0)`；方向感知 `_check_sl_tp()`
+- **Portfolio Runner v0.3**  
+  `run_portfolio(configs)`；`RunConfig`；`PortfolioResult`；`load_configs_from_yaml(path)`
+- **Text Reporter v0.3**  
+  `render_single(result)`；`render_portfolio(result)`
+
+## 測試
+
+```bash
+# 運行所有 v0.3 測試
+python tests/test_broker_v03.py
+python tests/test_engine_v03.py
+python tests/test_portfolio_runner_v03.py
+python tests/test_text_reporter_v03.py
+python tests/test_cli_v03.py
+python tests/test_integration_v03.py
+
+# v0.2 向後兼容測試
+python tests/test_backtest_v02.py
+```
+
+## 文件
 
 - [架構說明](docs/architecture/overview.md)
 - [開發哲學](docs/architecture/philosophy.md)
@@ -68,22 +87,10 @@ pytest
 - [設計決策](docs/decisions/)
 - [開發規範](docs/CONTRIBUTING.md)
 
-## 🧪 測試涵蓋
-
-- 回測引擎核心邏輯
-- Position Sizer 各種模式
-- SL/TP 觸發機制
-- Trade Log 計算正確性
-- Metrics 邊界條件
-
-## 📝 版本歷史
+## 版本歷史
 
 詳見 [CHANGELOG.md](CHANGELOG.md)
 
-## 🎯 專案目標
-
-打造一套**可理解、可維護、可擴充**的量化研究系統，整合 AI 協作開發流程。
-
-## 📄 授權
+## 授權
 
 MIT License
