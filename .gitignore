@@ -24,3 +24,13 @@ env/
 # Data
 data/raw/*.tmp
 *.log
+# SSD 數據配置 (v0.4)
+data/ssd/
+local_data/
+*.pkl
+*.backup
+backtest_results/
+
+# macOS
+.DS_Store
+__MACOSX/

@@ -67,9 +67,10 @@ def test_e2e_yaml_to_report():
         {"strategy": "simple_sma", "symbol": "BTCUSDT", "timeframe": "1h_test"},
     ]
     with tempfile.NamedTemporaryFile(delete=False, suffix=".yml") as tmp:
-        yaml.safe_dump({"runs": runs}, tmp, encoding='utf-8', allow_unicode=True)
-        tmp.flush()
         yaml_path = tmp.name
+
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump({"runs": runs}, f, allow_unicode=True)
 
     configs = load_configs_from_yaml(yaml_path)
     result = run_portfolio(configs)

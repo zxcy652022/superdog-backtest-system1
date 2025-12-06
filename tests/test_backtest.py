@@ -109,7 +109,7 @@ def test_backtest_equity_curve():
 
     # 驗證權益曲線
     assert result.equity_curve.iloc[0] == 10000, "初始權益應為 10000"
-    assert result.equity_curve.iloc[-1] >= 0, "最終權益不應為負數"
+    assert result.equity_curve.iloc[-1] >= 0, "最終權益不應為負數"  # Demo test: 不強制盈利，只要不為負
     # 驗證總報酬率計算正確
     expected_return = (result.equity_curve.iloc[-1] - 10000) / 10000
     assert abs(result.metrics['total_return'] - expected_return) < 0.0001, "總報酬率計算應正確"

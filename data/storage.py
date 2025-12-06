@@ -10,6 +10,9 @@ from datetime import datetime
 from typing import Optional
 import logging
 
+# SSD 配置支援 (v0.4)
+from data_config import config
+
 # 設定日誌
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
