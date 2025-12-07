@@ -26,8 +26,8 @@ def extract_version_from_changelog(path):
         return None
 
     content = path.read_text(encoding="utf-8")
-    # 匹配 "## [X.Y.Z]" 格式
-    match = re.search(r"\[(\d+\.\d+\.\d+)\]", content)
+    # 匹配 "## [X.Y.Z]" 或 "## [X.Y.Z-suffix]" 格式,取第一個(最新的)
+    match = re.search(r"## \[(\d+\.\d+\.\d+)(?:-\w+)?\]", content)
     return match.group(1) if match else None
 
 
