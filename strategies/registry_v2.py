@@ -37,7 +37,11 @@ except ImportError:
 
 # 元數據和相依性檢查
 try:
-    from strategies.dependency_checker import DependencyChecker, check_strategy_dependencies
+    from strategies.dependency_checker import (
+        DependencyChecker,
+        DependencyCheckResult,
+        check_strategy_dependencies,
+    )
     from strategies.metadata import MetadataManager, StrategyMetadata, get_metadata_manager
 
     HAS_METADATA = True

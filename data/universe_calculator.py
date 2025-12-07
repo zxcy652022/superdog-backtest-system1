@@ -404,8 +404,6 @@ class UniverseCalculator:
         """
         # 嘗試從永續數據目錄加載
         try:
-            from datetime import datetime, timedelta
-
             from data.perpetual import fetch_open_interest
 
             end_time = datetime.now()
