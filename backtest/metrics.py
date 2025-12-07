@@ -6,9 +6,11 @@ Includes basic and advanced metrics: total return, max drawdown, number of trade
 average return, profit factor, avg win/loss, win/loss ratio, expectancy, consecutive wins/losses.
 """
 
-import pandas as pd
+from typing import Dict, List
+
 import numpy as np
-from typing import List, Dict
+import pandas as pd
+
 from backtest.broker import Trade
 
 
@@ -34,35 +36,35 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
 
     if len(equity_curve) == 0:
         return {
-            'total_return': 0.0,
-            'max_drawdown': 0.0,
-            'num_trades': 0,
-            'win_rate': 0.0,
-            'avg_trade_return': 0.0,
-            'total_pnl': 0.0,
-            'avg_pnl': 0.0,
-            'profit_factor': np.nan,
-            'avg_win': np.nan,
-            'avg_loss': np.nan,
-            'win_loss_ratio': np.nan,
-            'expectancy': np.nan,
-            'max_consecutive_win': 0,
-            'max_consecutive_loss': 0
+            "total_return": 0.0,
+            "max_drawdown": 0.0,
+            "num_trades": 0,
+            "win_rate": 0.0,
+            "avg_trade_return": 0.0,
+            "total_pnl": 0.0,
+            "avg_pnl": 0.0,
+            "profit_factor": np.nan,
+            "avg_win": np.nan,
+            "avg_loss": np.nan,
+            "win_loss_ratio": np.nan,
+            "expectancy": np.nan,
+            "max_consecutive_win": 0,
+            "max_consecutive_loss": 0,
         }
 
     # 1. Total return
     initial_equity = equity_curve.iloc[0]
     final_equity = equity_curve.iloc[-1]
     total_return = (final_equity - initial_equity) / initial_equity
-    metrics['total_return'] = total_return
+    metrics["total_return"] = total_return
 
     # 2. Max drawdown
     max_drawdown = compute_max_drawdown(equity_curve)
-    metrics['max_drawdown'] = max_drawdown
+    metrics["max_drawdown"] = max_drawdown
 
     # 3. Number of trades
     num_trades = len(trades)
-    metrics['num_trades'] = num_trades
+    metrics["num_trades"] = num_trades
 
     # 4. Win rate
     if num_trades > 0:
@@ -70,25 +72,25 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
         win_rate = winning_trades / num_trades
     else:
         win_rate = 0.0
-    metrics['win_rate'] = win_rate
+    metrics["win_rate"] = win_rate
 
     # 5. Average trade return
     if num_trades > 0:
         avg_trade_return = sum(trade.return_pct for trade in trades) / num_trades
     else:
         avg_trade_return = 0.0
-    metrics['avg_trade_return'] = avg_trade_return
+    metrics["avg_trade_return"] = avg_trade_return
 
     # 6. Total PnL
     total_pnl = sum(trade.pnl for trade in trades)
-    metrics['total_pnl'] = total_pnl
+    metrics["total_pnl"] = total_pnl
 
     # 7. Average PnL
     if num_trades > 0:
         avg_pnl = total_pnl / num_trades
     else:
         avg_pnl = 0.0
-    metrics['avg_pnl'] = avg_pnl
+    metrics["avg_pnl"] = avg_pnl
 
     # v0.2: Additional metrics
     # 8. Profit Factor
@@ -97,12 +99,12 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
         total_loss = abs(sum(trade.pnl for trade in trades if trade.pnl < 0))
 
         if total_loss == 0:
-            profit_factor = float('inf') if total_win > 0 else np.nan
+            profit_factor = float("inf") if total_win > 0 else np.nan
         else:
             profit_factor = total_win / total_loss
     else:
         profit_factor = np.nan
-    metrics['profit_factor'] = profit_factor
+    metrics["profit_factor"] = profit_factor
 
     # 9. Average Win
     winning_trades_list = [trade.pnl for trade in trades if trade.pnl > 0]
@@ -110,7 +112,7 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
         avg_win = sum(winning_trades_list) / len(winning_trades_list)
     else:
         avg_win = np.nan
-    metrics['avg_win'] = avg_win
+    metrics["avg_win"] = avg_win
 
     # 10. Average Loss
     losing_trades_list = [trade.pnl for trade in trades if trade.pnl < 0]
@@ -118,21 +120,21 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
         avg_loss = sum(losing_trades_list) / len(losing_trades_list)
     else:
         avg_loss = np.nan
-    metrics['avg_loss'] = avg_loss
+    metrics["avg_loss"] = avg_loss
 
     # 11. Win/Loss Ratio
     if not np.isnan(avg_win) and not np.isnan(avg_loss) and avg_loss != 0:
         win_loss_ratio = abs(avg_win / avg_loss)
     else:
         win_loss_ratio = np.nan
-    metrics['win_loss_ratio'] = win_loss_ratio
+    metrics["win_loss_ratio"] = win_loss_ratio
 
     # 12. Expectancy
     if num_trades > 0:
         expectancy = avg_pnl
     else:
         expectancy = np.nan
-    metrics['expectancy'] = expectancy
+    metrics["expectancy"] = expectancy
 
     # 13. Max Consecutive Wins (optional)
     max_consecutive_win = 0
@@ -143,7 +145,7 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
             max_consecutive_win = max(max_consecutive_win, current_wins)
         else:
             current_wins = 0
-    metrics['max_consecutive_win'] = max_consecutive_win
+    metrics["max_consecutive_win"] = max_consecutive_win
 
     # 14. Max Consecutive Losses (optional)
     max_consecutive_loss = 0
@@ -154,7 +156,7 @@ def compute_basic_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Dict[
             max_consecutive_loss = max(max_consecutive_loss, current_losses)
         else:
             current_losses = 0
-    metrics['max_consecutive_loss'] = max_consecutive_loss
+    metrics["max_consecutive_loss"] = max_consecutive_loss
 
     return metrics
 
@@ -180,9 +182,7 @@ def compute_max_drawdown(equity_curve: pd.Series) -> float:
 
 
 def compute_sharpe_ratio(
-    equity_curve: pd.Series,
-    risk_free_rate: float = 0.0,
-    periods_per_year: int = 365 * 24
+    equity_curve: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 365 * 24
 ) -> float:
     """
     Compute Sharpe ratio
@@ -209,7 +209,9 @@ def compute_sharpe_ratio(
     if std_return == 0:
         return 0.0
 
-    sharpe = (mean_return * periods_per_year - risk_free_rate) / (std_return * np.sqrt(periods_per_year))
+    sharpe = (mean_return * periods_per_year - risk_free_rate) / (
+        std_return * np.sqrt(periods_per_year)
+    )
 
     return sharpe if not np.isnan(sharpe) else 0.0
 
@@ -227,7 +229,7 @@ def compute_extended_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Di
     """
     metrics = compute_basic_metrics(equity_curve, trades)
 
-    metrics['sharpe_ratio'] = compute_sharpe_ratio(equity_curve)
+    metrics["sharpe_ratio"] = compute_sharpe_ratio(equity_curve)
 
     if len(trades) > 0:
         max_consecutive_losses = 0
@@ -238,8 +240,8 @@ def compute_extended_metrics(equity_curve: pd.Series, trades: List[Trade]) -> Di
                 max_consecutive_losses = max(max_consecutive_losses, current_losses)
             else:
                 current_losses = 0
-        metrics['max_consecutive_losses'] = max_consecutive_losses
+        metrics["max_consecutive_losses"] = max_consecutive_losses
     else:
-        metrics['max_consecutive_losses'] = 0
+        metrics["max_consecutive_losses"] = 0
 
     return metrics

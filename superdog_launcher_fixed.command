@@ -19,29 +19,29 @@ find_project_root() {
         echo "$(pwd)"
         return 0
     fi
-    
+
     # 方法2: 檢查腳本所在目錄
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if [ -f "$script_dir/cli/main.py" ] && [ -f "$script_dir/requirements.txt" ]; then
         echo "$script_dir"
         return 0
     fi
-    
+
     # 方法3: 搜尋用戶目錄下的superdog-quant
     possible_paths=(
         "$HOME/Projects/superdog-quant"
-        "$HOME/Documents/superdog-quant" 
+        "$HOME/Documents/superdog-quant"
         "$HOME/Desktop/superdog-quant"
         "$HOME/superdog-quant"
     )
-    
+
     for path in "${possible_paths[@]}"; do
         if [ -f "$path/cli/main.py" ] && [ -f "$path/requirements.txt" ]; then
             echo "$path"
             return 0
         fi
     done
-    
+
     return 1
 }
 
@@ -91,16 +91,16 @@ wait_for_key() {
 run_command() {
     local cmd="$1"
     local desc="$2"
-    
+
     echo -e "${BLUE}正在執行: ${desc}${NC}"
     echo -e "${YELLOW}命令: python3 cli/main.py $cmd${NC}"
     echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
-    
+
     # 切換到專案目錄並激活虛擬環境
     cd "$PROJECT_ROOT"
     source .venv/bin/activate
     python3 cli/main.py $cmd
-    
+
     echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
     wait_for_key
 }
@@ -111,24 +111,24 @@ strategy_info() {
     show_header
     echo -e "${WHITE}策略信息查詢${NC}"
     echo -e "${YELLOW}─────────────────────────────────────────────────────────────────${NC}"
-    
+
     # 先顯示可用策略
     cd "$PROJECT_ROOT"
     source .venv/bin/activate
     echo -e "${GREEN}可用策略列表：${NC}"
     python3 cli/main.py list
-    
+
     echo ""
     echo -e "${CYAN}請輸入策略名稱 (或按 Enter 返回): ${NC}"
     read strategy_name
-    
+
     if [ -n "$strategy_name" ]; then
         echo -e "${BLUE}查詢策略: $strategy_name${NC}"
         echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
         python3 cli/main.py info -s "$strategy_name"
         echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
     fi
-    
+
     wait_for_key
 }
 
@@ -143,10 +143,10 @@ custom_command() {
     echo -e "${CYAN}  • portfolio -c configs/test.yml${NC}"
     echo -e "${CYAN}  • demo --type phase-b${NC}"
     echo ""
-    
+
     echo -e "${CYAN}請輸入CLI命令參數 (或按 Enter 返回): ${NC}"
     read custom_params
-    
+
     if [ -n "$custom_params" ]; then
         echo -e "${BLUE}執行自訂命令: $custom_params${NC}"
         echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
@@ -155,7 +155,7 @@ custom_command() {
         python3 cli/main.py $custom_params
         echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
     fi
-    
+
     wait_for_key
 }
 
@@ -163,7 +163,7 @@ custom_command() {
 main() {
     # 找到專案根目錄
     PROJECT_ROOT=$(find_project_root)
-    
+
     if [ $? -ne 0 ] || [ -z "$PROJECT_ROOT" ]; then
         echo -e "${RED}錯誤: 無法找到 SuperDog 專案目錄${NC}"
         echo -e "${YELLOW}請確保以下檔案存在：${NC}"
@@ -178,7 +178,7 @@ main() {
         read -p "按任意鍵退出..." -n 1
         exit 1
     fi
-    
+
     # 檢查虛擬環境
     if [ ! -d "$PROJECT_ROOT/.venv" ]; then
         echo -e "${RED}錯誤: 找不到虛擬環境 .venv${NC}"
@@ -187,15 +187,15 @@ main() {
         read -p "按任意鍵退出..." -n 1
         exit 1
     fi
-    
+
     while true; do
         clear_screen
         show_header
         show_menu
-        
+
         echo -n -e "${WHITE}請輸入選項 (0-8): ${NC}"
         read choice
-        
+
         case $choice in
             1)
                 clear_screen

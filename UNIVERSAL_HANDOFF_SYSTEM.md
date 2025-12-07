@@ -83,7 +83,7 @@ docs/specs/[當前版本]/
 @dataclass
 class PortfolioResult:
     """批量回測結果
-    
+
     Attributes:
         runs: 所有單次回測結果
         start_time: 開始時間
@@ -92,10 +92,10 @@ class PortfolioResult:
     runs: List[SingleRunResult]
     start_time: datetime
     end_time: datetime
-    
+
     def to_dataframe(self) -> pd.DataFrame:
         """轉換為 DataFrame（用於排行）
-        
+
         Returns:
             包含以下欄位的 DataFrame：
             - strategy: str
@@ -106,16 +106,16 @@ class PortfolioResult:
             - num_trades: int
         """
         pass
-    
+
     def get_best_by(self, metric: str) -> SingleRunResult:
         """找出某指標最好的回測
-        
+
         Args:
             metric: 指標名稱（例如 "total_return"）
-            
+
         Returns:
             表現最好的回測結果
-            
+
         Raises:
             ValueError: 如果指標不存在
         """
@@ -135,10 +135,10 @@ def test_[具體功能]():
     """測試 [功能描述]"""
     # Arrange
     [設置測試資料]
-    
+
     # Act
     [執行功能]
-    
+
     # Assert
     [驗證結果]
     assert [條件]
@@ -192,13 +192,13 @@ def test_[具體功能]():
 範例：
 def function_name(param: Type) -> ReturnType:
     """簡短說明
-    
+
     Args:
         param: 參數說明
-        
+
     Returns:
         回傳值說明
-        
+
     Raises:
         ExceptionType: 什麼情況會拋錯
     """
@@ -220,7 +220,7 @@ import [...]
 # Classes/Functions（先寫骨架）
 class ClassName:
     """[Docstring]"""
-    
+
     def method_name(self, param: Type) -> ReturnType:
         """[Docstring]"""
         pass  # TODO: 實作
@@ -253,10 +253,10 @@ pytest  # 確保沒破壞其他測試
 ```
 格式：
 "設計文件中 [具體位置] 的 [問題] 不清楚。
- 
+
  我的理解是：
  [你的理解]
- 
+
  請確認是否正確。"
 ```
 
@@ -264,11 +264,11 @@ pytest  # 確保沒破壞其他測試
 ```
 格式：
 "在實作 [功能] 時發現問題：
- 
+
  問題：[具體描述]
  影響：[哪些地方受影響]
  建議：[你的建議方案]
- 
+
  是否需要調整設計？"
 ```
 
@@ -280,7 +280,7 @@ pytest  # 確保沒破壞其他測試
 "設計文件沒有提到 [事項]，我應該：
  A. 不實作（留給未來版本）
  B. 實作（理由：...）
- 
+
  請選擇。"
 ```
 
@@ -365,7 +365,7 @@ v0.3 要新增批量回測功能，讓系統可以一次執行多個策略、多
 3. 執行模式：
    - v0.3 使用序列執行（不做平行）
    - 單個失敗不影響其他
-   
+
 4. 報表：
    - 純文字格式
    - 不做 ASCII 圖表
@@ -493,21 +493,21 @@ def process(data):
 ✅ 好：
 def process(data: pd.DataFrame, mode: str = "fast") -> dict:
     """處理資料並回傳統計結果
-    
+
     Args:
         data: OHLCV DataFrame，必須包含 open/high/low/close/volume 欄位
         mode: 處理模式，可選 "fast" 或 "accurate"（預設 "fast"）
-        
+
     Returns:
         包含以下鍵的字典：
         - "mean": 平均值
         - "std": 標準差
         - "count": 資料筆數
-        
+
     Raises:
         ValueError: 如果 data 缺少必要欄位
         ValueError: 如果 mode 不是有效值
-        
+
     Example:
         >>> df = load_ohlcv("BTC.csv")
         >>> result = process(df, mode="fast")
@@ -552,10 +552,10 @@ def test_portfolio_runner_single_backtest():
         initial_cash=10000
     )
     runner = PortfolioRunner()
-    
+
     # Act
     result = runner.run([config])
-    
+
     # Assert
     assert len(result.runs) == 1
     assert result.runs[0].strategy == "simple_sma"
@@ -774,7 +774,7 @@ def test_portfolio_runner_single_backtest():
 class MultiTimeframeData:
     primary_tf: pd.DataFrame
     higher_tfs: Dict[str, pd.DataFrame]
-    
+
     def get_aligned(self, tf: str, bar_index: int) -> pd.Series:
         """獲取對齊後的高週期資料"""
         pass

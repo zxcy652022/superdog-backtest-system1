@@ -11,16 +11,6 @@ Modules:
 Version: v0.5
 """
 
-from .controller import (
-    DataQualityController,
-    QualityCheckResult,
-    QualityIssue,
-    IssueSeverity
-)
+from .controller import DataQualityController, IssueSeverity, QualityCheckResult, QualityIssue
 
-__all__ = [
-    'DataQualityController',
-    'QualityCheckResult',
-    'QualityIssue',
-    'IssueSeverity'
-]
+__all__ = ["DataQualityController", "QualityCheckResult", "QualityIssue", "IssueSeverity"]

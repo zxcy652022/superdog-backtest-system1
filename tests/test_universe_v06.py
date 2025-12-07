@@ -15,33 +15,34 @@ Version: v0.6 Phase 1
 Author: DDragon
 """
 
-import unittest
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from pathlib import Path
-import tempfile
-import shutil
 import json
+import shutil
 
 # 添加項目根目錄到路徑
 import sys
+import tempfile
+import unittest
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data.universe_calculator import (
+    AssetTypeInfo,
+    OIMetrics,
     UniverseCalculator,
     VolumeMetrics,
-    OIMetrics,
-    AssetTypeInfo,
-    calculate_all_metrics
+    calculate_all_metrics,
 )
-
 from data.universe_manager import (
-    UniverseManager,
-    SymbolMetadata,
-    UniverseSnapshot,
     ClassificationRules,
-    get_universe_manager
+    SymbolMetadata,
+    UniverseManager,
+    UniverseSnapshot,
+    get_universe_manager,
 )
 
 
@@ -52,7 +53,7 @@ class TestUniverseCalculator(unittest.TestCase):
         """測試前設置"""
         # 創建臨時數據目錄
         self.temp_dir = tempfile.mkdtemp()
-        self.data_dir = Path(self.temp_dir) / 'data'
+        self.data_dir = Path(self.temp_dir) / "data"
         self.data_dir.mkdir()
 
         # 創建測試數據
@@ -67,41 +68,50 @@ class TestUniverseCalculator(unittest.TestCase):
 
     def _create_test_data(self):
         """創建測試用的OHLCV數據"""
-        dates = pd.date_range('2024-01-01', periods=100, freq='1D')
+        dates = pd.date_range("2024-01-01", periods=100, freq="1D")
 
         # BTC: 高流動性幣種
-        btc_data = pd.DataFrame({
-            'open': 45000 + np.random.randn(100) * 1000,
-            'high': 46000 + np.random.randn(100) * 1000,
-            'low': 44000 + np.random.randn(100) * 1000,
-            'close': 45000 + np.cumsum(np.random.randn(100) * 100),
-            'volume': 50000 + np.random.randn(100) * 5000  # 高成交量
-        }, index=dates)
-        btc_data.to_csv(self.data_dir / 'BTCUSDT_1d.csv')
+        btc_data = pd.DataFrame(
+            {
+                "open": 45000 + np.random.randn(100) * 1000,
+                "high": 46000 + np.random.randn(100) * 1000,
+                "low": 44000 + np.random.randn(100) * 1000,
+                "close": 45000 + np.cumsum(np.random.randn(100) * 100),
+                "volume": 50000 + np.random.randn(100) * 5000,  # 高成交量
+            },
+            index=dates,
+        )
+        btc_data.to_csv(self.data_dir / "BTCUSDT_1d.csv")
 
         # ETH: 中等流動性
-        eth_data = pd.DataFrame({
-            'open': 2500 + np.random.randn(100) * 100,
-            'high': 2600 + np.random.randn(100) * 100,
-            'low': 2400 + np.random.randn(100) * 100,
-            'close': 2500 + np.cumsum(np.random.randn(100) * 10),
-            'volume': 30000 + np.random.randn(100) * 3000
-        }, index=dates)
-        eth_data.to_csv(self.data_dir / 'ETHUSDT_1d.csv')
+        eth_data = pd.DataFrame(
+            {
+                "open": 2500 + np.random.randn(100) * 100,
+                "high": 2600 + np.random.randn(100) * 100,
+                "low": 2400 + np.random.randn(100) * 100,
+                "close": 2500 + np.cumsum(np.random.randn(100) * 10),
+                "volume": 30000 + np.random.randn(100) * 3000,
+            },
+            index=dates,
+        )
+        eth_data.to_csv(self.data_dir / "ETHUSDT_1d.csv")
 
         # 低流動性幣種 (用於測試過濾)
-        low_vol_data = pd.DataFrame({
-            'open': 1 + np.random.randn(100) * 0.1,
-            'high': 1.1 + np.random.randn(100) * 0.1,
-            'low': 0.9 + np.random.randn(100) * 0.1,
-            'close': 1 + np.cumsum(np.random.randn(100) * 0.01),
-            'volume': 100 + np.random.randn(100) * 10  # 低成交量
-        }, index=dates)
-        low_vol_data.to_csv(self.data_dir / 'LOWCOINUSDT_1d.csv')
+        low_vol_data = pd.DataFrame(
+            {
+                "open": 1 + np.random.randn(100) * 0.1,
+                "high": 1.1 + np.random.randn(100) * 0.1,
+                "low": 0.9 + np.random.randn(100) * 0.1,
+                "close": 1 + np.cumsum(np.random.randn(100) * 0.01),
+                "volume": 100 + np.random.randn(100) * 10,  # 低成交量
+            },
+            index=dates,
+        )
+        low_vol_data.to_csv(self.data_dir / "LOWCOINUSDT_1d.csv")
 
     def test_calculate_volume_metrics(self):
         """測試成交額計算"""
-        metrics = self.calculator.calculate_volume_metrics('BTCUSDT', days=30)
+        metrics = self.calculator.calculate_volume_metrics("BTCUSDT", days=30)
 
         self.assertIsInstance(metrics, VolumeMetrics)
         self.assertGreater(metrics.volume_30d_avg, 0)
@@ -114,23 +124,26 @@ class TestUniverseCalculator(unittest.TestCase):
     def test_calculate_volume_metrics_insufficient_data(self):
         """測試數據不足時的行為"""
         # 創建只有3天數據的文件
-        dates = pd.date_range('2024-01-01', periods=3, freq='1D')
-        short_data = pd.DataFrame({
-            'open': [100, 101, 102],
-            'high': [105, 106, 107],
-            'low': [95, 96, 97],
-            'close': [100, 101, 102],
-            'volume': [1000, 1100, 1200]
-        }, index=dates)
-        short_data.to_csv(self.data_dir / 'SHORTUSDT_1d.csv')
+        dates = pd.date_range("2024-01-01", periods=3, freq="1D")
+        short_data = pd.DataFrame(
+            {
+                "open": [100, 101, 102],
+                "high": [105, 106, 107],
+                "low": [95, 96, 97],
+                "close": [100, 101, 102],
+                "volume": [1000, 1100, 1200],
+            },
+            index=dates,
+        )
+        short_data.to_csv(self.data_dir / "SHORTUSDT_1d.csv")
 
         # 應該拋出ValueError
         with self.assertRaises(ValueError):
-            self.calculator.calculate_volume_metrics('SHORTUSDT', days=30)
+            self.calculator.calculate_volume_metrics("SHORTUSDT", days=30)
 
     def test_calculate_history_days(self):
         """測試上市天數計算"""
-        days = self.calculator.calculate_history_days('BTCUSDT')
+        days = self.calculator.calculate_history_days("BTCUSDT")
 
         # 應該約等於100天（我們創建了100天的數據）
         self.assertGreater(days, 0)
@@ -139,7 +152,7 @@ class TestUniverseCalculator(unittest.TestCase):
     def test_calculate_oi_metrics_no_perpetual(self):
         """測試沒有永續合約時的持倉量指標"""
         # 對於沒有永續合約的幣種，應返回零值
-        metrics = self.calculator.calculate_oi_metrics('BTCUSDT', days=30)
+        metrics = self.calculator.calculate_oi_metrics("BTCUSDT", days=30)
 
         self.assertIsInstance(metrics, OIMetrics)
         self.assertEqual(metrics.oi_avg_usd, 0)
@@ -150,7 +163,7 @@ class TestUniverseCalculator(unittest.TestCase):
     def test_detect_asset_type(self):
         """測試資產類型檢測"""
         # BTC
-        btc_info = self.calculator.detect_asset_type('BTCUSDT')
+        btc_info = self.calculator.detect_asset_type("BTCUSDT")
         self.assertIsInstance(btc_info, AssetTypeInfo)
         self.assertFalse(btc_info.is_stablecoin)
         self.assertTrue(btc_info.is_layer1)
@@ -158,47 +171,57 @@ class TestUniverseCalculator(unittest.TestCase):
         self.assertFalse(btc_info.is_meme)
 
         # 穩定幣
-        usdt_info = self.calculator.detect_asset_type('USDTUSDC')
+        usdt_info = self.calculator.detect_asset_type("USDTUSDC")
         self.assertTrue(usdt_info.is_stablecoin)
 
         # DeFi
-        uni_info = self.calculator.detect_asset_type('UNIUSDT')
+        uni_info = self.calculator.detect_asset_type("UNIUSDT")
         self.assertTrue(uni_info.is_defi)
 
         # Meme幣
-        doge_info = self.calculator.detect_asset_type('DOGEUSDT')
+        doge_info = self.calculator.detect_asset_type("DOGEUSDT")
         self.assertTrue(doge_info.is_meme)
 
     def test_get_market_cap_rank(self):
         """測試市值排名獲取"""
         # BTC應該是第1
-        btc_rank = self.calculator.get_market_cap_rank('BTCUSDT')
+        btc_rank = self.calculator.get_market_cap_rank("BTCUSDT")
         self.assertEqual(btc_rank, 1)
 
         # ETH應該是第2
-        eth_rank = self.calculator.get_market_cap_rank('ETHUSDT')
+        eth_rank = self.calculator.get_market_cap_rank("ETHUSDT")
         self.assertEqual(eth_rank, 2)
 
         # 未知幣種應該返回None
-        unknown_rank = self.calculator.get_market_cap_rank('UNKNOWNUSDT')
+        unknown_rank = self.calculator.get_market_cap_rank("UNKNOWNUSDT")
         self.assertIsNone(unknown_rank)
 
     def test_calculate_all_metrics(self):
         """測試一次性計算所有指標"""
-        metrics = calculate_all_metrics('BTCUSDT', days=30, calculator=self.calculator)
+        metrics = calculate_all_metrics("BTCUSDT", days=30, calculator=self.calculator)
 
         # 驗證返回的字典包含所有必需的鍵
         required_keys = [
-            'symbol', 'volume_30d_avg', 'volume_7d_avg', 'history_days',
-            'oi_avg_usd', 'oi_trend', 'is_stablecoin', 'has_perpetual',
-            'is_defi', 'is_layer1', 'is_meme', 'market_cap_rank', 'last_updated'
+            "symbol",
+            "volume_30d_avg",
+            "volume_7d_avg",
+            "history_days",
+            "oi_avg_usd",
+            "oi_trend",
+            "is_stablecoin",
+            "has_perpetual",
+            "is_defi",
+            "is_layer1",
+            "is_meme",
+            "market_cap_rank",
+            "last_updated",
         ]
 
         for key in required_keys:
             self.assertIn(key, metrics)
 
-        self.assertEqual(metrics['symbol'], 'BTCUSDT')
-        self.assertGreater(metrics['volume_30d_avg'], 0)
+        self.assertEqual(metrics["symbol"], "BTCUSDT")
+        self.assertGreater(metrics["volume_30d_avg"], 0)
 
 
 class TestClassificationRules(unittest.TestCase):
@@ -208,7 +231,7 @@ class TestClassificationRules(unittest.TestCase):
         """測試大盤分類"""
         # 高成交額的幣種
         metadata = SymbolMetadata(
-            symbol='BTCUSDT',
+            symbol="BTCUSDT",
             volume_30d_usd=2_000_000_000,  # $2B
             volume_7d_usd=1_500_000_000,
             history_days=1500,
@@ -220,17 +243,17 @@ class TestClassificationRules(unittest.TestCase):
             is_defi=False,
             is_layer1=True,
             is_meme=False,
-            classification='',
-            last_updated=datetime.now().isoformat()
+            classification="",
+            last_updated=datetime.now().isoformat(),
         )
 
         classification = ClassificationRules.classify_by_market_cap(metadata)
-        self.assertEqual(classification, 'large_cap')
+        self.assertEqual(classification, "large_cap")
 
     def test_classify_mid_cap(self):
         """測試中盤分類"""
         metadata = SymbolMetadata(
-            symbol='LINKUSDT',
+            symbol="LINKUSDT",
             volume_30d_usd=200_000_000,  # $200M
             volume_7d_usd=150_000_000,
             history_days=800,
@@ -242,18 +265,18 @@ class TestClassificationRules(unittest.TestCase):
             is_defi=False,
             is_layer1=False,
             is_meme=False,
-            classification='',
-            last_updated=datetime.now().isoformat()
+            classification="",
+            last_updated=datetime.now().isoformat(),
         )
 
         classification = ClassificationRules.classify_by_market_cap(metadata)
-        self.assertEqual(classification, 'mid_cap')
+        self.assertEqual(classification, "mid_cap")
 
     def test_apply_filters(self):
         """測試篩選規則"""
         # 正常幣種（應通過）
         normal_metadata = SymbolMetadata(
-            symbol='ETHUSDT',
+            symbol="ETHUSDT",
             volume_30d_usd=5_000_000,  # $5M
             volume_7d_usd=4_000_000,
             history_days=100,
@@ -265,22 +288,19 @@ class TestClassificationRules(unittest.TestCase):
             is_defi=False,
             is_layer1=True,
             is_meme=False,
-            classification='',
-            last_updated=datetime.now().isoformat()
+            classification="",
+            last_updated=datetime.now().isoformat(),
         )
 
         self.assertTrue(
             ClassificationRules.apply_filters(
-                normal_metadata,
-                exclude_stablecoins=True,
-                min_history_days=90,
-                min_volume=1_000_000
+                normal_metadata, exclude_stablecoins=True, min_history_days=90, min_volume=1_000_000
             )
         )
 
         # 穩定幣（應被過濾）
         stablecoin_metadata = SymbolMetadata(
-            symbol='USDTUSDC',
+            symbol="USDTUSDC",
             volume_30d_usd=10_000_000,
             volume_7d_usd=9_000_000,
             history_days=500,
@@ -292,8 +312,8 @@ class TestClassificationRules(unittest.TestCase):
             is_defi=False,
             is_layer1=False,
             is_meme=False,
-            classification='',
-            last_updated=datetime.now().isoformat()
+            classification="",
+            last_updated=datetime.now().isoformat(),
         )
 
         self.assertFalse(
@@ -301,7 +321,7 @@ class TestClassificationRules(unittest.TestCase):
                 stablecoin_metadata,
                 exclude_stablecoins=True,
                 min_history_days=90,
-                min_volume=1_000_000
+                min_volume=1_000_000,
             )
         )
 
@@ -313,8 +333,8 @@ class TestUniverseManager(unittest.TestCase):
         """測試前設置"""
         # 創建臨時目錄
         self.temp_dir = tempfile.mkdtemp()
-        self.data_dir = Path(self.temp_dir) / 'data'
-        self.universe_dir = Path(self.temp_dir) / 'universe'
+        self.data_dir = Path(self.temp_dir) / "data"
+        self.universe_dir = Path(self.temp_dir) / "universe"
         self.data_dir.mkdir()
         self.universe_dir.mkdir()
 
@@ -323,8 +343,7 @@ class TestUniverseManager(unittest.TestCase):
 
         # 創建管理器實例
         self.manager = UniverseManager(
-            data_dir=str(self.data_dir),
-            universe_dir=str(self.universe_dir)
+            data_dir=str(self.data_dir), universe_dir=str(self.universe_dir)
         )
 
     def tearDown(self):
@@ -333,21 +352,24 @@ class TestUniverseManager(unittest.TestCase):
 
     def _create_test_data(self):
         """創建測試數據"""
-        dates = pd.date_range('2024-01-01', periods=100, freq='1D')
+        dates = pd.date_range("2024-01-01", periods=100, freq="1D")
 
         # 創建3個測試幣種
-        symbols = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT']
+        symbols = ["BTCUSDT", "ETHUSDT", "ADAUSDT"]
         volumes = [50000, 30000, 10000]
 
         for symbol, vol in zip(symbols, volumes):
-            data = pd.DataFrame({
-                'open': 100 + np.random.randn(100) * 10,
-                'high': 110 + np.random.randn(100) * 10,
-                'low': 90 + np.random.randn(100) * 10,
-                'close': 100 + np.cumsum(np.random.randn(100) * 1),
-                'volume': vol + np.random.randn(100) * vol * 0.1
-            }, index=dates)
-            data.to_csv(self.data_dir / f'{symbol}_1d.csv')
+            data = pd.DataFrame(
+                {
+                    "open": 100 + np.random.randn(100) * 10,
+                    "high": 110 + np.random.randn(100) * 10,
+                    "low": 90 + np.random.randn(100) * 10,
+                    "close": 100 + np.cumsum(np.random.randn(100) * 1),
+                    "volume": vol + np.random.randn(100) * vol * 0.1,
+                },
+                index=dates,
+            )
+            data.to_csv(self.data_dir / f"{symbol}_1d.csv")
 
     def test_build_universe(self):
         """測試構建宇宙"""
@@ -355,14 +377,14 @@ class TestUniverseManager(unittest.TestCase):
             exclude_stablecoins=True,
             min_history_days=50,
             min_volume=100_000,
-            parallel=False  # 測試時使用串行
+            parallel=False,  # 測試時使用串行
         )
 
         self.assertIsInstance(universe, UniverseSnapshot)
         self.assertIsNotNone(universe.date)
         self.assertGreater(len(universe.symbols), 0)
-        self.assertIn('classification', universe.__dict__)
-        self.assertIn('statistics', universe.__dict__)
+        self.assertIn("classification", universe.__dict__)
+        self.assertIn("statistics", universe.__dict__)
 
     def test_save_and_load_universe(self):
         """測試保存和加載宇宙快照"""
@@ -387,20 +409,13 @@ class TestUniverseManager(unittest.TestCase):
 
         # 匯出YAML配置
         yaml_path = self.manager.export_config(
-            universe,
-            universe_type='large_cap',
-            top_n=10,
-            format='yaml'
+            universe, universe_type="large_cap", top_n=10, format="yaml"
         )
 
         self.assertTrue(Path(yaml_path).exists())
 
         # 匯出JSON配置
-        json_path = self.manager.export_config(
-            universe,
-            universe_type='mid_cap',
-            format='json'
-        )
+        json_path = self.manager.export_config(universe, universe_type="mid_cap", format="json")
 
         self.assertTrue(Path(json_path).exists())
 
@@ -425,13 +440,13 @@ class TestUniverseManager(unittest.TestCase):
 
         # 應該發現3個幣種
         self.assertEqual(len(symbols), 3)
-        self.assertIn('BTCUSDT', symbols)
-        self.assertIn('ETHUSDT', symbols)
-        self.assertIn('ADAUSDT', symbols)
+        self.assertIn("BTCUSDT", symbols)
+        self.assertIn("ETHUSDT", symbols)
+        self.assertIn("ADAUSDT", symbols)
 
     def test_calculate_parallel_vs_sequential(self):
         """測試並行和串行計算的一致性"""
-        symbols = ['BTCUSDT', 'ETHUSDT']
+        symbols = ["BTCUSDT", "ETHUSDT"]
 
         # 串行計算
         seq_results = self.manager._calculate_sequential(symbols)
@@ -444,16 +459,15 @@ class TestUniverseManager(unittest.TestCase):
         for symbol in symbols:
             if symbol in seq_results and symbol in par_results:
                 self.assertEqual(
-                    seq_results[symbol].volume_30d_usd,
-                    par_results[symbol].volume_30d_usd
+                    seq_results[symbol].volume_30d_usd, par_results[symbol].volume_30d_usd
                 )
 
     def test_classify_symbols(self):
         """測試幣種分類"""
         # 創建測試元數據
         metadata_dict = {
-            'BTC': SymbolMetadata(
-                symbol='BTCUSDT',
+            "BTC": SymbolMetadata(
+                symbol="BTCUSDT",
                 volume_30d_usd=2_000_000_000,
                 volume_7d_usd=1_500_000_000,
                 history_days=1000,
@@ -465,11 +479,11 @@ class TestUniverseManager(unittest.TestCase):
                 is_defi=False,
                 is_layer1=True,
                 is_meme=False,
-                classification='large_cap',
-                last_updated=datetime.now().isoformat()
+                classification="large_cap",
+                last_updated=datetime.now().isoformat(),
             ),
-            'LINK': SymbolMetadata(
-                symbol='LINKUSDT',
+            "LINK": SymbolMetadata(
+                symbol="LINKUSDT",
                 volume_30d_usd=150_000_000,
                 volume_7d_usd=120_000_000,
                 history_days=500,
@@ -481,34 +495,34 @@ class TestUniverseManager(unittest.TestCase):
                 is_defi=False,
                 is_layer1=False,
                 is_meme=False,
-                classification='mid_cap',
-                last_updated=datetime.now().isoformat()
-            )
+                classification="mid_cap",
+                last_updated=datetime.now().isoformat(),
+            ),
         }
 
         classification = self.manager._classify_symbols(metadata_dict)
 
-        self.assertIn('large_cap', classification)
-        self.assertIn('mid_cap', classification)
-        self.assertEqual(len(classification['large_cap']), 1)
-        self.assertEqual(len(classification['mid_cap']), 1)
+        self.assertIn("large_cap", classification)
+        self.assertIn("mid_cap", classification)
+        self.assertEqual(len(classification["large_cap"]), 1)
+        self.assertEqual(len(classification["mid_cap"]), 1)
 
     def test_calculate_statistics(self):
         """測試統計計算"""
         classification = {
-            'large_cap': ['BTC', 'ETH'],
-            'mid_cap': ['LINK', 'UNI', 'AAVE'],
-            'small_cap': ['ABC', 'DEF'],
-            'micro_cap': ['XYZ']
+            "large_cap": ["BTC", "ETH"],
+            "mid_cap": ["LINK", "UNI", "AAVE"],
+            "small_cap": ["ABC", "DEF"],
+            "micro_cap": ["XYZ"],
         }
 
         stats = self.manager._calculate_statistics(classification)
 
-        self.assertEqual(stats['total'], 8)
-        self.assertEqual(stats['large_cap'], 2)
-        self.assertEqual(stats['mid_cap'], 3)
-        self.assertEqual(stats['small_cap'], 2)
-        self.assertEqual(stats['micro_cap'], 1)
+        self.assertEqual(stats["total"], 8)
+        self.assertEqual(stats["large_cap"], 2)
+        self.assertEqual(stats["mid_cap"], 3)
+        self.assertEqual(stats["small_cap"], 2)
+        self.assertEqual(stats["micro_cap"], 1)
 
 
 class TestIntegration(unittest.TestCase):
@@ -517,8 +531,8 @@ class TestIntegration(unittest.TestCase):
     def setUp(self):
         """測試前設置"""
         self.temp_dir = tempfile.mkdtemp()
-        self.data_dir = Path(self.temp_dir) / 'data'
-        self.universe_dir = Path(self.temp_dir) / 'universe'
+        self.data_dir = Path(self.temp_dir) / "data"
+        self.universe_dir = Path(self.temp_dir) / "universe"
         self.data_dir.mkdir()
 
         self._create_realistic_data()
@@ -529,56 +543,61 @@ class TestIntegration(unittest.TestCase):
 
     def _create_realistic_data(self):
         """創建接近真實的測試數據"""
-        dates = pd.date_range('2024-01-01', periods=100, freq='1D')
+        dates = pd.date_range("2024-01-01", periods=100, freq="1D")
 
         # 大盤幣種: BTC
-        btc_data = pd.DataFrame({
-            'open': 45000 + np.cumsum(np.random.randn(100) * 100),
-            'high': 46000 + np.cumsum(np.random.randn(100) * 100),
-            'low': 44000 + np.cumsum(np.random.randn(100) * 100),
-            'close': 45000 + np.cumsum(np.random.randn(100) * 100),
-            'volume': 50000 + np.random.randn(100) * 5000  # 高成交量
-        }, index=dates)
-        btc_data.to_csv(self.data_dir / 'BTCUSDT_1d.csv')
+        btc_data = pd.DataFrame(
+            {
+                "open": 45000 + np.cumsum(np.random.randn(100) * 100),
+                "high": 46000 + np.cumsum(np.random.randn(100) * 100),
+                "low": 44000 + np.cumsum(np.random.randn(100) * 100),
+                "close": 45000 + np.cumsum(np.random.randn(100) * 100),
+                "volume": 50000 + np.random.randn(100) * 5000,  # 高成交量
+            },
+            index=dates,
+        )
+        btc_data.to_csv(self.data_dir / "BTCUSDT_1d.csv")
 
         # 中盤幣種: LINK
-        link_data = pd.DataFrame({
-            'open': 15 + np.cumsum(np.random.randn(100) * 0.5),
-            'high': 15.5 + np.cumsum(np.random.randn(100) * 0.5),
-            'low': 14.5 + np.cumsum(np.random.randn(100) * 0.5),
-            'close': 15 + np.cumsum(np.random.randn(100) * 0.5),
-            'volume': 5000 + np.random.randn(100) * 500
-        }, index=dates)
-        link_data.to_csv(self.data_dir / 'LINKUSDT_1d.csv')
+        link_data = pd.DataFrame(
+            {
+                "open": 15 + np.cumsum(np.random.randn(100) * 0.5),
+                "high": 15.5 + np.cumsum(np.random.randn(100) * 0.5),
+                "low": 14.5 + np.cumsum(np.random.randn(100) * 0.5),
+                "close": 15 + np.cumsum(np.random.randn(100) * 0.5),
+                "volume": 5000 + np.random.randn(100) * 500,
+            },
+            index=dates,
+        )
+        link_data.to_csv(self.data_dir / "LINKUSDT_1d.csv")
 
         # 小盤幣種: LOW
-        low_data = pd.DataFrame({
-            'open': 0.5 + np.cumsum(np.random.randn(100) * 0.01),
-            'high': 0.55 + np.cumsum(np.random.randn(100) * 0.01),
-            'low': 0.45 + np.cumsum(np.random.randn(100) * 0.01),
-            'close': 0.5 + np.cumsum(np.random.randn(100) * 0.01),
-            'volume': 200 + np.random.randn(100) * 20
-        }, index=dates)
-        low_data.to_csv(self.data_dir / 'LOWUSDT_1d.csv')
+        low_data = pd.DataFrame(
+            {
+                "open": 0.5 + np.cumsum(np.random.randn(100) * 0.01),
+                "high": 0.55 + np.cumsum(np.random.randn(100) * 0.01),
+                "low": 0.45 + np.cumsum(np.random.randn(100) * 0.01),
+                "close": 0.5 + np.cumsum(np.random.randn(100) * 0.01),
+                "volume": 200 + np.random.randn(100) * 20,
+            },
+            index=dates,
+        )
+        low_data.to_csv(self.data_dir / "LOWUSDT_1d.csv")
 
     def test_full_workflow(self):
         """測試完整工作流程"""
         # 1. 創建管理器
         manager = get_universe_manager(
-            data_dir=str(self.data_dir),
-            universe_dir=str(self.universe_dir)
+            data_dir=str(self.data_dir), universe_dir=str(self.universe_dir)
         )
 
         # 2. 構建宇宙
         universe = manager.build_universe(
-            exclude_stablecoins=True,
-            min_history_days=50,
-            min_volume=10_000,
-            parallel=False
+            exclude_stablecoins=True, min_history_days=50, min_volume=10_000, parallel=False
         )
 
         # 驗證構建結果
-        self.assertGreater(universe.statistics['total'], 0)
+        self.assertGreater(universe.statistics["total"], 0)
 
         # 3. 保存快照
         save_path = manager.save_universe(universe)
@@ -589,12 +608,10 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(loaded.date, universe.date)
 
         # 5. 匯出配置
-        for universe_type in ['large_cap', 'mid_cap', 'small_cap']:
+        for universe_type in ["large_cap", "mid_cap", "small_cap"]:
             if universe.statistics.get(universe_type, 0) > 0:
                 config_path = manager.export_config(
-                    universe,
-                    universe_type=universe_type,
-                    format='json'
+                    universe, universe_type=universe_type, format="json"
                 )
                 self.assertTrue(Path(config_path).exists())
 
@@ -603,8 +620,7 @@ class TestIntegration(unittest.TestCase):
         import time
 
         manager = get_universe_manager(
-            data_dir=str(self.data_dir),
-            universe_dir=str(self.universe_dir)
+            data_dir=str(self.data_dir), universe_dir=str(self.universe_dir)
         )
 
         # 測試構建時間（3個幣種應該很快）
@@ -624,6 +640,6 @@ class TestIntegration(unittest.TestCase):
         self.assertLess(elapsed, 1.0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 運行測試
     unittest.main(verbosity=2)

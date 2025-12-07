@@ -11,18 +11,17 @@ v0.3 新增：
 Design Reference: docs/specs/planned/v0.3_text_reporter_spec.md
 """
 
-from typing import Optional, List
-import pandas as pd
+from typing import List, Optional
+
 import numpy as np
+import pandas as pd
 
 from backtest.engine import BacktestResult
-from execution_engine.portfolio_runner import RunConfig, PortfolioResult
+from execution_engine.portfolio_runner import PortfolioResult, RunConfig
 
 
 def render_single(
-    result: BacktestResult,
-    config: Optional[RunConfig] = None,
-    show_recent_trades: int = 5
+    result: BacktestResult, config: Optional[RunConfig] = None, show_recent_trades: int = 5
 ) -> str:
     """
     生成單策略詳細報表
@@ -75,8 +74,8 @@ def render_single(
 
     # === TRADE STATISTICS ===
     lines.append("TRADE STATISTICS")
-    num_trades = int(metrics.get('num_trades', 0))
-    win_rate = metrics.get('win_rate', 0.0)
+    num_trades = int(metrics.get("num_trades", 0))
+    win_rate = metrics.get("win_rate", 0.0)
     win_trades = int(round(num_trades * win_rate))
     lose_trades = num_trades - win_trades
 
@@ -103,12 +102,16 @@ def render_single(
         total_trades = len(result.trade_log)
 
         for idx, (_, row) in enumerate(trade_log.iterrows(), 1):
-            entry_time = row['entry_time'].strftime("%Y-%m-%d") if pd.notna(row['entry_time']) else "N/A"
-            exit_time = row['exit_time'].strftime("%Y-%m-%d") if pd.notna(row['exit_time']) else "N/A"
-            entry_price = row.get('entry_price', 0)
-            exit_price = row.get('exit_price', 0)
-            pnl_pct = row.get('pnl_pct', 0)
-            exit_reason = _format_exit_reason(str(row.get('exit_reason', '')))
+            entry_time = (
+                row["entry_time"].strftime("%Y-%m-%d") if pd.notna(row["entry_time"]) else "N/A"
+            )
+            exit_time = (
+                row["exit_time"].strftime("%Y-%m-%d") if pd.notna(row["exit_time"]) else "N/A"
+            )
+            entry_price = row.get("entry_price", 0)
+            exit_price = row.get("exit_price", 0)
+            pnl_pct = row.get("pnl_pct", 0)
+            exit_reason = _format_exit_reason(str(row.get("exit_reason", "")))
 
             trade_index = total_trades - len(trade_log) + idx
             line = (
@@ -136,7 +139,7 @@ def render_portfolio(
     portfolio_result: PortfolioResult,
     sort_by: str = "total_return",
     show_failed: bool = True,
-    top_n: Optional[int] = None
+    top_n: Optional[int] = None,
 ) -> str:
     """
     生成多策略對比排行表
@@ -215,11 +218,7 @@ def render_portfolio(
 
 def _format_exit_reason(reason: str) -> str:
     """格式化退出原因"""
-    mapping = {
-        "stop_loss": "SL",
-        "take_profit": "TP",
-        "strategy_signal": "Signal"
-    }
+    mapping = {"stop_loss": "SL", "take_profit": "TP", "strategy_signal": "Signal"}
     return mapping.get(reason, reason)
 
 
@@ -232,8 +231,8 @@ def _generate_assessment(metrics: dict) -> list:
     """
     lines: List[str] = []
 
-    wl_ratio = metrics.get('win_loss_ratio', 0) or 0
-    max_dd = abs(metrics.get('max_drawdown', 0) or 0)
+    wl_ratio = metrics.get("win_loss_ratio", 0) or 0
+    max_dd = abs(metrics.get("max_drawdown", 0) or 0)
 
     if wl_ratio > 1.5 and max_dd < 0.1:
         rr = "Good (W/L Ratio > 1.5, Max DD < 10%)"
@@ -243,7 +242,7 @@ def _generate_assessment(metrics: dict) -> list:
         rr = "Poor (Low W/L Ratio or High DD)"
     lines.append(f"Risk-Reward: {rr}")
 
-    num_trades = metrics.get('num_trades', 0) or 0
+    num_trades = metrics.get("num_trades", 0) or 0
     if num_trades > 50:
         freq = f"High ({num_trades} trades)"
     elif num_trades > 20:
@@ -252,7 +251,7 @@ def _generate_assessment(metrics: dict) -> list:
         freq = f"Low ({num_trades} trades)"
     lines.append(f"Trade Frequency: {freq}")
 
-    win_rate = metrics.get('win_rate', 0.0) or 0.0
+    win_rate = metrics.get("win_rate", 0.0) or 0.0
     if win_rate > 0.6:
         cons = f"Good ({win_rate:.2%} win rate)"
     elif win_rate > 0.5:
@@ -280,33 +279,39 @@ def _render_table(df: pd.DataFrame) -> str:
         "profit_factor": 6,
         "num_trades": 8,
         "win_rate": 9,
-        "status": 8
+        "status": 8,
     }
 
     header = "┌" + "┬".join("─" * col_widths[col] for col in col_widths.keys()) + "┐"
-    col_names = "│ " + " │ ".join([
-        "#".ljust(col_widths["#"]),
-        "Strategy".ljust(col_widths["strategy"]),
-        "Symbol".ljust(col_widths["symbol"]),
-        "TF".ljust(col_widths["timeframe"]),
-        "Total Return".rjust(col_widths["total_return"]),
-        "Max DD".rjust(col_widths["max_drawdown"]),
-        "PF".rjust(col_widths["profit_factor"]),
-        "Trades".rjust(col_widths["num_trades"]),
-        "Win%".rjust(col_widths["win_rate"]),
-        "Status".rjust(col_widths["status"])
-    ]) + " │"
+    col_names = (
+        "│ "
+        + " │ ".join(
+            [
+                "#".ljust(col_widths["#"]),
+                "Strategy".ljust(col_widths["strategy"]),
+                "Symbol".ljust(col_widths["symbol"]),
+                "TF".ljust(col_widths["timeframe"]),
+                "Total Return".rjust(col_widths["total_return"]),
+                "Max DD".rjust(col_widths["max_drawdown"]),
+                "PF".rjust(col_widths["profit_factor"]),
+                "Trades".rjust(col_widths["num_trades"]),
+                "Win%".rjust(col_widths["win_rate"]),
+                "Status".rjust(col_widths["status"]),
+            ]
+        )
+        + " │"
+    )
     separator = "├" + "┼".join("─" * col_widths[col] for col in col_widths.keys()) + "┤"
 
     rows: List[str] = []
     for idx, (_, row) in enumerate(df.iterrows(), 1):
-        status = row.get('status', "")
+        status = row.get("status", "")
         if status == "✓":
-            total_return = _fmt_pct(row.get('total_return'))
-            max_dd = _fmt_pct(row.get('max_drawdown'))
-            pf = _fmt_profit_factor(row.get('profit_factor'))
-            trades = _fmt_int(row.get('num_trades'))
-            win_rate = _fmt_pct(row.get('win_rate'))
+            total_return = _fmt_pct(row.get("total_return"))
+            max_dd = _fmt_pct(row.get("max_drawdown"))
+            pf = _fmt_profit_factor(row.get("profit_factor"))
+            trades = _fmt_int(row.get("num_trades"))
+            win_rate = _fmt_pct(row.get("win_rate"))
         else:
             total_return = "N/A"
             max_dd = "N/A"
@@ -314,18 +319,24 @@ def _render_table(df: pd.DataFrame) -> str:
             trades = "N/A"
             win_rate = "N/A"
 
-        row_str = "│ " + " │ ".join([
-            str(idx).ljust(col_widths["#"]),
-            str(row.get('strategy', ''))[:16].ljust(col_widths["strategy"]),
-            str(row.get('symbol', ''))[:7].ljust(col_widths["symbol"]),
-            str(row.get('timeframe', '')).ljust(col_widths["timeframe"]),
-            total_return.rjust(col_widths["total_return"]),
-            max_dd.rjust(col_widths["max_drawdown"]),
-            pf.rjust(col_widths["profit_factor"]),
-            str(trades).rjust(col_widths["num_trades"]),
-            win_rate.rjust(col_widths["win_rate"]),
-            str(status).rjust(col_widths["status"])
-        ]) + " │"
+        row_str = (
+            "│ "
+            + " │ ".join(
+                [
+                    str(idx).ljust(col_widths["#"]),
+                    str(row.get("strategy", ""))[:16].ljust(col_widths["strategy"]),
+                    str(row.get("symbol", ""))[:7].ljust(col_widths["symbol"]),
+                    str(row.get("timeframe", "")).ljust(col_widths["timeframe"]),
+                    total_return.rjust(col_widths["total_return"]),
+                    max_dd.rjust(col_widths["max_drawdown"]),
+                    pf.rjust(col_widths["profit_factor"]),
+                    str(trades).rjust(col_widths["num_trades"]),
+                    win_rate.rjust(col_widths["win_rate"]),
+                    str(status).rjust(col_widths["status"]),
+                ]
+            )
+            + " │"
+        )
         rows.append(row_str)
 
     footer = "└" + "┴".join("─" * col_widths[col] for col in col_widths.keys()) + "┘"
@@ -351,7 +362,7 @@ def _fmt_number(value) -> str:
     """格式化數字"""
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return "N/A"
-    if value == float('inf'):
+    if value == float("inf"):
         return "∞"
     return f"{value:.2f}"
 

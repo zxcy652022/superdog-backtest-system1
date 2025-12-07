@@ -12,26 +12,26 @@ Version: v0.4
 """
 
 import unittest
-import pandas as pd
-import numpy as np
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from cli.dynamic_params import DynamicCLI
+from cli.parameter_validator import BacktestConfigValidator, ParameterValidator
+from data.pipeline import DataPipeline, get_pipeline
+from data.storage import OHLCVStorage
+from data.symbol_manager import get_top_symbols, validate_symbol
+from data.timeframe_manager import get_timeframe_manager
+from strategies.dependency_checker import check_strategy_dependencies
+from strategies.kawamoku_demo import KawamokuStrategy
+from strategies.metadata import get_metadata_manager
+from strategies.registry import get_strategy, list_strategies
+from strategies.registry_v2 import get_registry
 
 # v0.4 Components
 from strategies.simple_sma_v2 import SimpleSMAStrategyV2
-from strategies.kawamoku_demo import KawamokuStrategy
-from strategies.registry import get_strategy, list_strategies
-from strategies.registry_v2 import get_registry
-from strategies.dependency_checker import check_strategy_dependencies
-from strategies.metadata import get_metadata_manager
-
-from data.pipeline import DataPipeline, get_pipeline
-from data.symbol_manager import get_top_symbols, validate_symbol
-from data.timeframe_manager import get_timeframe_manager
-from data.storage import OHLCVStorage
-
-from cli.parameter_validator import ParameterValidator, BacktestConfigValidator
-from cli.dynamic_params import DynamicCLI
 
 
 class TestE2EStrategyWorkflow(unittest.TestCase):
@@ -61,8 +61,8 @@ class TestE2EStrategyWorkflow(unittest.TestCase):
         # 2. 檢查元數據（返回字典）
         metadata_dict = strategy.get_metadata()
         self.assertIsNotNone(metadata_dict)
-        self.assertEqual(metadata_dict['name'], "SimpleSMA")
-        self.assertEqual(metadata_dict['version'], "2.0")
+        self.assertEqual(metadata_dict["name"], "SimpleSMA")
+        self.assertEqual(metadata_dict["version"], "2.0")
 
         # 3. 檢查參數
         params = strategy.get_parameters()
@@ -100,8 +100,8 @@ class TestE2EStrategyWorkflow(unittest.TestCase):
         params = strategy.get_parameters()
 
         # Validate that each param spec can validate values
-        short_spec = params['short_window']
-        long_spec = params['long_window']
+        short_spec = params["short_window"]
+        long_spec = params["long_window"]
 
         # Valid values should pass
         try:
@@ -185,28 +185,28 @@ class TestE2EBacktestWorkflow(unittest.TestCase):
     def test_create_mock_data_and_run_strategy(self):
         """測試使用模擬數據運行策略"""
         # 1. 創建模擬 OHLCV 數據
-        dates = pd.date_range(start='2023-01-01', periods=100, freq='1h')
-        mock_data = pd.DataFrame({
-            'open': np.random.randn(100).cumsum() + 50000,
-            'high': np.random.randn(100).cumsum() + 50100,
-            'low': np.random.randn(100).cumsum() + 49900,
-            'close': np.random.randn(100).cumsum() + 50000,
-            'volume': np.random.randint(1000, 10000, 100)
-        }, index=dates)
+        dates = pd.date_range(start="2023-01-01", periods=100, freq="1h")
+        mock_data = pd.DataFrame(
+            {
+                "open": np.random.randn(100).cumsum() + 50000,
+                "high": np.random.randn(100).cumsum() + 50100,
+                "low": np.random.randn(100).cumsum() + 49900,
+                "close": np.random.randn(100).cumsum() + 50000,
+                "volume": np.random.randint(1000, 10000, 100),
+            },
+            index=dates,
+        )
 
         # 確保 high >= low
-        mock_data['high'] = mock_data[['open', 'close']].max(axis=1) + 100
-        mock_data['low'] = mock_data[['open', 'close']].min(axis=1) - 100
+        mock_data["high"] = mock_data[["open", "close"]].max(axis=1) + 100
+        mock_data["low"] = mock_data[["open", "close"]].min(axis=1) - 100
 
         # 2. 創建策略並生成信號
         strategy = SimpleSMAStrategyV2()
-        params = {
-            'short_window': 10,
-            'long_window': 20
-        }
+        params = {"short_window": 10, "long_window": 20}
 
         # 3. 計算信號
-        data_dict = {'ohlcv': mock_data}
+        data_dict = {"ohlcv": mock_data}
         signals = strategy.compute_signals(data_dict, params)
 
         # 4. 驗證信號
@@ -230,28 +230,30 @@ class TestE2EBacktestWorkflow(unittest.TestCase):
     def test_kawamoku_strategy_with_mock_data(self):
         """測試 Kawamoku 策略使用模擬數據"""
         # 1. 創建模擬數據
-        dates = pd.date_range(start='2023-01-01', periods=200, freq='1h')
-        mock_data = pd.DataFrame({
-            'open': np.random.randn(200).cumsum() + 50000,
-            'high': np.random.randn(200).cumsum() + 50100,
-            'low': np.random.randn(200).cumsum() + 49900,
-            'close': np.random.randn(200).cumsum() + 50000,
-            'volume': np.random.randint(1000, 10000, 200)
-        }, index=dates)
+        dates = pd.date_range(start="2023-01-01", periods=200, freq="1h")
+        mock_data = pd.DataFrame(
+            {
+                "open": np.random.randn(200).cumsum() + 50000,
+                "high": np.random.randn(200).cumsum() + 50100,
+                "low": np.random.randn(200).cumsum() + 49900,
+                "close": np.random.randn(200).cumsum() + 50000,
+                "volume": np.random.randint(1000, 10000, 200),
+            },
+            index=dates,
+        )
 
         # 確保 high >= low
-        mock_data['high'] = mock_data[['open', 'close']].max(axis=1) + 100
-        mock_data['low'] = mock_data[['open', 'close']].min(axis=1) - 100
+        mock_data["high"] = mock_data[["open", "close"]].max(axis=1) + 100
+        mock_data["low"] = mock_data[["open", "close"]].min(axis=1) - 100
 
         # 2. 創建 Kawamoku 策略
         strategy = KawamokuStrategy()
 
         # 3. 使用默認參數
-        params = {param: spec.default_value
-                  for param, spec in strategy.get_parameters().items()}
+        params = {param: spec.default_value for param, spec in strategy.get_parameters().items()}
 
         # 4. 生成信號
-        data_dict = {'ohlcv': mock_data}
+        data_dict = {"ohlcv": mock_data}
         signals = strategy.compute_signals(data_dict, params)
 
         # 5. 驗證
@@ -275,8 +277,8 @@ class TestE2ECLIIntegration(unittest.TestCase):
         options = cli.generate_strategy_options(strategy)
 
         # 2. 驗證
-        self.assertIn('short_window', options)
-        self.assertIn('long_window', options)
+        self.assertIn("short_window", options)
+        self.assertIn("long_window", options)
 
         print(f"✓ 動態 CLI 參數生成成功")
         print(f"  生成的選項: {list(options.keys())}")
@@ -288,12 +290,12 @@ class TestE2ECLIIntegration(unittest.TestCase):
         from data.timeframe_manager import get_timeframe_manager
 
         # 1. Valid config
-        self.assertTrue(validate_symbol('BTCUSDT'))
-        self.assertTrue(get_timeframe_manager().validate_timeframe('1h'))
+        self.assertTrue(validate_symbol("BTCUSDT"))
+        self.assertTrue(get_timeframe_manager().validate_timeframe("1h"))
 
         # 2. Invalid config
-        self.assertFalse(validate_symbol('INVALID'))
-        self.assertFalse(get_timeframe_manager().validate_timeframe('2h'))
+        self.assertFalse(validate_symbol("INVALID"))
+        self.assertFalse(get_timeframe_manager().validate_timeframe("2h"))
 
         print(f"✓ 回測配置驗證測試通過")
 
@@ -308,6 +310,7 @@ class TestE2EBackwardCompatibility(unittest.TestCase):
 
         # 2. 驗證是 v0.3 策略
         from backtest.engine import BaseStrategy as V03BaseStrategy
+
         self.assertTrue(issubclass(StrategyClass, V03BaseStrategy))
 
         print(f"✓ v0.3 策略向後兼容性測試通過")
@@ -317,11 +320,12 @@ class TestE2EBackwardCompatibility(unittest.TestCase):
         strategies = list_strategies()
 
         # v2.0 策略應該存在
-        self.assertIn("simplesma", strategies)   # v2.0
-        self.assertIn("kawamoku", strategies)    # v2.0
+        self.assertIn("simplesma", strategies)  # v2.0
+        self.assertIn("kawamoku", strategies)  # v2.0
 
         # v0.3 策略可以通過手動註冊表訪問
         from strategies.registry import STRATEGY_REGISTRY
+
         self.assertIn("simple_sma", STRATEGY_REGISTRY)  # v0.3
 
         print(f"✓ v2.0 和 v0.3 策略共存測試通過")
@@ -359,7 +363,8 @@ def run_all_e2e_tests():
     return result.wasSuccessful()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     success = run_all_e2e_tests()
     sys.exit(0 if success else 1)

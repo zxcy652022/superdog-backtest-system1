@@ -14,8 +14,9 @@ Design Reference: docs/specs/v0.6/superdog_v06_execution_model_spec.md
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional
 from enum import Enum
+from typing import Dict, Optional
+
 import numpy as np
 
 from .fee_models import OrderType
@@ -23,18 +24,20 @@ from .fee_models import OrderType
 
 class SlippageModelType(Enum):
     """滑價模型類型"""
-    FIXED = "fixed"               # 固定滑價
-    ADAPTIVE = "adaptive"         # 自適應滑價
+
+    FIXED = "fixed"  # 固定滑價
+    ADAPTIVE = "adaptive"  # 自適應滑價
     VOLUME_WEIGHTED = "volume_weighted"  # 成交量加權
     VOLATILITY_ADJUSTED = "volatility_adjusted"  # 波動率調整
 
 
 class SymbolTier(Enum):
     """幣種分級（對應 Universe Manager）"""
-    LARGE_CAP = "large_cap"       # 大盤
-    MID_CAP = "mid_cap"           # 中盤
-    SMALL_CAP = "small_cap"       # 小盤
-    MICRO_CAP = "micro_cap"       # 微盤
+
+    LARGE_CAP = "large_cap"  # 大盤
+    MID_CAP = "mid_cap"  # 中盤
+    SMALL_CAP = "small_cap"  # 小盤
+    MICRO_CAP = "micro_cap"  # 微盤
 
 
 @dataclass
@@ -51,9 +54,9 @@ class SlippageConfig:
     max_slippage: float = 0.01  # 1%
 
     # 訂單大小閾值（相對於平均成交量）
-    small_order_threshold: float = 0.01    # 1%
-    medium_order_threshold: float = 0.05   # 5%
-    large_order_threshold: float = 0.10    # 10%
+    small_order_threshold: float = 0.01  # 1%
+    medium_order_threshold: float = 0.05  # 5%
+    large_order_threshold: float = 0.10  # 10%
 
     # 波動率影響係數
     volatility_multiplier: float = 2.0
@@ -63,22 +66,23 @@ class SlippageConfig:
         if self.base_slippage is None:
             # Binance 實際觀察的滑價水平（bps）
             self.base_slippage = {
-                SymbolTier.LARGE_CAP.value: 0.0001,    # 0.01% - BTC, ETH
-                SymbolTier.MID_CAP.value: 0.0003,      # 0.03% - Top 50
-                SymbolTier.SMALL_CAP.value: 0.0008,    # 0.08% - Top 200
-                SymbolTier.MICRO_CAP.value: 0.002,     # 0.2%  - 其他
+                SymbolTier.LARGE_CAP.value: 0.0001,  # 0.01% - BTC, ETH
+                SymbolTier.MID_CAP.value: 0.0003,  # 0.03% - Top 50
+                SymbolTier.SMALL_CAP.value: 0.0008,  # 0.08% - Top 200
+                SymbolTier.MICRO_CAP.value: 0.002,  # 0.2%  - 其他
             }
 
 
 @dataclass
 class SlippageResult:
     """滑價計算結果"""
-    slippage_rate: float           # 滑價率
-    slippage_cost: float           # 滑價成本（絕對值）
-    base_slippage: float           # 基礎滑價
-    size_impact: float             # 訂單大小影響
-    volatility_impact: float       # 波動率影響
-    model_type: str                # 使用的模型類型
+
+    slippage_rate: float  # 滑價率
+    slippage_cost: float  # 滑價成本（絕對值）
+    base_slippage: float  # 基礎滑價
+    size_impact: float  # 訂單大小影響
+    volatility_impact: float  # 波動率影響
+    model_type: str  # 使用的模型類型
 
 
 class SlippageModel:
@@ -103,7 +107,7 @@ class SlippageModel:
     def __init__(
         self,
         model_type: SlippageModelType = SlippageModelType.ADAPTIVE,
-        config: Optional[SlippageConfig] = None
+        config: Optional[SlippageConfig] = None,
     ):
         """初始化滑價模型
 
@@ -126,7 +130,7 @@ class SlippageModel:
         volatility: float,
         symbol_tier: SymbolTier,
         order_type: OrderType = OrderType.MARKET,
-        market_condition: str = 'normal'
+        market_condition: str = "normal",
     ) -> SlippageResult:
         """計算訂單滑價
 
@@ -161,7 +165,7 @@ class SlippageModel:
                 base_slippage=0.0,
                 size_impact=0.0,
                 volatility_impact=0.0,
-                model_type=self.model_type.value
+                model_type=self.model_type.value,
             )
 
         # 根據模型類型計算滑價
@@ -176,9 +180,7 @@ class SlippageModel:
                 order_value, avg_volume_24h, symbol_tier
             )
         else:  # VOLATILITY_ADJUSTED
-            slippage_rate = self._calculate_volatility_adjusted_slippage(
-                volatility, symbol_tier
-            )
+            slippage_rate = self._calculate_volatility_adjusted_slippage(volatility, symbol_tier)
 
         # 計算滑價成本
         slippage_cost = order_value * slippage_rate
@@ -199,7 +201,7 @@ class SlippageModel:
             base_slippage=base_slip,
             size_impact=size_impact,
             volatility_impact=volatility_impact,
-            model_type=self.model_type.value
+            model_type=self.model_type.value,
         )
 
     def _calculate_fixed_slippage(self, symbol_tier: SymbolTier) -> float:
@@ -221,7 +223,7 @@ class SlippageModel:
         avg_volume: float,
         volatility: float,
         symbol_tier: SymbolTier,
-        market_condition: str
+        market_condition: str,
     ) -> float:
         """自適應滑價模型
 
@@ -251,10 +253,10 @@ class SlippageModel:
 
         # 市場狀況調整
         market_multiplier = {
-            'normal': 1.0,
-            'volatile': 1.5,
-            'illiquid': 2.0,
-            'flash_crash': 3.0
+            "normal": 1.0,
+            "volatile": 1.5,
+            "illiquid": 2.0,
+            "flash_crash": 3.0,
         }.get(market_condition, 1.0)
 
         # 綜合滑價
@@ -283,16 +285,15 @@ class SlippageModel:
             return base + excess * 0.1
         else:
             # 大訂單: 平方根影響（市場影響模型）
-            base = self.config.small_order_threshold * 0.05 + \
-                   (self.config.medium_order_threshold - self.config.small_order_threshold) * 0.1
+            base = (
+                self.config.small_order_threshold * 0.05
+                + (self.config.medium_order_threshold - self.config.small_order_threshold) * 0.1
+            )
             excess = volume_ratio - self.config.medium_order_threshold
             return base + np.sqrt(excess) * 0.15
 
     def _calculate_volume_weighted_slippage(
-        self,
-        order_value: float,
-        avg_volume: float,
-        symbol_tier: SymbolTier
+        self, order_value: float, avg_volume: float, symbol_tier: SymbolTier
     ) -> float:
         """成交量加權滑價模型
 
@@ -318,9 +319,7 @@ class SlippageModel:
             return base_slip * (1 + np.log(volume_ratio * 20))
 
     def _calculate_volatility_adjusted_slippage(
-        self,
-        volatility: float,
-        symbol_tier: SymbolTier
+        self, volatility: float, symbol_tier: SymbolTier
     ) -> float:
         """波動率調整滑價模型
 
@@ -341,10 +340,7 @@ class SlippageModel:
         return base_slip * min(vol_multiplier, 5.0)  # 最大5倍
 
     def estimate_execution_price(
-        self,
-        reference_price: float,
-        slippage_result: SlippageResult,
-        side: str  # 'buy' or 'sell'
+        self, reference_price: float, slippage_result: SlippageResult, side: str  # 'buy' or 'sell'
     ) -> float:
         """估算實際成交價格
 
@@ -365,7 +361,7 @@ class SlippageModel:
             >>> execution_price
             50006.0  # 50000 * (1 + 0.00012)
         """
-        if side == 'buy':
+        if side == "buy":
             # 買入: 價格更高（不利）
             return reference_price * (1 + slippage_result.slippage_rate)
         else:  # sell
@@ -379,12 +375,11 @@ class SlippageModel:
             Dict: 統計信息
         """
         return {
-            'total_slippage_cost': self.total_slippage_cost,
-            'slippage_count': self.slippage_count,
-            'avg_slippage_cost': (
-                self.total_slippage_cost / self.slippage_count
-                if self.slippage_count > 0 else 0
-            )
+            "total_slippage_cost": self.total_slippage_cost,
+            "slippage_count": self.slippage_count,
+            "avg_slippage_cost": (
+                self.total_slippage_cost / self.slippage_count if self.slippage_count > 0 else 0
+            ),
         }
 
     def reset_statistics(self):
@@ -395,10 +390,8 @@ class SlippageModel:
 
 # ===== 便捷函數 =====
 
-def calculate_simple_slippage(
-    order_value: float,
-    slippage_rate: float = 0.0005
-) -> float:
+
+def calculate_simple_slippage(order_value: float, slippage_rate: float = 0.0005) -> float:
     """簡化的滑價計算
 
     Args:
@@ -416,8 +409,7 @@ def calculate_simple_slippage(
 
 
 def get_recommended_model_for_strategy(
-    trading_frequency: str,
-    avg_order_size_ratio: float
+    trading_frequency: str, avg_order_size_ratio: float
 ) -> SlippageModelType:
     """根據策略特性推薦滑價模型
 
@@ -433,7 +425,7 @@ def get_recommended_model_for_strategy(
         >>> model_type
         SlippageModelType.FIXED
     """
-    if trading_frequency == 'high' and avg_order_size_ratio < 0.01:
+    if trading_frequency == "high" and avg_order_size_ratio < 0.01:
         # 高頻小單: 使用固定滑價
         return SlippageModelType.FIXED
     elif avg_order_size_ratio > 0.05:

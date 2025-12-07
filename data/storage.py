@@ -15,18 +15,20 @@ Version: v0.4
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
-import pandas as pd
-from datetime import datetime
-from typing import Optional, List, Dict
 import logging
+from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Optional
+
+import pandas as pd
+
+from data.symbol_manager import SymbolInfo, SymbolManager
+
+# v0.4: 新增管理器
+from data.timeframe_manager import Timeframe, TimeframeManager
 
 # SSD 配置支援 (v0.4)
 from data_config import config
-
-# v0.4: 新增管理器
-from data.timeframe_manager import TimeframeManager, Timeframe
-from data.symbol_manager import SymbolManager, SymbolInfo
 
 # 設定日誌
 logging.basicConfig(level=logging.INFO)
@@ -58,7 +60,7 @@ class OHLCVStorage:
         file_path: str,
         convert_to_datetime: bool = True,
         set_datetime_index: bool = True,
-        timezone: str = 'UTC'
+        timezone: str = "UTC",
     ) -> pd.DataFrame:
         """
         載入 OHLCV CSV 為 DataFrame
@@ -83,56 +85,50 @@ class OHLCVStorage:
             df = pd.read_csv(file_path)
 
             # 驗證必要欄位
-            required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            required_columns = ["timestamp", "open", "high", "low", "close", "volume"]
             missing_columns = set(required_columns) - set(df.columns)
             if missing_columns:
                 raise Exception(f"CSV 缺少必要欄位: {missing_columns}")
 
             # 確保數據類型正確
-            df['timestamp'] = pd.to_numeric(df['timestamp'], errors='coerce')
-            df['open'] = pd.to_numeric(df['open'], errors='coerce')
-            df['high'] = pd.to_numeric(df['high'], errors='coerce')
-            df['low'] = pd.to_numeric(df['low'], errors='coerce')
-            df['close'] = pd.to_numeric(df['close'], errors='coerce')
-            df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+            df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
+            df["open"] = pd.to_numeric(df["open"], errors="coerce")
+            df["high"] = pd.to_numeric(df["high"], errors="coerce")
+            df["low"] = pd.to_numeric(df["low"], errors="coerce")
+            df["close"] = pd.to_numeric(df["close"], errors="coerce")
+            df["volume"] = pd.to_numeric(df["volume"], errors="coerce")
 
             # 移除包含 NaN 的行（轉換失敗的數據）
             original_len = len(df)
             df = df.dropna()
             if len(df) < original_len:
-                logger.warning(
-                    f"移除了 {original_len - len(df)} 筆包含無效數據的行"
-                )
+                logger.warning(f"移除了 {original_len - len(df)} 筆包含無效數據的行")
 
             # 轉換時間戳為 datetime
             if convert_to_datetime:
-                df['datetime'] = pd.to_datetime(
-                    df['timestamp'],
-                    unit='ms',
-                    utc=True
-                )
+                df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
 
                 # 設定時區
-                if timezone != 'UTC':
-                    df['datetime'] = df['datetime'].dt.tz_convert(timezone)
+                if timezone != "UTC":
+                    df["datetime"] = df["datetime"].dt.tz_convert(timezone)
 
                 # 設定 datetime 為索引
                 if set_datetime_index:
-                    df = df.set_index('datetime')
+                    df = df.set_index("datetime")
                     # 保留 timestamp 欄位以便需要時使用
-                    df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+                    df = df[["timestamp", "open", "high", "low", "close", "volume"]]
                 else:
                     # 調整欄位順序
-                    df = df[['datetime', 'timestamp', 'open', 'high', 'low', 'close', 'volume']]
+                    df = df[["datetime", "timestamp", "open", "high", "low", "close", "volume"]]
             else:
                 # 不轉換時，確保欄位順序
-                df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+                df = df[["timestamp", "open", "high", "low", "close", "volume"]]
 
             # 排序
             if set_datetime_index and convert_to_datetime:
                 df = df.sort_index()
             else:
-                df = df.sort_values('timestamp')
+                df = df.sort_values("timestamp")
 
             logger.info(f"成功載入 {len(df)} 筆數據")
             if convert_to_datetime and len(df) > 0:
@@ -158,7 +154,7 @@ class OHLCVStorage:
         symbol: str,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> pd.DataFrame:
         """
         v0.4: 載入指定交易對和時間週期的數據
@@ -208,9 +204,7 @@ class OHLCVStorage:
         if end_date:
             df = df[df.index <= pd.Timestamp(end_date)]
 
-        logger.info(
-            f"Loaded {len(df)} bars for {symbol} ({timeframe})"
-        )
+        logger.info(f"Loaded {len(df)} bars for {symbol} ({timeframe})")
 
         return df
 
@@ -219,7 +213,7 @@ class OHLCVStorage:
         symbols: List[str],
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Dict[str, pd.DataFrame]:
         """
         v0.4: 載入多個交易對的數據
@@ -248,9 +242,7 @@ class OHLCVStorage:
             except Exception as e:
                 logger.warning(f"Failed to load {symbol}: {e}")
 
-        logger.info(
-            f"Successfully loaded {len(result)}/{len(symbols)} symbols"
-        )
+        logger.info(f"Successfully loaded {len(result)}/{len(symbols)} symbols")
 
         return result
 
@@ -259,7 +251,7 @@ class OHLCVStorage:
         symbol: str,
         timeframes: List[str],
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Dict[str, pd.DataFrame]:
         """
         v0.4: 載入單一交易對的多個時間週期數據
@@ -288,9 +280,7 @@ class OHLCVStorage:
             except Exception as e:
                 logger.warning(f"Failed to load {symbol} {timeframe}: {e}")
 
-        logger.info(
-            f"Successfully loaded {len(result)}/{len(timeframes)} timeframes for {symbol}"
-        )
+        logger.info(f"Successfully loaded {len(result)}/{len(timeframes)} timeframes for {symbol}")
 
         return result
 
@@ -308,10 +298,7 @@ class OHLCVStorage:
             ...     print(f"{item['symbol']} - {item['timeframe']}")
         """
         # 檢查多個可能的數據目錄
-        search_dirs = [
-            self.data_dir / "historical" / "binance",
-            self.data_dir / "raw"
-        ]
+        search_dirs = [self.data_dir / "historical" / "binance", self.data_dir / "raw"]
 
         available = []
 
@@ -322,31 +309,32 @@ class OHLCVStorage:
             for file_path in search_dir.glob("*_*.csv"):
                 # 解析文件名（格式：SYMBOL_TIMEFRAME.csv）
                 file_name = file_path.stem
-                parts = file_name.rsplit('_', 1)
+                parts = file_name.rsplit("_", 1)
 
                 if len(parts) == 2:
                     symbol, timeframe = parts
 
                     # 驗證
-                    if (self.symbol_manager.validate_symbol(symbol) and
-                        self.timeframe_manager.validate_timeframe(timeframe)):
+                    if self.symbol_manager.validate_symbol(
+                        symbol
+                    ) and self.timeframe_manager.validate_timeframe(timeframe):
                         # 避免重複
-                        if not any(item['symbol'] == symbol and item['timeframe'] == timeframe for item in available):
-                            available.append({
-                                'symbol': symbol,
-                                'timeframe': timeframe,
-                                'file_path': str(file_path)
-                            })
+                        if not any(
+                            item["symbol"] == symbol and item["timeframe"] == timeframe
+                            for item in available
+                        ):
+                            available.append(
+                                {
+                                    "symbol": symbol,
+                                    "timeframe": timeframe,
+                                    "file_path": str(file_path),
+                                }
+                            )
 
         logger.info(f"Found {len(available)} available data files")
         return available
 
-    def save_ohlcv(
-        self,
-        df: pd.DataFrame,
-        file_path: str,
-        include_datetime: bool = False
-    ) -> str:
+    def save_ohlcv(self, df: pd.DataFrame, file_path: str, include_datetime: bool = False) -> str:
         """
         儲存 DataFrame 為 CSV
 
@@ -372,10 +360,10 @@ class OHLCVStorage:
                 df_to_save = df_to_save.reset_index()
 
             # 選擇要儲存的欄位
-            if include_datetime and 'datetime' in df_to_save.columns:
-                columns = ['datetime', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
+            if include_datetime and "datetime" in df_to_save.columns:
+                columns = ["datetime", "timestamp", "open", "high", "low", "close", "volume"]
             else:
-                columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
             # 確保所有必要欄位都存在
             available_columns = [col for col in columns if col in df_to_save.columns]
@@ -403,37 +391,37 @@ class OHLCVStorage:
             dict: 摘要資訊
         """
         info = {
-            'total_rows': len(df),
-            'columns': list(df.columns),
-            'memory_usage_mb': df.memory_usage(deep=True).sum() / 1024 / 1024,
+            "total_rows": len(df),
+            "columns": list(df.columns),
+            "memory_usage_mb": df.memory_usage(deep=True).sum() / 1024 / 1024,
         }
 
         # 如果有 datetime index 或欄位
         if isinstance(df.index, pd.DatetimeIndex):
-            info['start_date'] = str(df.index[0])
-            info['end_date'] = str(df.index[-1])
-            info['duration_days'] = (df.index[-1] - df.index[0]).days
-        elif 'datetime' in df.columns:
-            info['start_date'] = str(df['datetime'].iloc[0])
-            info['end_date'] = str(df['datetime'].iloc[-1])
-            info['duration_days'] = (df['datetime'].iloc[-1] - df['datetime'].iloc[0]).days
+            info["start_date"] = str(df.index[0])
+            info["end_date"] = str(df.index[-1])
+            info["duration_days"] = (df.index[-1] - df.index[0]).days
+        elif "datetime" in df.columns:
+            info["start_date"] = str(df["datetime"].iloc[0])
+            info["end_date"] = str(df["datetime"].iloc[-1])
+            info["duration_days"] = (df["datetime"].iloc[-1] - df["datetime"].iloc[0]).days
 
         # 價格統計
-        if 'close' in df.columns:
-            info['price_stats'] = {
-                'min': float(df['close'].min()),
-                'max': float(df['close'].max()),
-                'mean': float(df['close'].mean()),
-                'std': float(df['close'].std())
+        if "close" in df.columns:
+            info["price_stats"] = {
+                "min": float(df["close"].min()),
+                "max": float(df["close"].max()),
+                "mean": float(df["close"].mean()),
+                "std": float(df["close"].std()),
             }
 
         # 成交量統計
-        if 'volume' in df.columns:
-            info['volume_stats'] = {
-                'min': float(df['volume'].min()),
-                'max': float(df['volume'].max()),
-                'mean': float(df['volume'].mean()),
-                'total': float(df['volume'].sum())
+        if "volume" in df.columns:
+            info["volume_stats"] = {
+                "min": float(df["volume"].min()),
+                "max": float(df["volume"].max()),
+                "mean": float(df["volume"].mean()),
+                "total": float(df["volume"].sum()),
             }
 
         return info
@@ -443,7 +431,7 @@ def load_ohlcv(
     file_path: str,
     convert_to_datetime: bool = True,
     set_datetime_index: bool = True,
-    timezone: str = 'UTC'
+    timezone: str = "UTC",
 ) -> pd.DataFrame:
     """
     便捷函數：載入 OHLCV CSV 為 DataFrame
@@ -462,7 +450,7 @@ def load_ohlcv(
         file_path=file_path,
         convert_to_datetime=convert_to_datetime,
         set_datetime_index=set_datetime_index,
-        timezone=timezone
+        timezone=timezone,
     )
 
 
@@ -497,9 +485,9 @@ if __name__ == "__main__":
         print("\n=== 數據摘要 ===")
         print(f"總筆數: {info['total_rows']}")
         print(f"期間: {info.get('start_date', 'N/A')} ~ {info.get('end_date', 'N/A')}")
-        if 'duration_days' in info:
+        if "duration_days" in info:
             print(f"持續天數: {info['duration_days']}")
-        if 'price_stats' in info:
+        if "price_stats" in info:
             print(f"\n價格統計:")
             print(f"  最低: {info['price_stats']['min']:.2f}")
             print(f"  最高: {info['price_stats']['max']:.2f}")

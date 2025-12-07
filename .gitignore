@@ -34,3 +34,13 @@ backtest_results/
 # macOS
 .DS_Store
 __MACOSX/
+
+# Archive and cleanup
+*.zip
+*.tar.gz
+.trash/
+.backup/
+cleanup_log_*.json
+
+# Prevention tools
+scripts/

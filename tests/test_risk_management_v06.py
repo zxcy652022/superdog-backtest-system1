@@ -6,42 +6,36 @@ SuperDog v0.6 Phase 4: Risk Management System Tests
 Version: v0.6.0-phase4
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
 
-from risk_management import (
-    # Support/Resistance
-    SupportResistanceDetector,
-    SRType,
-    detect_support_resistance,
+import numpy as np
+import pandas as pd
+import pytest
 
-    # Dynamic Stops
+from risk_management import (  # Support/Resistance; Dynamic Stops; Risk Calculator; Position Sizer
     DynamicStopManager,
+    PositionSizer,
+    RiskCalculator,
+    SizingMethod,
+    SRType,
     StopLossType,
+    SupportResistanceDetector,
     TakeProfitType,
+    calculate_fixed_risk_size,
+    calculate_kelly_size,
+    calculate_portfolio_risk,
     create_atr_stops,
     create_resistance_stops,
-
-    # Risk Calculator
-    RiskCalculator,
-    calculate_portfolio_risk,
-
-    # Position Sizer
-    PositionSizer,
-    SizingMethod,
-    calculate_kelly_size,
-    calculate_fixed_risk_size
+    detect_support_resistance,
 )
 
-
 # ===== Fixtures =====
+
 
 @pytest.fixture
 def sample_ohlcv():
     """生成樣本 OHLCV 數據"""
-    dates = pd.date_range(start='2024-01-01', periods=200, freq='1h')
+    dates = pd.date_range(start="2024-01-01", periods=200, freq="1h")
 
     # 生成價格數據（帶趨勢和波動）
     np.random.seed(42)
@@ -55,13 +49,9 @@ def sample_ohlcv():
     open_ = close + np.random.randn(200) * 100
     volume = np.random.uniform(100, 1000, 200)
 
-    return pd.DataFrame({
-        'open': open_,
-        'high': high,
-        'low': low,
-        'close': close,
-        'volume': volume
-    }, index=dates)
+    return pd.DataFrame(
+        {"open": open_, "high": high, "low": low, "close": close, "volume": volume}, index=dates
+    )
 
 
 @pytest.fixture
@@ -74,6 +64,7 @@ def sample_returns():
 
 
 # ===== Support/Resistance Tests =====
+
 
 def test_sr_detector_basic(sample_ohlcv):
     """測試基本支撐壓力檢測"""
@@ -105,7 +96,7 @@ def test_sr_get_nearest_support(sample_ohlcv):
     detector = SupportResistanceDetector()
     levels = detector.detect(sample_ohlcv)
 
-    current_price = sample_ohlcv['close'].iloc[-1]
+    current_price = sample_ohlcv["close"].iloc[-1]
     nearest_support = detector.get_nearest_support(current_price, levels)
 
     if nearest_support:
@@ -118,7 +109,7 @@ def test_sr_get_nearest_resistance(sample_ohlcv):
     detector = SupportResistanceDetector()
     levels = detector.detect(sample_ohlcv)
 
-    current_price = sample_ohlcv['close'].iloc[-1]
+    current_price = sample_ohlcv["close"].iloc[-1]
     nearest_resistance = detector.get_nearest_resistance(current_price, levels)
 
     if nearest_resistance:
@@ -134,6 +125,7 @@ def test_detect_support_resistance_convenience(sample_ohlcv):
 
 # ===== Dynamic Stops Tests =====
 
+
 def test_dynamic_stops_atr(sample_ohlcv):
     """測試 ATR 動態止損"""
     manager = DynamicStopManager()
@@ -144,9 +136,9 @@ def test_dynamic_stops_atr(sample_ohlcv):
     update = manager.update_stops(
         entry_price=entry_price,
         current_price=current_price,
-        position_side='long',
+        position_side="long",
         ohlcv=sample_ohlcv,
-        stop_loss_type=StopLossType.ATR
+        stop_loss_type=StopLossType.ATR,
     )
 
     assert update.new_stop_loss is not None
@@ -156,10 +148,7 @@ def test_dynamic_stops_atr(sample_ohlcv):
 
 def test_dynamic_stops_trailing(sample_ohlcv):
     """測試移動止損"""
-    manager = DynamicStopManager(
-        trailing_activation_pct=0.02,
-        trailing_distance_pct=0.01
-    )
+    manager = DynamicStopManager(trailing_activation_pct=0.02, trailing_distance_pct=0.01)
 
     entry_price = 50000
     current_price = 51500  # +3% 盈利，應激活移動止損
@@ -167,10 +156,10 @@ def test_dynamic_stops_trailing(sample_ohlcv):
     update = manager.update_stops(
         entry_price=entry_price,
         current_price=current_price,
-        position_side='long',
+        position_side="long",
         ohlcv=sample_ohlcv,
         stop_loss_type=StopLossType.TRAILING,
-        current_stop_loss=49500
+        current_stop_loss=49500,
     )
 
     # 移動止損應該上移
@@ -187,9 +176,9 @@ def test_dynamic_stops_exit_conditions(sample_ohlcv):
     update = manager.update_stops(
         entry_price=entry_price,
         current_price=current_price,
-        position_side='long',
+        position_side="long",
         ohlcv=sample_ohlcv,
-        stop_loss_type=StopLossType.ATR
+        stop_loss_type=StopLossType.ATR,
     )
 
     # 檢查是否應該平倉
@@ -201,32 +190,30 @@ def test_create_atr_stops():
     """測試 ATR 止損創建函數"""
     stops = create_atr_stops(
         entry_price=50000,
-        position_side='long',
+        position_side="long",
         atr_value=500,
         atr_multiplier=2.0,
-        risk_reward_ratio=2.0
+        risk_reward_ratio=2.0,
     )
 
-    assert 'stop_loss' in stops
-    assert 'take_profit' in stops
-    assert stops['stop_loss'] < 50000
-    assert stops['take_profit'] > 50000
+    assert "stop_loss" in stops
+    assert "take_profit" in stops
+    assert stops["stop_loss"] < 50000
+    assert stops["take_profit"] > 50000
 
 
 def test_create_resistance_stops():
     """測試支撐壓力止損創建函數"""
     stops = create_resistance_stops(
-        entry_price=50000,
-        position_side='long',
-        support_level=49000,
-        resistance_level=52000
+        entry_price=50000, position_side="long", support_level=49000, resistance_level=52000
     )
 
-    assert stops['stop_loss'] == 49000
-    assert stops['take_profit'] == 52000
+    assert stops["stop_loss"] == 49000
+    assert stops["take_profit"] == 52000
 
 
 # ===== Risk Calculator Tests =====
+
 
 def test_risk_calculator_portfolio_metrics(sample_returns):
     """測試投資組合風險指標計算"""
@@ -245,10 +232,7 @@ def test_risk_calculator_position_risk():
     calculator = RiskCalculator()
 
     risk = calculator.calculate_position_risk(
-        entry_price=50000,
-        stop_loss=49000,
-        position_size=0.1,
-        account_balance=10000
+        entry_price=50000, stop_loss=49000, position_size=0.1, account_balance=10000
     )
 
     assert risk.position_value == 5000  # 0.1 * 50000
@@ -286,16 +270,13 @@ def test_risk_calculator_correlation():
     btc_returns = pd.Series(np.random.normal(0.001, 0.02, 100))
     eth_returns = btc_returns * 0.8 + pd.Series(np.random.normal(0, 0.01, 100))
 
-    returns_dict = {
-        'BTC': btc_returns,
-        'ETH': eth_returns
-    }
+    returns_dict = {"BTC": btc_returns, "ETH": eth_returns}
 
     corr_matrix = calculator.calculate_correlation_matrix(returns_dict)
 
     assert corr_matrix.shape == (2, 2)
-    assert corr_matrix.loc['BTC', 'BTC'] == 1.0
-    assert 0 <= corr_matrix.loc['BTC', 'ETH'] <= 1.0
+    assert corr_matrix.loc["BTC", "BTC"] == 1.0
+    assert 0 <= corr_matrix.loc["BTC", "ETH"] <= 1.0
 
 
 def test_risk_calculator_beta(sample_returns):
@@ -319,15 +300,13 @@ def test_calculate_portfolio_risk_convenience(sample_returns):
 
 # ===== Position Sizer Tests =====
 
+
 def test_position_sizer_fixed_risk():
     """測試固定風險倉位計算"""
     sizer = PositionSizer(default_risk_pct=0.02)
 
     size = sizer.calculate_position_size(
-        account_balance=10000,
-        entry_price=50000,
-        stop_loss=49000,
-        method=SizingMethod.FIXED_RISK
+        account_balance=10000, entry_price=50000, stop_loss=49000, method=SizingMethod.FIXED_RISK
     )
 
     # 風險 2% = $200
@@ -348,7 +327,7 @@ def test_position_sizer_kelly():
         method=SizingMethod.KELLY,
         win_rate=0.6,
         avg_win=0.04,
-        avg_loss=0.02
+        avg_loss=0.02,
     )
 
     assert size.position_size > 0
@@ -366,7 +345,7 @@ def test_position_sizer_volatility_adjusted():
         stop_loss=49000,
         method=SizingMethod.VOLATILITY_ADJUSTED,
         volatility=0.04,  # 高波動
-        risk_pct=0.02
+        risk_pct=0.02,
     )
 
     # 低波動 -> 大倉位
@@ -376,7 +355,7 @@ def test_position_sizer_volatility_adjusted():
         stop_loss=49000,
         method=SizingMethod.VOLATILITY_ADJUSTED,
         volatility=0.01,  # 低波動
-        risk_pct=0.02
+        risk_pct=0.02,
     )
 
     assert low_vol_size.position_size > high_vol_size.position_size
@@ -391,7 +370,7 @@ def test_position_sizer_max_position_limit():
         entry_price=50000,
         stop_loss=48000,  # 大止損距離
         method=SizingMethod.FIXED_RISK,
-        risk_pct=0.1  # 高風險
+        risk_pct=0.1,  # 高風險
     )
 
     # 應該被限制在最大倉位
@@ -403,21 +382,21 @@ def test_position_sizer_allocate_capital():
     sizer = PositionSizer()
 
     strategies = [
-        {'name': 'Strategy A', 'weight': 0.6, 'sharpe': 1.5},
-        {'name': 'Strategy B', 'weight': 0.4, 'sharpe': 1.2}
+        {"name": "Strategy A", "weight": 0.6, "sharpe": 1.5},
+        {"name": "Strategy B", "weight": 0.4, "sharpe": 1.2},
     ]
 
     # 測試加權分配
-    allocation = sizer.allocate_capital(100000, strategies, method='weighted')
+    allocation = sizer.allocate_capital(100000, strategies, method="weighted")
 
     assert len(allocation) == 2
     assert abs(sum(allocation.values()) - 100000) < 0.01
-    assert allocation['Strategy A'] == 60000
-    assert allocation['Strategy B'] == 40000
+    assert allocation["Strategy A"] == 60000
+    assert allocation["Strategy B"] == 40000
 
     # 測試平均分配
-    equal_allocation = sizer.allocate_capital(100000, strategies, method='equal')
-    assert equal_allocation['Strategy A'] == equal_allocation['Strategy B'] == 50000
+    equal_allocation = sizer.allocate_capital(100000, strategies, method="equal")
+    assert equal_allocation["Strategy A"] == equal_allocation["Strategy B"] == 50000
 
 
 def test_position_sizer_optimal_leverage():
@@ -425,9 +404,7 @@ def test_position_sizer_optimal_leverage():
     sizer = PositionSizer(max_leverage=10)
 
     optimal = sizer.calculate_optimal_leverage(
-        expected_return=0.15,
-        volatility=0.30,
-        max_drawdown_tolerance=0.20
+        expected_return=0.15, volatility=0.30, max_drawdown_tolerance=0.20
     )
 
     assert 1 <= optimal <= 10
@@ -436,11 +413,7 @@ def test_position_sizer_optimal_leverage():
 def test_calculate_kelly_size_convenience():
     """測試 Kelly 便捷函數"""
     kelly_pct = calculate_kelly_size(
-        account_balance=10000,
-        win_rate=0.6,
-        avg_win=0.04,
-        avg_loss=0.02,
-        kelly_fraction=0.25
+        account_balance=10000, win_rate=0.6, avg_win=0.04, avg_loss=0.02, kelly_fraction=0.25
     )
 
     assert 0 <= kelly_pct <= 1
@@ -449,10 +422,7 @@ def test_calculate_kelly_size_convenience():
 def test_calculate_fixed_risk_size_convenience():
     """測試固定風險便捷函數"""
     size = calculate_fixed_risk_size(
-        account_balance=10000,
-        entry_price=50000,
-        stop_loss=49000,
-        risk_pct=0.02
+        account_balance=10000, entry_price=50000, stop_loss=49000, risk_pct=0.02
     )
 
     assert abs(size - 0.2) < 0.01
@@ -460,13 +430,14 @@ def test_calculate_fixed_risk_size_convenience():
 
 # ===== Integration Tests =====
 
+
 def test_integrated_risk_workflow(sample_ohlcv):
     """測試完整風控流程"""
     # 1. 檢測支撐壓力位
     sr_detector = SupportResistanceDetector()
     levels = sr_detector.detect(sample_ohlcv)
 
-    current_price = sample_ohlcv['close'].iloc[-1]
+    current_price = sample_ohlcv["close"].iloc[-1]
     support = sr_detector.get_nearest_support(current_price, levels)
     resistance = sr_detector.get_nearest_resistance(current_price, levels)
 
@@ -481,7 +452,7 @@ def test_integrated_risk_workflow(sample_ohlcv):
             account_balance=10000,
             entry_price=current_price,
             stop_loss=support.price,
-            method=SizingMethod.FIXED_RISK
+            method=SizingMethod.FIXED_RISK,
         )
 
         # 4. 計算風險指標
@@ -490,7 +461,7 @@ def test_integrated_risk_workflow(sample_ohlcv):
             entry_price=current_price,
             stop_loss=support.price,
             position_size=position_size.position_size,
-            account_balance=10000
+            account_balance=10000,
         )
 
         assert position_risk.risk_pct <= 0.02  # 風險不超過 2%
@@ -499,10 +470,10 @@ def test_integrated_risk_workflow(sample_ohlcv):
 def test_module_imports():
     """測試模組導入"""
     from risk_management import (
-        SupportResistanceDetector,
         DynamicStopManager,
+        PositionSizer,
         RiskCalculator,
-        PositionSizer
+        SupportResistanceDetector,
     )
 
     assert SupportResistanceDetector is not None
@@ -511,5 +482,5 @@ def test_module_imports():
     assert PositionSizer is not None
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

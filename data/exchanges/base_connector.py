@@ -8,17 +8,20 @@ Version: v0.5
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 import pandas as pd
 
 
 class ExchangeAPIError(Exception):
     """交易所 API 錯誤基底類別"""
+
     pass
 
 
 class DataFormatError(Exception):
     """數據格式錯誤"""
+
     pass
 
 
@@ -47,11 +50,7 @@ class ExchangeConnector(ABC):
 
     @abstractmethod
     def get_funding_rate(
-        self,
-        symbol: str,
-        start_time: datetime,
-        end_time: datetime,
-        limit: int = 1000
+        self, symbol: str, start_time: datetime, end_time: datetime, limit: int = 1000
     ) -> pd.DataFrame:
         """獲取資金費率歷史數據
 
@@ -81,10 +80,10 @@ class ExchangeConnector(ABC):
     def get_open_interest(
         self,
         symbol: str,
-        interval: str = '5m',
+        interval: str = "5m",
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        limit: int = 500
+        limit: int = 500,
     ) -> pd.DataFrame:
         """獲取持倉量歷史數據
 
@@ -118,10 +117,7 @@ class ExchangeConnector(ABC):
         raise NotImplementedError(f"{self.name} does not implement get_mark_price")
 
     def get_liquidations(
-        self,
-        symbol: str,
-        start_time: datetime,
-        end_time: datetime
+        self, symbol: str, start_time: datetime, end_time: datetime
     ) -> pd.DataFrame:
         """獲取爆倉數據（可選實作）
 
@@ -142,10 +138,7 @@ class ExchangeConnector(ABC):
         raise NotImplementedError(f"{self.name} does not implement get_liquidations")
 
     def get_long_short_ratio(
-        self,
-        symbol: str,
-        interval: str = '5m',
-        limit: int = 500
+        self, symbol: str, interval: str = "5m", limit: int = 500
     ) -> pd.DataFrame:
         """獲取多空持倉比（可選實作）
 

@@ -22,17 +22,17 @@ Usage:
 """
 
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
-from datetime import datetime
 
 # 添加項目根目錄到 Python 路徑
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from strategies.api_v2 import BaseStrategy, DataSource, DataRequirement
+from strategies.api_v2 import BaseStrategy, DataRequirement, DataSource
 
 
 class KawamokuMultiFactorStrategy(BaseStrategy):
@@ -69,21 +69,21 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
         super().__init__()
 
         # 因子參數
-        self.momentum_period = params.get('momentum_period', 20)
-        self.funding_threshold = params.get('funding_threshold', 0.01)
-        self.oi_threshold = params.get('oi_threshold', 0.05)
-        self.basis_threshold = params.get('basis_threshold', 0.5)
-        self.panic_threshold = params.get('panic_threshold', 'elevated')
-        self.sentiment_threshold = params.get('sentiment_threshold', 40)
+        self.momentum_period = params.get("momentum_period", 20)
+        self.funding_threshold = params.get("funding_threshold", 0.01)
+        self.oi_threshold = params.get("oi_threshold", 0.05)
+        self.basis_threshold = params.get("basis_threshold", 0.5)
+        self.panic_threshold = params.get("panic_threshold", "elevated")
+        self.sentiment_threshold = params.get("sentiment_threshold", 40)
 
         # 因子權重
         self.weights = {
-            'momentum': 0.20,
-            'funding': 0.15,
-            'oi': 0.15,
-            'basis': 0.20,
-            'panic': 0.15,
-            'sentiment': 0.15
+            "momentum": 0.20,
+            "funding": 0.15,
+            "oi": 0.15,
+            "basis": 0.20,
+            "panic": 0.15,
+            "sentiment": 0.15,
         }
 
     def get_data_requirements(self) -> List[DataRequirement]:
@@ -97,22 +97,21 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
             DataRequirement(DataSource.OHLCV, required=True),
             DataRequirement(DataSource.FUNDING_RATE, required=True),
             DataRequirement(DataSource.OPEN_INTEREST, required=True),
-
             # Phase B - 可選數據 (提高信號質量)
             DataRequirement(DataSource.BASIS, required=False),
             DataRequirement(DataSource.LIQUIDATIONS, required=False),
-            DataRequirement(DataSource.LONG_SHORT_RATIO, required=False)
+            DataRequirement(DataSource.LONG_SHORT_RATIO, required=False),
         ]
 
     def get_parameters(self) -> Dict:
         """返回策略參數"""
         return {
-            'momentum_period': self.momentum_period,
-            'funding_threshold': self.funding_threshold,
-            'oi_threshold': self.oi_threshold,
-            'basis_threshold': self.basis_threshold,
-            'panic_threshold': self.panic_threshold,
-            'sentiment_threshold': self.sentiment_threshold
+            "momentum_period": self.momentum_period,
+            "funding_threshold": self.funding_threshold,
+            "oi_threshold": self.oi_threshold,
+            "basis_threshold": self.basis_threshold,
+            "panic_threshold": self.panic_threshold,
+            "sentiment_threshold": self.sentiment_threshold,
         }
 
     def compute_signals(self, data: Dict[str, pd.DataFrame]) -> pd.Series:
@@ -125,36 +124,36 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
             交易信號 Series (1=做多, -1=做空, 0=無倉位)
         """
         # 獲取OHLCV作為基準
-        ohlcv = data['ohlcv']
+        ohlcv = data["ohlcv"]
         index = ohlcv.index
 
         # 初始化因子得分
-        factor_scores = pd.DataFrame(0, index=index, columns=[
-            'momentum', 'funding', 'oi', 'basis', 'panic', 'sentiment'
-        ])
+        factor_scores = pd.DataFrame(
+            0, index=index, columns=["momentum", "funding", "oi", "basis", "panic", "sentiment"]
+        )
 
         # === 因子 1: 價格動量 (OHLCV) ===
-        factor_scores['momentum'] = self._calculate_momentum_factor(ohlcv)
+        factor_scores["momentum"] = self._calculate_momentum_factor(ohlcv)
 
         # === 因子 2: 資金費率趨勢 (FUNDING_RATE) ===
-        if 'funding_rate' in data:
-            factor_scores['funding'] = self._calculate_funding_factor(data['funding_rate'])
+        if "funding_rate" in data:
+            factor_scores["funding"] = self._calculate_funding_factor(data["funding_rate"])
 
         # === 因子 3: 持倉量變化 (OPEN_INTEREST) ===
-        if 'open_interest' in data:
-            factor_scores['oi'] = self._calculate_oi_factor(data['open_interest'])
+        if "open_interest" in data:
+            factor_scores["oi"] = self._calculate_oi_factor(data["open_interest"])
 
         # === 因子 4: 期現基差套利 (BASIS) ===
-        if 'basis' in data:
-            factor_scores['basis'] = self._calculate_basis_factor(data['basis'])
+        if "basis" in data:
+            factor_scores["basis"] = self._calculate_basis_factor(data["basis"])
 
         # === 因子 5: 爆倉恐慌逆向 (LIQUIDATIONS) ===
-        if 'liquidations' in data:
-            factor_scores['panic'] = self._calculate_panic_factor(data['liquidations'])
+        if "liquidations" in data:
+            factor_scores["panic"] = self._calculate_panic_factor(data["liquidations"])
 
         # === 因子 6: 情緒逆向 (LONG_SHORT_RATIO) ===
-        if 'long_short_ratio' in data:
-            factor_scores['sentiment'] = self._calculate_sentiment_factor(data['long_short_ratio'])
+        if "long_short_ratio" in data:
+            factor_scores["sentiment"] = self._calculate_sentiment_factor(data["long_short_ratio"])
 
         # 計算總分 (加權)
         total_score = pd.Series(0, index=index)
@@ -163,7 +162,7 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
 
         # 生成信號
         signals = pd.Series(0, index=index)
-        signals[total_score >= 4] = 1   # 做多
+        signals[total_score >= 4] = 1  # 做多
         signals[total_score <= 2] = -1  # 做空
 
         return signals
@@ -176,7 +175,7 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
         - 動量 > 1: 看多 (1分)
         - 動量 < 1: 看空 (0分)
         """
-        momentum = ohlcv['close'] / ohlcv['close'].shift(self.momentum_period)
+        momentum = ohlcv["close"] / ohlcv["close"].shift(self.momentum_period)
 
         factor = pd.Series(0, index=ohlcv.index)
         factor[momentum > 1.0] = 1.0
@@ -192,8 +191,8 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
         """
         factor = pd.Series(0.5, index=funding.index)  # 中性
 
-        factor[funding['funding_rate'] < -self.funding_threshold] = 1.0  # 看多
-        factor[funding['funding_rate'] > self.funding_threshold] = 0.0   # 看空
+        factor[funding["funding_rate"] < -self.funding_threshold] = 1.0  # 看多
+        factor[funding["funding_rate"] > self.funding_threshold] = 0.0  # 看空
 
         return factor
 
@@ -204,7 +203,7 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
         - 持倉量增加 + 價格上漲 = 強勢 (1分)
         - 持倉量減少 + 價格下跌 = 弱勢 (0分)
         """
-        oi_change = oi['open_interest'].pct_change()
+        oi_change = oi["open_interest"].pct_change()
 
         factor = pd.Series(0.5, index=oi.index)
 
@@ -226,12 +225,12 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
         """
         factor = pd.Series(0.5, index=basis.index)
 
-        if 'basis_pct' in basis.columns:
+        if "basis_pct" in basis.columns:
             # 負基差 - 永續折價 - 看多永續
-            factor[basis['basis_pct'] < -self.basis_threshold] = 1.0
+            factor[basis["basis_pct"] < -self.basis_threshold] = 1.0
 
             # 正基差 - 永續溢價 - 看空永續
-            factor[basis['basis_pct'] > self.basis_threshold] = 0.2
+            factor[basis["basis_pct"] > self.basis_threshold] = 0.2
 
         return factor
 
@@ -245,10 +244,10 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
         """
         factor = pd.Series(0.5, index=liq.index)
 
-        if 'panic_level' in liq.columns:
-            factor[liq['panic_level'] == 'extreme'] = 1.0  # 逆向做多
-            factor[liq['panic_level'] == 'high'] = 0.7
-            factor[liq['panic_level'] == 'calm'] = 0.5
+        if "panic_level" in liq.columns:
+            factor[liq["panic_level"] == "extreme"] = 1.0  # 逆向做多
+            factor[liq["panic_level"] == "high"] = 0.7
+            factor[liq["panic_level"] == "calm"] = 0.5
 
         return factor
 
@@ -262,12 +261,12 @@ class KawamokuMultiFactorStrategy(BaseStrategy):
         """
         factor = pd.Series(0.5, index=lsr.index)
 
-        if 'sentiment_index' in lsr.columns:
+        if "sentiment_index" in lsr.columns:
             # 市場極度看多 → 逆向看空
-            factor[lsr['sentiment_index'] > self.sentiment_threshold] = 0.0
+            factor[lsr["sentiment_index"] > self.sentiment_threshold] = 0.0
 
             # 市場極度看空 → 逆向看多
-            factor[lsr['sentiment_index'] < -self.sentiment_threshold] = 1.0
+            factor[lsr["sentiment_index"] < -self.sentiment_threshold] = 1.0
 
         return factor
 
@@ -286,8 +285,8 @@ def demo_kawamoku_strategy():
         funding_threshold=0.01,
         oi_threshold=0.05,
         basis_threshold=0.5,
-        panic_threshold='elevated',
-        sentiment_threshold=40
+        panic_threshold="elevated",
+        sentiment_threshold=40,
     )
 
     print("策略配置:")
@@ -316,63 +315,85 @@ def demo_kawamoku_strategy():
     print("=" * 70)
     print()
 
-    dates = pd.date_range('2024-01-01', periods=100, freq='1h')
+    dates = pd.date_range("2024-01-01", periods=100, freq="1h")
 
     # 模擬 OHLCV
-    ohlcv = pd.DataFrame({
-        'timestamp': dates,
-        'open': 100000 + np.random.randn(100) * 1000,
-        'high': 101000 + np.random.randn(100) * 1000,
-        'low': 99000 + np.random.randn(100) * 1000,
-        'close': 100000 + np.cumsum(np.random.randn(100) * 100),  # 隨機遊走
-        'volume': 1000000 + np.random.randn(100) * 100000
-    }, index=dates)
+    ohlcv = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "open": 100000 + np.random.randn(100) * 1000,
+            "high": 101000 + np.random.randn(100) * 1000,
+            "low": 99000 + np.random.randn(100) * 1000,
+            "close": 100000 + np.cumsum(np.random.randn(100) * 100),  # 隨機遊走
+            "volume": 1000000 + np.random.randn(100) * 100000,
+        },
+        index=dates,
+    )
 
     # 模擬 FUNDING_RATE
-    funding = pd.DataFrame({
-        'timestamp': dates,
-        'funding_rate': np.random.randn(100) * 0.0001,
-        'predicted_rate': np.random.randn(100) * 0.0001
-    }, index=dates)
+    funding = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "funding_rate": np.random.randn(100) * 0.0001,
+            "predicted_rate": np.random.randn(100) * 0.0001,
+        },
+        index=dates,
+    )
 
     # 模擬 OPEN_INTEREST
-    oi = pd.DataFrame({
-        'timestamp': dates,
-        'open_interest': 50000 + np.cumsum(np.random.randn(100) * 100),
-        'open_interest_value': 5000000000 + np.cumsum(np.random.randn(100) * 10000000)
-    }, index=dates)
+    oi = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "open_interest": 50000 + np.cumsum(np.random.randn(100) * 100),
+            "open_interest_value": 5000000000 + np.cumsum(np.random.randn(100) * 10000000),
+        },
+        index=dates,
+    )
 
     # 模擬 BASIS
-    basis = pd.DataFrame({
-        'timestamp': dates,
-        'basis': np.random.randn(100) * 50,
-        'basis_pct': np.random.randn(100) * 0.5,
-        'arbitrage_type': np.random.choice(['none', 'cash_and_carry', 'reverse'], 100)
-    }, index=dates)
+    basis = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "basis": np.random.randn(100) * 50,
+            "basis_pct": np.random.randn(100) * 0.5,
+            "arbitrage_type": np.random.choice(["none", "cash_and_carry", "reverse"], 100),
+        },
+        index=dates,
+    )
 
     # 模擬 LIQUIDATIONS
-    liquidations = pd.DataFrame({
-        'timestamp': dates,
-        'total_value': 1000000 + np.abs(np.random.randn(100) * 500000),
-        'panic_level': np.random.choice(['calm', 'moderate', 'elevated', 'high', 'extreme'], 100)
-    }, index=dates)
+    liquidations = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "total_value": 1000000 + np.abs(np.random.randn(100) * 500000),
+            "panic_level": np.random.choice(
+                ["calm", "moderate", "elevated", "high", "extreme"], 100
+            ),
+        },
+        index=dates,
+    )
 
     # 模擬 LONG_SHORT_RATIO
-    lsr = pd.DataFrame({
-        'timestamp': dates,
-        'long_ratio': 0.5 + np.random.randn(100) * 0.1,
-        'sentiment_index': np.random.randn(100) * 30,
-        'contrarian_signal': np.random.choice(['no_signal', 'consider_long', 'consider_short'], 100)
-    }, index=dates)
+    lsr = pd.DataFrame(
+        {
+            "timestamp": dates,
+            "long_ratio": 0.5 + np.random.randn(100) * 0.1,
+            "sentiment_index": np.random.randn(100) * 30,
+            "contrarian_signal": np.random.choice(
+                ["no_signal", "consider_long", "consider_short"], 100
+            ),
+        },
+        index=dates,
+    )
 
     # 組裝數據
     data = {
-        'ohlcv': ohlcv,
-        'funding_rate': funding,
-        'open_interest': oi,
-        'basis': basis,
-        'liquidations': liquidations,
-        'long_short_ratio': lsr
+        "ohlcv": ohlcv,
+        "funding_rate": funding,
+        "open_interest": oi,
+        "basis": basis,
+        "liquidations": liquidations,
+        "long_short_ratio": lsr,
     }
 
     # 生成信號
@@ -393,11 +414,13 @@ def demo_kawamoku_strategy():
 
     # 顯示最近信號
     print("最近 10 個信號:")
-    recent = pd.DataFrame({
-        '時間': ohlcv['timestamp'].iloc[-10:].dt.strftime('%Y-%m-%d %H:%M'),
-        '價格': ohlcv['close'].iloc[-10:].round(2),
-        '信號': signals.iloc[-10:].map({1: '做多', -1: '做空', 0: '持倉'})
-    })
+    recent = pd.DataFrame(
+        {
+            "時間": ohlcv["timestamp"].iloc[-10:].dt.strftime("%Y-%m-%d %H:%M"),
+            "價格": ohlcv["close"].iloc[-10:].round(2),
+            "信號": signals.iloc[-10:].map({1: "做多", -1: "做空", 0: "持倉"}),
+        }
+    )
     print(recent.to_string(index=False))
     print()
 
@@ -451,5 +474,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

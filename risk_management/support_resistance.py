@@ -13,30 +13,33 @@ Version: v0.6.0-phase4
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 from enum import Enum
-import pandas as pd
+from typing import List, Optional, Tuple
+
 import numpy as np
+import pandas as pd
 
 
 class SRType(Enum):
     """支撐壓力類型"""
-    SUPPORT = "support"       # 支撐位
+
+    SUPPORT = "support"  # 支撐位
     RESISTANCE = "resistance"  # 壓力位
-    BOTH = "both"            # 雙向（支撐轉壓力或壓力轉支撐）
+    BOTH = "both"  # 雙向（支撐轉壓力或壓力轉支撐）
 
 
 @dataclass
 class SRLevel:
     """支撐壓力位"""
-    price: float              # 價格水平
-    sr_type: SRType          # 類型
-    strength: float          # 強度 (0-1)
-    touches: int             # 觸碰次數
-    last_touch_idx: int      # 最後觸碰位置
-    volume_score: float = 0.0    # 成交量得分
-    oi_score: float = 0.0        # 持倉量得分
-    funding_score: float = 0.0   # 資金費率得分
+
+    price: float  # 價格水平
+    sr_type: SRType  # 類型
+    strength: float  # 強度 (0-1)
+    touches: int  # 觸碰次數
+    last_touch_idx: int  # 最後觸碰位置
+    volume_score: float = 0.0  # 成交量得分
+    oi_score: float = 0.0  # 持倉量得分
+    funding_score: float = 0.0  # 資金費率得分
 
 
 class SupportResistanceDetector:
@@ -56,7 +59,7 @@ class SupportResistanceDetector:
         lookback_period: int = 100,
         min_touches: int = 2,
         price_tolerance: float = 0.002,  # 0.2%
-        min_strength: float = 0.3
+        min_strength: float = 0.3,
     ):
         """初始化檢測器
 
@@ -76,7 +79,7 @@ class SupportResistanceDetector:
         ohlcv: pd.DataFrame,
         include_volume: bool = True,
         oi_data: Optional[pd.DataFrame] = None,
-        funding_data: Optional[pd.DataFrame] = None
+        funding_data: Optional[pd.DataFrame] = None,
     ) -> List[SRLevel]:
         """檢測支撐壓力位
 
@@ -106,7 +109,7 @@ class SupportResistanceDetector:
             level.strength = self._calculate_strength(level, ohlcv)
 
         # 4. 成交量增強
-        if include_volume and 'volume' in ohlcv.columns:
+        if include_volume and "volume" in ohlcv.columns:
             for level in all_levels:
                 level.volume_score = self._calculate_volume_score(level, ohlcv)
 
@@ -125,7 +128,8 @@ class SupportResistanceDetector:
 
         # 7. 過濾弱水平
         filtered_levels = [
-            level for level in all_levels
+            level
+            for level in all_levels
             if level.strength >= self.min_strength and level.touches >= self.min_touches
         ]
 
@@ -135,9 +139,7 @@ class SupportResistanceDetector:
         return filtered_levels
 
     def _find_local_extrema(
-        self,
-        ohlcv: pd.DataFrame,
-        order: int = 5
+        self, ohlcv: pd.DataFrame, order: int = 5
     ) -> Tuple[List[Tuple[int, float]], List[Tuple[int, float]]]:
         """找出局部極值（高點和低點）
 
@@ -151,27 +153,26 @@ class SupportResistanceDetector:
         highs = []
         lows = []
 
-        high_prices = ohlcv['high'].values
-        low_prices = ohlcv['low'].values
+        high_prices = ohlcv["high"].values
+        low_prices = ohlcv["low"].values
 
         for i in range(order, len(ohlcv) - order):
             # 檢查局部高點
-            if all(high_prices[i] >= high_prices[i-order:i]) and \
-               all(high_prices[i] >= high_prices[i+1:i+order+1]):
+            if all(high_prices[i] >= high_prices[i - order : i]) and all(
+                high_prices[i] >= high_prices[i + 1 : i + order + 1]
+            ):
                 highs.append((i, high_prices[i]))
 
             # 檢查局部低點
-            if all(low_prices[i] <= low_prices[i-order:i]) and \
-               all(low_prices[i] <= low_prices[i+1:i+order+1]):
+            if all(low_prices[i] <= low_prices[i - order : i]) and all(
+                low_prices[i] <= low_prices[i + 1 : i + order + 1]
+            ):
                 lows.append((i, low_prices[i]))
 
         return highs, lows
 
     def _cluster_levels(
-        self,
-        extrema: List[Tuple[int, float]],
-        ohlcv: pd.DataFrame,
-        sr_type: SRType
+        self, extrema: List[Tuple[int, float]], ohlcv: pd.DataFrame, sr_type: SRType
     ) -> List[SRLevel]:
         """聚類相近的價格水平
 
@@ -219,7 +220,7 @@ class SupportResistanceDetector:
                 sr_type=sr_type,
                 strength=0.0,  # 後續計算
                 touches=touches,
-                last_touch_idx=last_touch_idx
+                last_touch_idx=last_touch_idx,
             )
             levels.append(level)
 
@@ -250,10 +251,7 @@ class SupportResistanceDetector:
         return touch_score + recency_score + bounce_score
 
     def _calculate_bounce_strength(
-        self,
-        level: SRLevel,
-        ohlcv: pd.DataFrame,
-        window: int = 5
+        self, level: SRLevel, ohlcv: pd.DataFrame, window: int = 5
     ) -> float:
         """計算價格反彈強度
 
@@ -269,8 +267,8 @@ class SupportResistanceDetector:
         if idx + window >= len(ohlcv):
             return 0.0
 
-        price_at_touch = ohlcv['close'].iloc[idx]
-        prices_after = ohlcv['close'].iloc[idx+1:idx+window+1]
+        price_at_touch = ohlcv["close"].iloc[idx]
+        prices_after = ohlcv["close"].iloc[idx + 1 : idx + window + 1]
 
         if len(prices_after) == 0:
             return 0.0
@@ -298,11 +296,11 @@ class SupportResistanceDetector:
             float: 成交量得分 (0-1)
         """
         idx = level.last_touch_idx
-        if 'volume' not in ohlcv.columns:
+        if "volume" not in ohlcv.columns:
             return 0.0
 
-        volume_at_touch = ohlcv['volume'].iloc[idx]
-        avg_volume = ohlcv['volume'].mean()
+        volume_at_touch = ohlcv["volume"].iloc[idx]
+        avg_volume = ohlcv["volume"].mean()
 
         if avg_volume == 0:
             return 0.0
@@ -314,10 +312,7 @@ class SupportResistanceDetector:
         return min(volume_ratio / 2.0, 1.0)
 
     def _calculate_oi_score(
-        self,
-        level: SRLevel,
-        ohlcv: pd.DataFrame,
-        oi_data: pd.DataFrame
+        self, level: SRLevel, ohlcv: pd.DataFrame, oi_data: pd.DataFrame
     ) -> float:
         """計算持倉量得分
 
@@ -335,8 +330,8 @@ class SupportResistanceDetector:
             timestamp = ohlcv.index[idx]
 
             # 找到最接近的持倉量數據
-            oi_at_time = oi_data.loc[oi_data.index <= timestamp].iloc[-1]['open_interest']
-            avg_oi = oi_data['open_interest'].mean()
+            oi_at_time = oi_data.loc[oi_data.index <= timestamp].iloc[-1]["open_interest"]
+            avg_oi = oi_data["open_interest"].mean()
 
             if avg_oi == 0:
                 return 0.0
@@ -347,11 +342,7 @@ class SupportResistanceDetector:
         except:
             return 0.0
 
-    def _calculate_funding_score(
-        self,
-        level: SRLevel,
-        funding_data: pd.DataFrame
-    ) -> float:
+    def _calculate_funding_score(self, level: SRLevel, funding_data: pd.DataFrame) -> float:
         """計算資金費率得分
 
         高資金費率可能預示壓力位；負資金費率可能預示支撐位
@@ -364,7 +355,7 @@ class SupportResistanceDetector:
             float: 資金費率得分 (0-1)
         """
         try:
-            avg_funding = funding_data['funding_rate'].mean()
+            avg_funding = funding_data["funding_rate"].mean()
 
             if level.sr_type == SRType.RESISTANCE and avg_funding > 0.0001:
                 # 正費率強化壓力位
@@ -394,19 +385,15 @@ class SupportResistanceDetector:
         funding_weight = 0.1
 
         final_strength = (
-            level.strength * base_weight +
-            level.volume_score * volume_weight +
-            level.oi_score * oi_weight +
-            level.funding_score * funding_weight
+            level.strength * base_weight
+            + level.volume_score * volume_weight
+            + level.oi_score * oi_weight
+            + level.funding_score * funding_weight
         )
 
         return min(final_strength, 1.0)
 
-    def get_nearest_support(
-        self,
-        current_price: float,
-        levels: List[SRLevel]
-    ) -> Optional[SRLevel]:
+    def get_nearest_support(self, current_price: float, levels: List[SRLevel]) -> Optional[SRLevel]:
         """獲取最近的支撐位
 
         Args:
@@ -417,7 +404,8 @@ class SupportResistanceDetector:
             Optional[SRLevel]: 最近的支撐位
         """
         supports = [
-            level for level in levels
+            level
+            for level in levels
             if level.sr_type in [SRType.SUPPORT, SRType.BOTH] and level.price < current_price
         ]
 
@@ -427,9 +415,7 @@ class SupportResistanceDetector:
         return max(supports, key=lambda x: x.price)
 
     def get_nearest_resistance(
-        self,
-        current_price: float,
-        levels: List[SRLevel]
+        self, current_price: float, levels: List[SRLevel]
     ) -> Optional[SRLevel]:
         """獲取最近的壓力位
 
@@ -441,7 +427,8 @@ class SupportResistanceDetector:
             Optional[SRLevel]: 最近的壓力位
         """
         resistances = [
-            level for level in levels
+            level
+            for level in levels
             if level.sr_type in [SRType.RESISTANCE, SRType.BOTH] and level.price > current_price
         ]
 
@@ -453,10 +440,8 @@ class SupportResistanceDetector:
 
 # ===== 便捷函數 =====
 
-def detect_support_resistance(
-    ohlcv: pd.DataFrame,
-    **kwargs
-) -> List[SRLevel]:
+
+def detect_support_resistance(ohlcv: pd.DataFrame, **kwargs) -> List[SRLevel]:
     """快速檢測支撐壓力位
 
     Args:

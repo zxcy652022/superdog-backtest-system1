@@ -10,12 +10,12 @@ from .multi_exchange import (
     MultiExchangeAggregator,
     aggregate_funding_rates,
     aggregate_open_interest,
-    compare_exchanges
+    compare_exchanges,
 )
 
 __all__ = [
-    'MultiExchangeAggregator',
-    'aggregate_funding_rates',
-    'aggregate_open_interest',
-    'compare_exchanges'
+    "MultiExchangeAggregator",
+    "aggregate_funding_rates",
+    "aggregate_open_interest",
+    "compare_exchanges",
 ]

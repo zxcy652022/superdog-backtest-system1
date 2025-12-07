@@ -25,7 +25,7 @@ def verify_imports():
         "execution_engine.experiments",
         "execution_engine.experiment_runner",
         "execution_engine.parameter_optimizer",
-        "execution_engine.result_analyzer"
+        "execution_engine.result_analyzer",
     ]
 
     passed = 0
@@ -55,12 +55,12 @@ def verify_classes():
     print()
 
     from execution_engine import (
-        create_experiment_config,
         ExperimentRunner,
+        OptimizationConfig,
+        OptimizationMode,
         ParameterOptimizer,
         ResultAnalyzer,
-        OptimizationConfig,
-        OptimizationMode
+        create_experiment_config,
     )
 
     tests = []
@@ -72,7 +72,7 @@ def verify_classes():
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10, 20]},
-            timeframe="1h"
+            timeframe="1h",
         )
         print(f"✓ ExperimentConfig 創建成功")
         print(f"  - 實驗ID: {config.get_experiment_id()}")
@@ -93,13 +93,11 @@ def verify_classes():
 
     # 測試 3: 實例化 ParameterOptimizer
     try:
-        def mock_backtest(symbol, timeframe, params, config):
-            return {'sharpe_ratio': 1.0}
 
-        opt_config = OptimizationConfig(
-            mode=OptimizationMode.GRID,
-            metric="sharpe_ratio"
-        )
+        def mock_backtest(symbol, timeframe, params, config):
+            return {"sharpe_ratio": 1.0}
+
+        opt_config = OptimizationConfig(mode=OptimizationMode.GRID, metric="sharpe_ratio")
         optimizer = ParameterOptimizer(config, mock_backtest, opt_config)
         print(f"✓ ParameterOptimizer 實例化成功")
         print(f"  - 優化模式: {optimizer.opt_config.mode.value}")
@@ -120,7 +118,7 @@ def verify_classes():
                 parameters={"period": 10},
                 status=ExperimentStatus.COMPLETED,
                 sharpe_ratio=1.5,
-                total_return=0.15
+                total_return=0.15,
             )
         ]
 
@@ -130,7 +128,7 @@ def verify_classes():
             runs=runs,
             total_runs=1,
             completed_runs=1,
-            failed_runs=0
+            failed_runs=0,
         )
 
         analyzer = ResultAnalyzer(result)
@@ -164,7 +162,7 @@ def verify_file_structure():
         "cli/main.py",
         "tests/test_experiments_v06.py",
         "V06_PHASE2_STRATEGY_LAB.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
     ]
 
     passed = 0
@@ -194,21 +192,22 @@ def verify_cli_commands():
     print()
 
     try:
-        from cli.main import cli
         from click.testing import CliRunner
+
+        from cli.main import cli
 
         runner = CliRunner()
 
         # 測試 help
-        result = runner.invoke(cli, ['experiment', '--help'])
-        if result.exit_code == 0 and 'experiment' in result.output:
+        result = runner.invoke(cli, ["experiment", "--help"])
+        if result.exit_code == 0 and "experiment" in result.output:
             print("✓ superdog experiment --help")
         else:
             print(f"✗ superdog experiment --help (exit code: {result.exit_code})")
             return False
 
         # 檢查子命令
-        commands = ['create', 'run', 'optimize', 'list', 'analyze']
+        commands = ["create", "run", "optimize", "list", "analyze"]
         for cmd in commands:
             if cmd in result.output:
                 print(f"✓ superdog experiment {cmd} (可用)")
@@ -239,7 +238,7 @@ def main():
         "模組導入": verify_imports(),
         "核心類": verify_classes(),
         "文件結構": verify_file_structure(),
-        "CLI 命令": verify_cli_commands()
+        "CLI 命令": verify_cli_commands(),
     }
 
     # 總結

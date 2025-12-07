@@ -13,7 +13,8 @@ Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §2
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Literal
+from typing import List, Literal, Optional
+
 import pandas as pd
 
 # v0.3: 定義持倉方向類型
@@ -23,16 +24,17 @@ DirectionType = Literal["long", "short", "flat"]
 @dataclass
 class Trade:
     """交易記錄（v0.3 擴展）"""
+
     entry_time: pd.Timestamp  # 進場時間
-    exit_time: pd.Timestamp   # 出場時間
-    entry_price: float        # 進場價格
-    exit_price: float         # 出場價格
-    qty: float                # 數量（絕對值）
-    pnl: float                # 損益（扣除手續費後）
-    return_pct: float         # 報酬率（百分比）
+    exit_time: pd.Timestamp  # 出場時間
+    entry_price: float  # 進場價格
+    exit_price: float  # 出場價格
+    qty: float  # 數量（絕對值）
+    pnl: float  # 損益（扣除手續費後）
+    return_pct: float  # 報酬率（百分比）
     # v0.3 新增字段（向後兼容：提供默認值）
     direction: DirectionType = "long"  # 持倉方向
-    leverage: float = 1.0              # 槓桿倍數
+    leverage: float = 1.0  # 槓桿倍數
 
 
 class SimulatedBroker:
@@ -42,7 +44,7 @@ class SimulatedBroker:
         self,
         initial_cash: float,
         fee_rate: float = 0.0005,
-        leverage: float = 1.0    # v0.3 新增：預設1倍（無槓桿）
+        leverage: float = 1.0,  # v0.3 新增：預設1倍（無槓桿）
     ):
         """
         初始化模擬交易所
@@ -91,11 +93,7 @@ class SimulatedBroker:
         return self.has_position and self.position_direction == "short"
 
     def buy(
-        self,
-        size: float,
-        price: float,
-        time: pd.Timestamp,
-        leverage: Optional[float] = None
+        self, size: float, price: float, time: pd.Timestamp, leverage: Optional[float] = None
     ) -> bool:
         """
         買入（v0.3: 開多或平空）
@@ -133,11 +131,7 @@ class SimulatedBroker:
             return False
 
     def sell(
-        self,
-        size: float,
-        price: float,
-        time: pd.Timestamp,
-        leverage: Optional[float] = None
+        self, size: float, price: float, time: pd.Timestamp, leverage: Optional[float] = None
     ) -> bool:
         """
         賣出（v0.3: 開空或平多）
@@ -175,13 +169,7 @@ class SimulatedBroker:
 
     # === v0.3 新增：內部方法（私有） ===
 
-    def _open_long(
-        self,
-        size: float,
-        price: float,
-        time: pd.Timestamp,
-        leverage: float
-    ) -> bool:
+    def _open_long(self, size: float, price: float, time: pd.Timestamp, leverage: float) -> bool:
         """開多單（內部方法）"""
         # 計算成本（考慮槓桿）
         # 槓桿的簡化模型: 占用資金 = 倉位價值 / leverage
@@ -203,13 +191,7 @@ class SimulatedBroker:
 
         return True
 
-    def _open_short(
-        self,
-        size: float,
-        price: float,
-        time: pd.Timestamp,
-        leverage: float
-    ) -> bool:
+    def _open_short(self, size: float, price: float, time: pd.Timestamp, leverage: float) -> bool:
         """開空單（內部方法）"""
         # 做空的簡化模型:
         # - 占用資金 = 倉位價值 / leverage
@@ -263,7 +245,7 @@ class SimulatedBroker:
             pnl=pnl,
             return_pct=return_pct,
             direction="long",
-            leverage=self.leverage
+            leverage=self.leverage,
         )
         self.trades.append(trade)
 
@@ -312,7 +294,7 @@ class SimulatedBroker:
             pnl=pnl,
             return_pct=return_pct,
             direction="short",
-            leverage=self.leverage
+            leverage=self.leverage,
         )
         self.trades.append(trade)
 
@@ -413,7 +395,7 @@ class SimulatedBroker:
             return pd.Series(dtype=float)
 
         times, equities = zip(*self.equity_history)
-        return pd.Series(equities, index=pd.DatetimeIndex(times), name='equity')
+        return pd.Series(equities, index=pd.DatetimeIndex(times), name="equity")
 
     def get_current_equity(self, price: float) -> float:
         """

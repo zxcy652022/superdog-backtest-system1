@@ -9,9 +9,10 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 
 
@@ -20,6 +21,7 @@ class ParameterType(Enum):
 
     定義策略參數支援的數據類型
     """
+
     FLOAT = "float"
     INT = "int"
     STR = "str"
@@ -49,6 +51,7 @@ class ParameterSpec:
         ...     max_value=200
         ... )
     """
+
     param_type: ParameterType
     default_value: Any
     description: str
@@ -89,9 +92,9 @@ class ParameterSpec:
                 if isinstance(value, bool):
                     converted_value = value
                 elif isinstance(value, str):
-                    if value.lower() in ('true', 't', 'yes', 'y', '1'):
+                    if value.lower() in ("true", "t", "yes", "y", "1"):
                         converted_value = True
-                    elif value.lower() in ('false', 'f', 'no', 'n', '0'):
+                    elif value.lower() in ("false", "f", "no", "n", "0"):
                         converted_value = False
                     else:
                         raise TypeError(f"Cannot convert '{value}' to bool")
@@ -100,20 +103,14 @@ class ParameterSpec:
             else:
                 raise TypeError(f"Unknown parameter type: {self.param_type}")
         except (ValueError, TypeError) as e:
-            raise TypeError(
-                f"Cannot convert value '{value}' to {self.param_type.value}: {e}"
-            )
+            raise TypeError(f"Cannot convert value '{value}' to {self.param_type.value}: {e}")
 
         # 範圍驗證（數值類型）
         if self.param_type in (ParameterType.FLOAT, ParameterType.INT):
             if self.min_value is not None and converted_value < self.min_value:
-                raise ValueError(
-                    f"Value {converted_value} is below min_value {self.min_value}"
-                )
+                raise ValueError(f"Value {converted_value} is below min_value {self.min_value}")
             if self.max_value is not None and converted_value > self.max_value:
-                raise ValueError(
-                    f"Value {converted_value} exceeds max_value {self.max_value}"
-                )
+                raise ValueError(f"Value {converted_value} exceeds max_value {self.max_value}")
 
         # 選項驗證（字符串類型）
         if self.param_type == ParameterType.STR and self.choices is not None:
@@ -139,17 +136,18 @@ class DataSource(Enum):
         FUNDING = FUNDING_RATE (v0.4 alias)
         OI = OPEN_INTEREST (v0.4 alias)
     """
-    OHLCV = "ohlcv"                      # 基礎K線數據（v0.4）
-    FUNDING_RATE = "funding_rate"        # 資金費率（v0.5 Phase A）
-    OPEN_INTEREST = "open_interest"      # 持倉量（v0.5 Phase A）
-    BASIS = "basis"                      # 期現基差（v0.5 Phase B）
-    LIQUIDATIONS = "liquidations"        # 爆倉數據（v0.5 Phase B）
-    LONG_SHORT_RATIO = "long_short"      # 多空持倉比（v0.5 Phase B）
-    VOLUME_PROFILE = "volume_profile"    # 成交量分佈（v0.5 Phase C）
+
+    OHLCV = "ohlcv"  # 基礎K線數據（v0.4）
+    FUNDING_RATE = "funding_rate"  # 資金費率（v0.5 Phase A）
+    OPEN_INTEREST = "open_interest"  # 持倉量（v0.5 Phase A）
+    BASIS = "basis"  # 期現基差（v0.5 Phase B）
+    LIQUIDATIONS = "liquidations"  # 爆倉數據（v0.5 Phase B）
+    LONG_SHORT_RATIO = "long_short"  # 多空持倉比（v0.5 Phase B）
+    VOLUME_PROFILE = "volume_profile"  # 成交量分佈（v0.5 Phase C）
 
     # Backward compatibility aliases (v0.4)
-    FUNDING = "funding_rate"             # Alias for FUNDING_RATE
-    OI = "open_interest"                 # Alias for OPEN_INTEREST
+    FUNDING = "funding_rate"  # Alias for FUNDING_RATE
+    OI = "open_interest"  # Alias for OPEN_INTEREST
 
 
 @dataclass
@@ -171,10 +169,11 @@ class DataRequirement:
         ...     required=True
         ... )
     """
+
     source: DataSource
     timeframe: Optional[str] = None  # 特定時間週期需求
-    lookback_periods: int = 100      # 回望期數
-    required: bool = True            # 是否必需
+    lookback_periods: int = 100  # 回望期數
+    required: bool = True  # 是否必需
 
 
 class BaseStrategy(ABC):
@@ -323,12 +322,12 @@ class BaseStrategy(ABC):
             }
         """
         return {
-            'name': self.name,
-            'version': self.version,
-            'author': self.author,
-            'description': self.description,
-            'parameters': list(self.get_parameters().keys()),
-            'data_sources': [req.source.value for req in self.get_data_requirements()]
+            "name": self.name,
+            "version": self.version,
+            "author": self.author,
+            "description": self.description,
+            "parameters": list(self.get_parameters().keys()),
+            "data_sources": [req.source.value for req in self.get_data_requirements()],
         }
 
     def validate_parameters(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -366,18 +365,21 @@ class BaseStrategy(ABC):
         undefined_params = set(params.keys()) - set(parameter_specs.keys())
         if undefined_params:
             import warnings
-            warnings.warn(
-                f"Undefined parameters will be ignored: {undefined_params}"
-            )
+
+            warnings.warn(f"Undefined parameters will be ignored: {undefined_params}")
 
         return validated_params
 
 
 # 輔助函數：快速創建參數規格
 
-def float_param(default: float, description: str,
-                min_val: Optional[float] = None,
-                max_val: Optional[float] = None) -> ParameterSpec:
+
+def float_param(
+    default: float,
+    description: str,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None,
+) -> ParameterSpec:
     """快速創建浮點數參數規格
 
     Args:
@@ -395,9 +397,9 @@ def float_param(default: float, description: str,
     return ParameterSpec(ParameterType.FLOAT, default, description, min_val, max_val)
 
 
-def int_param(default: int, description: str,
-              min_val: Optional[int] = None,
-              max_val: Optional[int] = None) -> ParameterSpec:
+def int_param(
+    default: int, description: str, min_val: Optional[int] = None, max_val: Optional[int] = None
+) -> ParameterSpec:
     """快速創建整數參數規格
 
     Args:
@@ -415,8 +417,7 @@ def int_param(default: int, description: str,
     return ParameterSpec(ParameterType.INT, default, description, min_val, max_val)
 
 
-def str_param(default: str, description: str,
-              choices: Optional[List[str]] = None) -> ParameterSpec:
+def str_param(default: str, description: str, choices: Optional[List[str]] = None) -> ParameterSpec:
     """快速創建字符串參數規格
 
     Args:

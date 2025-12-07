@@ -20,7 +20,7 @@ data/
 ├── universe_manager.py              # 主管理器
 ├── universe_calculator.py           # 屬性計算
 ├── universe/                        # 數據存儲
-│   ├── metadata/                   
+│   ├── metadata/
 │   ├── snapshots/
 │   └── configs/
 └── universe_filters.py              # 篩選規則
@@ -229,7 +229,7 @@ data = np.memmap('large_file.dat', dtype='float32', mode='r')
 - [ ] 真實執行成本模擬精確
 - [ ] 動態風控策略有效
 
-### 技術驗收  
+### 技術驗收
 - [ ] 代碼覆蓋率 >85%
 - [ ] 性能指標達標
 - [ ] 記憶體使用合理
@@ -258,7 +258,7 @@ Phase 1: 幣種宇宙管理系統
 - 重點: 屬性計算、自動分類、性能優化
 - 測試: 15+ 單元測試，集成測試
 
-Phase 2: 策略實驗室系統  
+Phase 2: 策略實驗室系統
 - 參考: superdog_v06_strategy_lab_spec.md
 - 重點: 批量執行、參數優化、結果分析
 - 測試: 20+ 單元測試，性能測試
@@ -289,7 +289,7 @@ Phase 4: 動態風控系統
 ## 📁 完整開發文檔下載
 
 - [**SuperDog v0.6 開發計劃**](computer:///mnt/user-data/outputs/superdog_v06_development_plan.md)
-- [**幣種宇宙管理技術規格**](computer:///mnt/user-data/outputs/superdog_v06_universe_manager_spec.md)  
+- [**幣種宇宙管理技術規格**](computer:///mnt/user-data/outputs/superdog_v06_universe_manager_spec.md)
 - [**策略實驗室技術規格**](computer:///mnt/user-data/outputs/superdog_v06_strategy_lab_spec.md)
 - [**真實執行模型技術規格**](computer:///mnt/user-data/outputs/superdog_v06_execution_model_spec.md)
 

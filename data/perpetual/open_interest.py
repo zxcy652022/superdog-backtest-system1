@@ -13,12 +13,13 @@ Features:
 Version: v0.5
 """
 
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any, Union
-from pathlib import Path
 import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import numpy as np
+import pandas as pd
 
 from data.exchanges.base_connector import ExchangeConnector
 from data.exchanges.binance_connector import BinanceConnector
@@ -44,13 +45,13 @@ class OpenInterestData:
         Args:
             storage_path: 數據存儲路徑（默認使用 SSD）
         """
-        self.storage_path = storage_path or Path("/Volumes/權志龍的寶藏/SuperDogData/perpetual/open_interest")
+        self.storage_path = storage_path or Path(
+            "/Volumes/權志龍的寶藏/SuperDogData/perpetual/open_interest"
+        )
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         # 初始化交易所連接器
-        self.connectors: Dict[str, ExchangeConnector] = {
-            'binance': BinanceConnector()
-        }
+        self.connectors: Dict[str, ExchangeConnector] = {"binance": BinanceConnector()}
 
         # 數據快取
         self._cache: Dict[str, pd.DataFrame] = {}
@@ -60,9 +61,9 @@ class OpenInterestData:
         symbol: str,
         start_time: Optional[Union[str, datetime]] = None,
         end_time: Optional[Union[str, datetime]] = None,
-        interval: str = '1h',
-        exchange: str = 'binance',
-        use_cache: bool = True
+        interval: str = "1h",
+        exchange: str = "binance",
+        use_cache: bool = True,
     ) -> pd.DataFrame:
         """獲取持倉量數據
 
@@ -109,10 +110,7 @@ class OpenInterestData:
 
         try:
             df = connector.get_open_interest(
-                symbol=symbol,
-                interval=interval,
-                start_time=start_time,
-                end_time=end_time
+                symbol=symbol, interval=interval, start_time=start_time, end_time=end_time
             )
 
             if df.empty:
@@ -120,18 +118,24 @@ class OpenInterestData:
                 return pd.DataFrame()
 
             # 添加交易所標籤
-            df['exchange'] = exchange
+            df["exchange"] = exchange
 
             # 計算持倉量變化
-            df['oi_change'] = df['open_interest'].diff()
-            df['oi_change_pct'] = df['open_interest'].pct_change() * 100
+            df["oi_change"] = df["open_interest"].diff()
+            df["oi_change_pct"] = df["open_interest"].pct_change() * 100
 
             # 重新排序欄位
-            df = df[[
-                'timestamp', 'symbol', 'exchange',
-                'open_interest', 'open_interest_value',
-                'oi_change', 'oi_change_pct'
-            ]]
+            df = df[
+                [
+                    "timestamp",
+                    "symbol",
+                    "exchange",
+                    "open_interest",
+                    "open_interest_value",
+                    "oi_change",
+                    "oi_change_pct",
+                ]
+            ]
 
             # 快取數據
             if use_cache:
@@ -150,8 +154,8 @@ class OpenInterestData:
         symbol: str,
         start_time: Optional[Union[str, datetime]] = None,
         end_time: Optional[Union[str, datetime]] = None,
-        interval: str = '1h',
-        exchanges: Optional[List[str]] = None
+        interval: str = "1h",
+        exchanges: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """從多個交易所獲取持倉量數據並合併
 
@@ -184,17 +188,13 @@ class OpenInterestData:
 
         # 合併所有數據
         combined = pd.concat(all_data, ignore_index=True)
-        combined = combined.sort_values(['timestamp', 'exchange']).reset_index(drop=True)
+        combined = combined.sort_values(["timestamp", "exchange"]).reset_index(drop=True)
 
         logger.info(f"Fetched {len(combined)} total records from {len(all_data)} exchanges")
 
         return combined
 
-    def analyze_trend(
-        self,
-        df: pd.DataFrame,
-        window: int = 24
-    ) -> Dict[str, Any]:
+    def analyze_trend(self, df: pd.DataFrame, window: int = 24) -> Dict[str, Any]:
         """分析持倉量趨勢
 
         Args:
@@ -215,7 +215,7 @@ class OpenInterestData:
         if df.empty:
             return {}
 
-        oi_values = df['open_interest']
+        oi_values = df["open_interest"]
 
         # 基本統計
         current_oi = oi_values.iloc[-1]
@@ -226,16 +226,20 @@ class OpenInterestData:
         # 計算趨勢
         if len(oi_values) >= window:
             recent_avg = oi_values.iloc[-window:].mean()
-            previous_avg = oi_values.iloc[-window*2:-window].mean() if len(oi_values) >= window*2 else avg_oi
+            previous_avg = (
+                oi_values.iloc[-window * 2 : -window].mean()
+                if len(oi_values) >= window * 2
+                else avg_oi
+            )
 
             if recent_avg > previous_avg * 1.05:
-                trend = 'increasing'
+                trend = "increasing"
             elif recent_avg < previous_avg * 0.95:
-                trend = 'decreasing'
+                trend = "decreasing"
             else:
-                trend = 'stable'
+                trend = "stable"
         else:
-            trend = 'unknown'
+            trend = "unknown"
 
         # 24小時變化
         if len(oi_values) >= window:
@@ -249,20 +253,18 @@ class OpenInterestData:
         volatility = (oi_values.std() / avg_oi) * 100 if avg_oi > 0 else 0
 
         return {
-            'current_oi': current_oi,
-            'avg_oi': avg_oi,
-            'max_oi': max_oi,
-            'min_oi': min_oi,
-            'trend': trend,
-            'change_24h': change_24h,
-            'change_24h_pct': change_24h_pct,
-            'volatility': volatility
+            "current_oi": current_oi,
+            "avg_oi": avg_oi,
+            "max_oi": max_oi,
+            "min_oi": min_oi,
+            "trend": trend,
+            "change_24h": change_24h,
+            "change_24h_pct": change_24h_pct,
+            "volatility": volatility,
         }
 
     def calculate_statistics(
-        self,
-        df: pd.DataFrame,
-        window: Optional[int] = None
+        self, df: pd.DataFrame, window: Optional[int] = None
     ) -> Dict[str, Any]:
         """計算持倉量統計指標
 
@@ -276,33 +278,29 @@ class OpenInterestData:
         if df.empty:
             return {}
 
-        oi_values = df['open_interest']
-        oi_value_usd = df['open_interest_value']
+        oi_values = df["open_interest"]
+        oi_value_usd = df["open_interest_value"]
 
         stats = {
-            'mean_oi': oi_values.mean(),
-            'median_oi': oi_values.median(),
-            'std_oi': oi_values.std(),
-            'min_oi': oi_values.min(),
-            'max_oi': oi_values.max(),
-            'mean_oi_value': oi_value_usd.mean(),
-            'total_oi_value': oi_value_usd.iloc[-1] if len(oi_value_usd) > 0 else 0
+            "mean_oi": oi_values.mean(),
+            "median_oi": oi_values.median(),
+            "std_oi": oi_values.std(),
+            "min_oi": oi_values.min(),
+            "max_oi": oi_values.max(),
+            "mean_oi_value": oi_value_usd.mean(),
+            "total_oi_value": oi_value_usd.iloc[-1] if len(oi_value_usd) > 0 else 0,
         }
 
         # 如果指定窗口，計算滾動統計
         if window is not None:
-            stats['rolling_mean'] = oi_values.rolling(window).mean()
-            stats['rolling_std'] = oi_values.rolling(window).std()
-            stats['rolling_max'] = oi_values.rolling(window).max()
-            stats['rolling_min'] = oi_values.rolling(window).min()
+            stats["rolling_mean"] = oi_values.rolling(window).mean()
+            stats["rolling_std"] = oi_values.rolling(window).std()
+            stats["rolling_max"] = oi_values.rolling(window).max()
+            stats["rolling_min"] = oi_values.rolling(window).min()
 
         return stats
 
-    def detect_spikes(
-        self,
-        df: pd.DataFrame,
-        threshold: float = 2.0
-    ) -> pd.DataFrame:
+    def detect_spikes(self, df: pd.DataFrame, threshold: float = 2.0) -> pd.DataFrame:
         """檢測持倉量突增/突減
 
         Args:
@@ -315,28 +313,24 @@ class OpenInterestData:
         df = df.copy()
 
         # 計算Z-score
-        oi_mean = df['open_interest'].mean()
-        oi_std = df['open_interest'].std()
+        oi_mean = df["open_interest"].mean()
+        oi_std = df["open_interest"].std()
 
-        df['z_score'] = (df['open_interest'] - oi_mean) / oi_std if oi_std > 0 else 0
+        df["z_score"] = (df["open_interest"] - oi_mean) / oi_std if oi_std > 0 else 0
 
         # 標記突增/突減
-        df['is_spike'] = df['z_score'].abs() > threshold
-        df['spike_type'] = 'normal'
-        df.loc[df['z_score'] > threshold, 'spike_type'] = 'surge'
-        df.loc[df['z_score'] < -threshold, 'spike_type'] = 'drop'
+        df["is_spike"] = df["z_score"].abs() > threshold
+        df["spike_type"] = "normal"
+        df.loc[df["z_score"] > threshold, "spike_type"] = "surge"
+        df.loc[df["z_score"] < -threshold, "spike_type"] = "drop"
 
-        spike_count = df['is_spike'].sum()
+        spike_count = df["is_spike"].sum()
         if spike_count > 0:
             logger.warning(f"Detected {spike_count} OI spikes in data")
 
         return df
 
-    def correlate_with_price(
-        self,
-        oi_df: pd.DataFrame,
-        price_df: pd.DataFrame
-    ) -> Dict[str, Any]:
+    def correlate_with_price(self, oi_df: pd.DataFrame, price_df: pd.DataFrame) -> Dict[str, Any]:
         """計算持倉量與價格的相關性
 
         Args:
@@ -348,49 +342,49 @@ class OpenInterestData:
         """
         # 合併數據
         merged = pd.merge(
-            oi_df[['timestamp', 'open_interest']],
-            price_df[['timestamp', 'close']],
-            on='timestamp',
-            how='inner'
+            oi_df[["timestamp", "open_interest"]],
+            price_df[["timestamp", "close"]],
+            on="timestamp",
+            how="inner",
         )
 
         if len(merged) < 2:
-            return {'correlation': None, 'error': 'Insufficient data'}
+            return {"correlation": None, "error": "Insufficient data"}
 
         # 計算相關係數
-        correlation = merged['open_interest'].corr(merged['close'])
+        correlation = merged["open_interest"].corr(merged["close"])
 
         # 計算滾動相關性（30期）
-        rolling_corr = merged['open_interest'].rolling(30).corr(merged['close'])
+        rolling_corr = merged["open_interest"].rolling(30).corr(merged["close"])
 
         return {
-            'correlation': correlation,
-            'rolling_correlation': rolling_corr,
-            'interpretation': self._interpret_correlation(correlation)
+            "correlation": correlation,
+            "rolling_correlation": rolling_corr,
+            "interpretation": self._interpret_correlation(correlation),
         }
 
     def _interpret_correlation(self, corr: float) -> str:
         """解釋相關係數"""
         if corr is None or np.isnan(corr):
-            return 'unknown'
+            return "unknown"
         elif corr > 0.7:
-            return 'strong_positive'
+            return "strong_positive"
         elif corr > 0.3:
-            return 'moderate_positive'
+            return "moderate_positive"
         elif corr > -0.3:
-            return 'weak'
+            return "weak"
         elif corr > -0.7:
-            return 'moderate_negative'
+            return "moderate_negative"
         else:
-            return 'strong_negative'
+            return "strong_negative"
 
     def save(
         self,
         df: pd.DataFrame,
         symbol: str,
         exchange: str,
-        interval: str = '1h',
-        format: str = 'parquet'
+        interval: str = "1h",
+        format: str = "parquet",
     ) -> Path:
         """保存持倉量數據到存儲
 
@@ -410,8 +404,8 @@ class OpenInterestData:
 
         # 生成文件名（包含時間範圍）
         if not df.empty:
-            start_date = df['timestamp'].min().strftime('%Y%m%d')
-            end_date = df['timestamp'].max().strftime('%Y%m%d')
+            start_date = df["timestamp"].min().strftime("%Y%m%d")
+            end_date = df["timestamp"].max().strftime("%Y%m%d")
             filename = f"{symbol}_open_interest_{interval}_{start_date}_{end_date}.{format}"
         else:
             filename = f"{symbol}_open_interest_{interval}.{format}"
@@ -419,9 +413,9 @@ class OpenInterestData:
         file_path = exchange_dir / filename
 
         # 保存數據
-        if format == 'parquet':
-            df.to_parquet(file_path, index=False, compression='snappy')
-        elif format == 'csv':
+        if format == "parquet":
+            df.to_parquet(file_path, index=False, compression="snappy")
+        elif format == "csv":
             df.to_csv(file_path, index=False)
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -434,9 +428,9 @@ class OpenInterestData:
         self,
         symbol: str,
         exchange: str,
-        interval: str = '1h',
+        interval: str = "1h",
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> pd.DataFrame:
         """從存儲加載持倉量數據
 
@@ -480,16 +474,16 @@ class OpenInterestData:
             all_data.append(df)
 
         combined = pd.concat(all_data, ignore_index=True)
-        combined = combined.sort_values('timestamp').reset_index(drop=True)
+        combined = combined.sort_values("timestamp").reset_index(drop=True)
 
         # 如果指定了日期範圍，過濾數據
         if start_date or end_date:
             if start_date:
                 start_dt = pd.to_datetime(start_date)
-                combined = combined[combined['timestamp'] >= start_dt]
+                combined = combined[combined["timestamp"] >= start_dt]
             if end_date:
                 end_dt = pd.to_datetime(end_date)
-                combined = combined[combined['timestamp'] <= end_dt]
+                combined = combined[combined["timestamp"] <= end_dt]
 
         logger.info(f"Loaded {len(combined)} open interest records from storage")
 
@@ -505,9 +499,9 @@ class OpenInterestData:
         total_rows = sum(len(df) for df in self._cache.values())
 
         return {
-            'cached_items': len(self._cache),
-            'total_rows': total_rows,
-            'cache_keys': list(self._cache.keys())
+            "cached_items": len(self._cache),
+            "total_rows": total_rows,
+            "cache_keys": list(self._cache.keys()),
         }
 
 
@@ -516,8 +510,8 @@ def fetch_open_interest(
     symbol: str,
     start_time: Optional[Union[str, datetime]] = None,
     end_time: Optional[Union[str, datetime]] = None,
-    interval: str = '1h',
-    exchange: str = 'binance'
+    interval: str = "1h",
+    exchange: str = "binance",
 ) -> pd.DataFrame:
     """便捷函數：獲取持倉量數據
 
@@ -532,8 +526,8 @@ def analyze_oi_trend(
     symbol: str,
     start_time: Optional[Union[str, datetime]] = None,
     end_time: Optional[Union[str, datetime]] = None,
-    interval: str = '1h',
-    exchange: str = 'binance'
+    interval: str = "1h",
+    exchange: str = "binance",
 ) -> Dict[str, Any]:
     """便捷函數：獲取並分析持倉量趨勢
 

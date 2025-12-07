@@ -10,7 +10,7 @@
 ### 核心價值主張
 - **效率提升**: 批量實驗取代手動測試
 - **精準優化**: 自動找出最佳參數組合
-- **真實模擬**: 接近實盤的回測結果  
+- **真實模擬**: 接近實盤的回測結果
 - **智能風控**: 動態支撐壓力位管理
 
 ---
@@ -36,7 +36,7 @@
 #### 核心功能
 - **幣種屬性計算**
   - 30日平均成交額 (volume_30d_usd)
-  - 上市天數 (history_days)  
+  - 上市天數 (history_days)
   - 持倉量平均與趨勢
   - 永續合約支援度
   - 穩定幣識別
@@ -44,7 +44,7 @@
 - **自動分類系統**
   ```
   large_cap:  市值前30, 成交額>$1B
-  mid_cap:    市值31-100, 成交額$100M-$1B  
+  mid_cap:    市值31-100, 成交額$100M-$1B
   small_cap:  市值101-500, 成交額$10M-$100M
   micro_cap:  市值500+, 成交額<$10M
   ```
@@ -62,7 +62,7 @@ superdog data universe export --top 200 --type yaml  # 匯出配置
 
 ---
 
-### 2. 🧪 策略實驗室系統 (Strategy Laboratory)  
+### 2. 🧪 策略實驗室系統 (Strategy Laboratory)
 **目標**: 大規模策略實驗與參數優化
 
 #### 核心組件
@@ -79,7 +79,7 @@ class ExperimentConfig:
     symbols: List[str]          # 明確指定幣種
     timeframe: str             # 時間週期
     start_date: str            # 回測開始
-    end_date: str              # 回測結束  
+    end_date: str              # 回測結束
     param_grid: Dict           # 參數網格
     metrics: List[str]         # 輸出指標
 ```
@@ -100,7 +100,7 @@ class ExperimentRunner:
 columns = [
     'experiment_name', 'strategy', 'symbol', 'timeframe',
     'start_date', 'end_date', 'params_json',
-    'total_return', 'sharpe_ratio', 'max_drawdown', 
+    'total_return', 'sharpe_ratio', 'max_drawdown',
     'win_rate', 'profit_factor', 'expectancy',
     'total_trades', 'execution_time', 'data_snapshot_id'
 ]
@@ -110,7 +110,7 @@ columns = [
 ```bash
 superdog experiment run config.yml         # 執行實驗
 superdog experiment best --metric sharpe   # 最佳參數
-superdog experiment filter --symbol BTC*   # 篩選結果  
+superdog experiment filter --symbol BTC*   # 篩選結果
 superdog experiment show exp_20231201      # 實驗摘要
 ```
 
@@ -124,7 +124,7 @@ superdog experiment show exp_20231201      # 實驗摘要
 class FeeModel:
     maker_fee: float = 0.0002      # Maker費率 0.02%
     taker_fee: float = 0.0004      # Taker費率 0.04%
-    
+
     def calculate_fee(order_type, volume, price):
         if order_type == 'limit':
             return volume * price * maker_fee
@@ -132,12 +132,12 @@ class FeeModel:
             return volume * price * taker_fee
 ```
 
-#### 滑價模型  
+#### 滑價模型
 ```python
 class SlippageModel:
     # v1: 固定滑點
     fixed_slippage_pct: float = 0.0005  # 0.05%
-    
+
     # v2: 動態滑點 (未來版本)
     def calculate_dynamic_slippage(order_size, bar_volume):
         impact_ratio = order_size / bar_volume
@@ -176,18 +176,18 @@ class SupportResistanceDetector:
         swing_levels = find_swing_highs_lows(ohlcv_data, lookback=20)
         pivot_points = calculate_pivot_points(ohlcv_data)
         fibonacci_levels = calculate_fibonacci_retracements(ohlcv_data)
-        
+
         # 2. 永續合約增強法
         funding_extremes = find_funding_rate_extremes(perpetual_data)
         liquidation_clusters = find_liquidation_clusters(perpetual_data)
         oi_resistance = find_oi_resistance_levels(perpetual_data)
-        
+
         # 3. 多因子融合
         final_levels = merge_and_rank_levels([
-            swing_levels, pivot_points, funding_extremes, 
+            swing_levels, pivot_points, funding_extremes,
             liquidation_clusters, oi_resistance
         ])
-        
+
         return final_levels
 ```
 
@@ -197,18 +197,18 @@ class DynamicRiskManager:
     def calculate_stops(entry_price, entry_signal, market_data):
         sr_levels = get_support_resistance(market_data)
         atr = calculate_atr(market_data, period=14)
-        
+
         if entry_signal == 'LONG':
-            stop_loss = sr_levels['nearest_support'] 
+            stop_loss = sr_levels['nearest_support']
             take_profit = sr_levels['nearest_resistance']
         else:  # SHORT
             stop_loss = sr_levels['nearest_resistance']
             take_profit = sr_levels['nearest_support']
-            
+
         # ATR動態調整
         min_stop = entry_price * (1 - 2 * atr / entry_price)
         stop_loss = max(stop_loss, min_stop)
-        
+
         return {
             'stop_loss': stop_loss,
             'take_profit': take_profit,
@@ -227,7 +227,7 @@ class DynamicRiskManager:
 - [ ] CLI命令整合
 - [ ] 單元測試 (15+ 測試案例)
 
-### Phase 2: 策略實驗室 (Week 3-4)  
+### Phase 2: 策略實驗室 (Week 3-4)
 - [ ] `execution_engine/experiments.py` - 實驗配置與執行
 - [ ] `execution_engine/experiment_runner.py` - 批量執行器
 - [ ] `reports/experiment_store.py` - 結果存儲與查詢
@@ -241,7 +241,7 @@ class DynamicRiskManager:
 - [ ] 回測引擎整合
 - [ ] 模型驗證測試
 
-### Phase 4: 動態風控系統 (Week 6)  
+### Phase 4: 動態風控系統 (Week 6)
 - [ ] `risk_management/support_resistance.py` - 支撐壓力檢測
 - [ ] `risk_management/dynamic_stops.py` - 動態止損
 - [ ] 策略API整合
@@ -249,7 +249,7 @@ class DynamicRiskManager:
 
 ### Phase 5: 整合與優化 (Week 7)
 - [ ] 端到端工作流程測試
-- [ ] 性能優化 
+- [ ] 性能優化
 - [ ] 用戶文檔完善
 - [ ] 最終驗收測試
 
@@ -263,10 +263,10 @@ class DynamicRiskManager:
 - [ ] 批量測試效率 >10x單次測試
 - [ ] 回測精度提升 >20% (vs v0.5)
 
-### 技術標準  
+### 技術標準
 - [ ] 測試覆蓋率 >85%
 - [ ] 文檔完整性 100%
-- [ ] API向後兼容 100% 
+- [ ] API向後兼容 100%
 - [ ] 性能回歸 <10%
 
 ### 用戶體驗標準
@@ -290,8 +290,8 @@ superdog-quant/
 │   ├── experiment_runner.py         # 🆕 批量執行
 │   └── execution_model.py           # 🆕 真實執行模型
 ├── risk_management/                 # 🆕 風險管理模組
-│   ├── support_resistance.py        
-│   └── dynamic_stops.py             
+│   ├── support_resistance.py
+│   └── dynamic_stops.py
 └── reports/
     └── experiment_store.py          # 🆕 實驗結果存儲
 ```
@@ -308,7 +308,7 @@ superdog-quant/
 
 ### 技術文檔
 - [ ] 宇宙管理器API參考
-- [ ] 實驗室配置指南  
+- [ ] 實驗室配置指南
 - [ ] 執行模型參數說明
 - [ ] 支撐壓力算法文檔
 
@@ -318,7 +318,7 @@ superdog-quant/
 - [ ] 進階回測指南
 - [ ] 故障排除手冊
 
-### 開發文檔  
+### 開發文檔
 - [ ] v0.6架構設計文檔
 - [ ] API升級指南
 - [ ] 測試策略文檔
@@ -334,7 +334,7 @@ superdog-quant/
 # 1. 數據同步
 superdog data sync --all
 
-# 2. 構建幣種宇宙  
+# 2. 構建幣種宇宙
 superdog data universe build
 
 # 3. 查看並選擇宇宙

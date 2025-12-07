@@ -18,17 +18,19 @@ Author: DDragon
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
-from typing import Dict, List, Any
-import pandas as pd
+from typing import Any, Dict, List
+
 import numpy as np
+import pandas as pd
+
 from strategies.api_v2 import (
     BaseStrategy,
-    ParameterSpec,
     DataRequirement,
     DataSource,
+    ParameterSpec,
+    bool_param,
     float_param,
     int_param,
-    bool_param
 )
 
 
@@ -64,10 +66,7 @@ class KawamokuStrategy(BaseStrategy):
         self.name = "Kawamoku"
         self.version = "1.0"
         self.author = "DDragon"
-        self.description = (
-            "川沐多因子量化策略 - 整合價格動量、成交量、資金費率等多維度分析"
-            "（v0.4 簡化版，v0.5 完整版）"
-        )
+        self.description = "川沐多因子量化策略 - 整合價格動量、成交量、資金費率等多維度分析" "（v0.4 簡化版，v0.5 完整版）"
 
     def get_parameters(self) -> Dict[str, ParameterSpec]:
         """返回策略參數規格
@@ -82,55 +81,27 @@ class KawamokuStrategy(BaseStrategy):
         """
         return {
             # === 價格動量參數 ===
-            'momentum_period': int_param(
-                default=5,
-                description="價格動量計算週期",
-                min_val=1,
-                max_val=20
+            "momentum_period": int_param(default=5, description="價格動量計算週期", min_val=1, max_val=20),
+            "momentum_threshold": float_param(
+                default=0.02, description="動量觸發閾值（比例）", min_val=0.001, max_val=0.1
             ),
-            'momentum_threshold': float_param(
-                default=0.02,
-                description="動量觸發閾值（比例）",
-                min_val=0.001,
-                max_val=0.1
-            ),
-
             # === 成交量參數 ===
-            'volume_ma_period': int_param(
-                default=20,
-                description="成交量均線週期",
-                min_val=5,
-                max_val=100
+            "volume_ma_period": int_param(
+                default=20, description="成交量均線週期", min_val=5, max_val=100
             ),
-            'volume_threshold': float_param(
-                default=1.5,
-                description="成交量放大閾值（倍數）",
-                min_val=1.0,
-                max_val=5.0
+            "volume_threshold": float_param(
+                default=1.5, description="成交量放大閾值（倍數）", min_val=1.0, max_val=5.0
             ),
-            'enable_volume_filter': bool_param(
-                default=True,
-                description="啟用成交量過濾"
-            ),
-
+            "enable_volume_filter": bool_param(default=True, description="啟用成交量過濾"),
             # === 高級因子參數（v0.5 規劃）===
-            'funding_weight': float_param(
-                default=0.5,
-                description="資金費率權重（v0.5）",
-                min_val=0.0,
-                max_val=1.0
+            "funding_weight": float_param(
+                default=0.5, description="資金費率權重（v0.5）", min_val=0.0, max_val=1.0
             ),
-            'oi_threshold': float_param(
-                default=1.0,
-                description="持倉量變化閾值（v0.5）",
-                min_val=0.1,
-                max_val=5.0
+            "oi_threshold": float_param(
+                default=1.0, description="持倉量變化閾值（v0.5）", min_val=0.1, max_val=5.0
             ),
-            'basis_lookback': int_param(
-                default=7,
-                description="基差計算回望期（v0.5）",
-                min_val=1,
-                max_val=30
+            "basis_lookback": int_param(
+                default=7, description="基差計算回望期（v0.5）", min_val=1, max_val=30
             ),
         }
 
@@ -148,28 +119,13 @@ class KawamokuStrategy(BaseStrategy):
         """
         return [
             # v0.4 支援的數據源
-            DataRequirement(
-                source=DataSource.OHLCV,
-                lookback_periods=100,
-                required=True
-            ),
-
+            DataRequirement(source=DataSource.OHLCV, lookback_periods=100, required=True),
             # v0.5 規劃的數據源（目前標記為可選）
             DataRequirement(
-                source=DataSource.FUNDING,
-                lookback_periods=30,
-                required=False  # v0.4 暫不支援，不報錯
+                source=DataSource.FUNDING, lookback_periods=30, required=False  # v0.4 暫不支援，不報錯
             ),
-            DataRequirement(
-                source=DataSource.OPEN_INTEREST,
-                lookback_periods=30,
-                required=False
-            ),
-            DataRequirement(
-                source=DataSource.BASIS,
-                lookback_periods=30,
-                required=False
-            ),
+            DataRequirement(source=DataSource.OPEN_INTEREST, lookback_periods=30, required=False),
+            DataRequirement(source=DataSource.BASIS, lookback_periods=30, required=False),
         ]
 
     def compute_signals(self, data: Dict[str, pd.DataFrame], params: Dict[str, Any]) -> pd.Series:
@@ -189,24 +145,24 @@ class KawamokuStrategy(BaseStrategy):
             ValueError: 數據不足或參數無效
         """
         # 驗證數據
-        if 'ohlcv' not in data:
+        if "ohlcv" not in data:
             raise ValueError("Missing required data source: ohlcv")
 
-        ohlcv = data['ohlcv']
-        if len(ohlcv) < max(params['momentum_period'], params['volume_ma_period']):
+        ohlcv = data["ohlcv"]
+        if len(ohlcv) < max(params["momentum_period"], params["volume_ma_period"]):
             raise ValueError("Insufficient data for indicator calculation")
 
         # === 提取 OHLCV 數據 ===
-        close_prices = ohlcv['close']
-        volume = ohlcv['volume']
+        close_prices = ohlcv["close"]
+        volume = ohlcv["volume"]
 
         # === 因子 1: 價格動量 ===
         # 計算 N 期收益率作為動量指標
-        price_momentum = close_prices.pct_change(params['momentum_period'])
+        price_momentum = close_prices.pct_change(params["momentum_period"])
 
         # === 因子 2: 成交量分析 ===
         # 計算成交量均線
-        volume_ma = volume.rolling(window=params['volume_ma_period']).mean()
+        volume_ma = volume.rolling(window=params["volume_ma_period"]).mean()
         # 計算成交量比率（當前成交量 / 均線）
         volume_ratio = volume / volume_ma
 
@@ -216,17 +172,17 @@ class KawamokuStrategy(BaseStrategy):
         # 買入條件：
         # 1. 價格動量 > 閾值（強勁上漲）
         # 2. 成交量放大（如果啟用成交量過濾）
-        buy_condition = price_momentum > params['momentum_threshold']
-        if params['enable_volume_filter']:
-            buy_condition = buy_condition & (volume_ratio > params['volume_threshold'])
+        buy_condition = price_momentum > params["momentum_threshold"]
+        if params["enable_volume_filter"]:
+            buy_condition = buy_condition & (volume_ratio > params["volume_threshold"])
         signals[buy_condition] = 1
 
         # 賣出條件：
         # 1. 價格動量 < 負閾值（強勁下跌）
         # 2. 成交量放大（如果啟用成交量過濾）
-        sell_condition = price_momentum < -params['momentum_threshold']
-        if params['enable_volume_filter']:
-            sell_condition = sell_condition & (volume_ratio > params['volume_threshold'] * 0.8)
+        sell_condition = price_momentum < -params["momentum_threshold"]
+        if params["enable_volume_filter"]:
+            sell_condition = sell_condition & (volume_ratio > params["volume_threshold"] * 0.8)
         signals[sell_condition] = -1
 
         # === v0.5 規劃：整合高級因子 ===

@@ -13,30 +13,33 @@ Version: v0.6 Phase 2
 Design Reference: docs/specs/v0.6/superdog_v06_implementation_guide.md
 """
 
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Any, Optional, Union
+import hashlib
+import json
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-import json
+from typing import Any, Dict, List, Optional, Union
+
 import yaml
-import hashlib
 
 
 class ExperimentStatus(Enum):
     """實驗狀態"""
-    PENDING = "pending"           # 待執行
-    RUNNING = "running"           # 執行中
-    COMPLETED = "completed"       # 已完成
-    FAILED = "failed"            # 失敗
-    CANCELLED = "cancelled"      # 已取消
+
+    PENDING = "pending"  # 待執行
+    RUNNING = "running"  # 執行中
+    COMPLETED = "completed"  # 已完成
+    FAILED = "failed"  # 失敗
+    CANCELLED = "cancelled"  # 已取消
 
 
 class ParameterExpansionMode(Enum):
     """參數展開模式"""
-    GRID = "grid"                # 網格搜索（全組合）
-    RANDOM = "random"            # 隨機採樣
-    LIST = "list"                # 列表（指定組合）
+
+    GRID = "grid"  # 網格搜索（全組合）
+    RANDOM = "random"  # 隨機採樣
+    LIST = "list"  # 列表（指定組合）
 
 
 @dataclass
@@ -48,13 +51,14 @@ class ParameterRange:
     - 範圍: {"start": 10, "stop": 100, "step": 10}
     - 對數範圍: {"start": 0.001, "stop": 1, "num": 10, "log": True}
     """
-    name: str                        # 參數名稱
-    values: Optional[List[Any]] = None   # 離散值列表
-    start: Optional[float] = None        # 範圍起始
-    stop: Optional[float] = None         # 範圍結束
-    step: Optional[float] = None         # 範圍步長
-    num: Optional[int] = None            # 數量（用於對數）
-    log_scale: bool = False             # 是否對數刻度
+
+    name: str  # 參數名稱
+    values: Optional[List[Any]] = None  # 離散值列表
+    start: Optional[float] = None  # 範圍起始
+    stop: Optional[float] = None  # 範圍結束
+    step: Optional[float] = None  # 範圍步長
+    num: Optional[int] = None  # 數量（用於對數）
+    log_scale: bool = False  # 是否對數刻度
 
     def expand(self) -> List[Any]:
         """展開參數範圍為具體值列表
@@ -74,21 +78,20 @@ class ParameterRange:
             if self.log_scale:
                 # 對數刻度
                 import numpy as np
+
                 num = self.num or 10
-                return list(np.logspace(
-                    np.log10(self.start),
-                    np.log10(self.stop),
-                    num=num
-                ))
+                return list(np.logspace(np.log10(self.start), np.log10(self.stop), num=num))
             else:
                 # 線性刻度
                 if self.step is not None:
                     # 使用step
                     import numpy as np
+
                     return list(np.arange(self.start, self.stop + self.step, self.step))
                 elif self.num is not None:
                     # 使用num
                     import numpy as np
+
                     return list(np.linspace(self.start, self.stop, num=self.num))
 
         raise ValueError(f"Invalid parameter range definition for {self.name}")
@@ -117,26 +120,27 @@ class ExperimentConfig:
         expansion_mode: grid
         max_combinations: 1000
     """
-    name: str                           # 實驗名稱
-    strategy: str                       # 策略名稱
-    symbols: List[str]                  # 幣種列表
-    timeframe: str                      # 時間週期
+
+    name: str  # 實驗名稱
+    strategy: str  # 策略名稱
+    symbols: List[str]  # 幣種列表
+    timeframe: str  # 時間週期
     parameters: Dict[str, ParameterRange]  # 參數範圍
 
     # 可選配置
     expansion_mode: ParameterExpansionMode = ParameterExpansionMode.GRID
-    max_combinations: Optional[int] = None    # 最大組合數（防止爆炸）
-    sample_size: Optional[int] = None         # 隨機採樣大小
-    start_date: Optional[str] = None          # 回測起始日期
-    end_date: Optional[str] = None            # 回測結束日期
-    initial_cash: float = 10000              # 初始資金
-    fee_rate: float = 0.0005                 # 手續費率
-    leverage: float = 1.0                    # 槓桿
-    stop_loss_pct: Optional[float] = None    # 止損
+    max_combinations: Optional[int] = None  # 最大組合數（防止爆炸）
+    sample_size: Optional[int] = None  # 隨機採樣大小
+    start_date: Optional[str] = None  # 回測起始日期
+    end_date: Optional[str] = None  # 回測結束日期
+    initial_cash: float = 10000  # 初始資金
+    fee_rate: float = 0.0005  # 手續費率
+    leverage: float = 1.0  # 槓桿
+    stop_loss_pct: Optional[float] = None  # 止損
     take_profit_pct: Optional[float] = None  # 止盈
 
     # 實驗元數據
-    description: str = ""                    # 實驗描述
+    description: str = ""  # 實驗描述
     tags: List[str] = field(default_factory=list)  # 標籤
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -169,14 +173,17 @@ class ExperimentConfig:
             str: 實驗ID
         """
         # 創建配置的穩定表示
-        config_str = json.dumps({
-            'name': self.name,
-            'strategy': self.strategy,
-            'symbols': sorted(self.symbols),
-            'timeframe': self.timeframe,
-            'parameters': {k: v.__dict__ for k, v in self.parameters.items()},
-            'expansion_mode': self.expansion_mode.value
-        }, sort_keys=True)
+        config_str = json.dumps(
+            {
+                "name": self.name,
+                "strategy": self.strategy,
+                "symbols": sorted(self.symbols),
+                "timeframe": self.timeframe,
+                "parameters": {k: v.__dict__ for k, v in self.parameters.items()},
+                "expansion_mode": self.expansion_mode.value,
+            },
+            sort_keys=True,
+        )
 
         # 生成哈希
         hash_obj = hashlib.md5(config_str.encode())
@@ -185,11 +192,11 @@ class ExperimentConfig:
     def to_dict(self) -> Dict:
         """轉換為字典"""
         result = asdict(self)
-        result['expansion_mode'] = self.expansion_mode.value
+        result["expansion_mode"] = self.expansion_mode.value
         return result
 
     @classmethod
-    def from_yaml(cls, yaml_path: str) -> 'ExperimentConfig':
+    def from_yaml(cls, yaml_path: str) -> "ExperimentConfig":
         """從YAML文件加載配置
 
         Args:
@@ -198,13 +205,13 @@ class ExperimentConfig:
         Returns:
             ExperimentConfig: 配置對象
         """
-        with open(yaml_path, 'r', encoding='utf-8') as f:
+        with open(yaml_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         return cls.from_dict(data)
 
     @classmethod
-    def from_json(cls, json_path: str) -> 'ExperimentConfig':
+    def from_json(cls, json_path: str) -> "ExperimentConfig":
         """從JSON文件加載配置
 
         Args:
@@ -213,13 +220,13 @@ class ExperimentConfig:
         Returns:
             ExperimentConfig: 配置對象
         """
-        with open(json_path, 'r', encoding='utf-8') as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         return cls.from_dict(data)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ExperimentConfig':
+    def from_dict(cls, data: Dict) -> "ExperimentConfig":
         """從字典創建配置
 
         Args:
@@ -229,8 +236,8 @@ class ExperimentConfig:
             ExperimentConfig: 配置對象
         """
         # 移除created_at以使用默認值
-        if 'created_at' in data:
-            del data['created_at']
+        if "created_at" in data:
+            del data["created_at"]
 
         return cls(**data)
 
@@ -242,21 +249,22 @@ class ExperimentConfig:
         """
         path = Path(output_path)
 
-        if path.suffix == '.yaml' or path.suffix == '.yml':
-            with open(path, 'w', encoding='utf-8') as f:
+        if path.suffix == ".yaml" or path.suffix == ".yml":
+            with open(path, "w", encoding="utf-8") as f:
                 yaml.dump(self.to_dict(), f, default_flow_style=False, allow_unicode=True)
         else:
-            with open(path, 'w', encoding='utf-8') as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
 
 
 @dataclass
 class ExperimentRun:
     """單次實驗執行記錄"""
-    experiment_id: str                   # 實驗ID
-    run_id: str                         # 執行ID
-    symbol: str                         # 幣種
-    parameters: Dict[str, Any]          # 參數組合
+
+    experiment_id: str  # 實驗ID
+    run_id: str  # 執行ID
+    symbol: str  # 幣種
+    parameters: Dict[str, Any]  # 參數組合
 
     # 執行狀態
     status: ExperimentStatus = ExperimentStatus.PENDING
@@ -278,20 +286,21 @@ class ExperimentRun:
     def to_dict(self) -> Dict:
         """轉換為字典"""
         result = asdict(self)
-        result['status'] = self.status.value
+        result["status"] = self.status.value
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ExperimentRun':
+    def from_dict(cls, data: Dict) -> "ExperimentRun":
         """從字典創建"""
-        if 'status' in data and isinstance(data['status'], str):
-            data['status'] = ExperimentStatus(data['status'])
+        if "status" in data and isinstance(data["status"], str):
+            data["status"] = ExperimentStatus(data["status"])
         return cls(**data)
 
 
 @dataclass
 class ExperimentResult:
     """實驗結果匯總"""
+
     experiment_id: str
     config: ExperimentConfig
     runs: List[ExperimentRun]
@@ -310,7 +319,9 @@ class ExperimentResult:
     completed_at: Optional[str] = None
     duration_seconds: Optional[float] = None
 
-    def get_best_run(self, metric: str = "sharpe_ratio", ascending: bool = False) -> Optional[ExperimentRun]:
+    def get_best_run(
+        self, metric: str = "sharpe_ratio", ascending: bool = False
+    ) -> Optional[ExperimentRun]:
         """獲取最佳執行
 
         Args:
@@ -361,43 +372,40 @@ class ExperimentResult:
         sharpes = [r.sharpe_ratio for r in completed if r.sharpe_ratio is not None]
 
         return {
-            'total_runs': len(self.runs),
-            'completed': len(completed),
-            'failed': len([r for r in self.runs if r.status == ExperimentStatus.FAILED]),
-            'avg_return': np.mean(returns) if returns else None,
-            'avg_drawdown': np.mean(drawdowns) if drawdowns else None,
-            'avg_sharpe': np.mean(sharpes) if sharpes else None,
-            'best_return': max(returns) if returns else None,
-            'worst_return': min(returns) if returns else None,
-            'best_sharpe': max(sharpes) if sharpes else None
+            "total_runs": len(self.runs),
+            "completed": len(completed),
+            "failed": len([r for r in self.runs if r.status == ExperimentStatus.FAILED]),
+            "avg_return": np.mean(returns) if returns else None,
+            "avg_drawdown": np.mean(drawdowns) if drawdowns else None,
+            "avg_sharpe": np.mean(sharpes) if sharpes else None,
+            "best_return": max(returns) if returns else None,
+            "worst_return": min(returns) if returns else None,
+            "best_sharpe": max(sharpes) if sharpes else None,
         }
 
     def to_dict(self) -> Dict:
         """轉換為字典"""
         return {
-            'experiment_id': self.experiment_id,
-            'config': self.config.to_dict(),
-            'runs': [r.to_dict() for r in self.runs],
-            'total_runs': self.total_runs,
-            'completed_runs': self.completed_runs,
-            'failed_runs': self.failed_runs,
-            'best_run': self.best_run.to_dict() if self.best_run else None,
-            'best_metric': self.best_metric,
-            'started_at': self.started_at,
-            'completed_at': self.completed_at,
-            'duration_seconds': self.duration_seconds,
-            'statistics': self.get_statistics()
+            "experiment_id": self.experiment_id,
+            "config": self.config.to_dict(),
+            "runs": [r.to_dict() for r in self.runs],
+            "total_runs": self.total_runs,
+            "completed_runs": self.completed_runs,
+            "failed_runs": self.failed_runs,
+            "best_run": self.best_run.to_dict() if self.best_run else None,
+            "best_metric": self.best_metric,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "duration_seconds": self.duration_seconds,
+            "statistics": self.get_statistics(),
         }
 
 
 # ===== 便捷函數 =====
 
+
 def create_experiment_config(
-    name: str,
-    strategy: str,
-    symbols: List[str],
-    parameters: Dict[str, Union[List, Dict]],
-    **kwargs
+    name: str, strategy: str, symbols: List[str], parameters: Dict[str, Union[List, Dict]], **kwargs
 ) -> ExperimentConfig:
     """創建實驗配置的便捷函數
 
@@ -424,11 +432,7 @@ def create_experiment_config(
         ... )
     """
     return ExperimentConfig(
-        name=name,
-        strategy=strategy,
-        symbols=symbols,
-        parameters=parameters,
-        **kwargs
+        name=name, strategy=strategy, symbols=symbols, parameters=parameters, **kwargs
     )
 
 
@@ -445,9 +449,9 @@ def load_experiment_config(config_path: str) -> ExperimentConfig:
     """
     path = Path(config_path)
 
-    if path.suffix in ['.yaml', '.yml']:
+    if path.suffix in [".yaml", ".yml"]:
         return ExperimentConfig.from_yaml(config_path)
-    elif path.suffix == '.json':
+    elif path.suffix == ".json":
         return ExperimentConfig.from_json(config_path)
     else:
         raise ValueError(f"Unsupported config file format: {path.suffix}")

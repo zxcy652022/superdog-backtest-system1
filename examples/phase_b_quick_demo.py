@@ -18,8 +18,9 @@ from pathlib import Path
 # 添加項目根目錄到 Python 路徑
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
 from datetime import datetime, timedelta
+
+import pandas as pd
 
 
 def print_section(title: str):
@@ -150,7 +151,7 @@ def demo_liquidation_monitoring():
         ("20-40", "moderate", "輕度波動", "保持警惕"),
         ("40-60", "elevated", "波動加劇", "減少倉位"),
         ("60-80", "high", "高度恐慌", "考慮對沖"),
-        ("80-100", "extreme", "極度恐慌", "逆向機會")
+        ("80-100", "extreme", "極度恐慌", "逆向機會"),
     ]
 
     for range_val, level, desc, action in levels:
@@ -189,7 +190,7 @@ def demo_long_short_ratio():
         (0.65, "看多", "watch_for_reversal", "觀察反轉信號"),
         (0.50, "中性", "no_signal", "無明確信號"),
         (0.35, "看空", "watch_for_reversal", "觀察反轉信號"),
-        (0.20, "極度看空", "consider_long", "市場過度悲觀，考慮做多")
+        (0.20, "極度看空", "consider_long", "市場過度悲觀，考慮做多"),
     ]
 
     for long_ratio, sentiment, signal, desc in scenarios:
@@ -209,7 +210,7 @@ def demo_multi_exchange_aggregation():
     from data.aggregation import MultiExchangeAggregator
 
     # 初始化聚合器
-    agg = MultiExchangeAggregator(exchanges=['binance', 'bybit', 'okx'])
+    agg = MultiExchangeAggregator(exchanges=["binance", "bybit", "okx"])
     print(f"多交易所聚合器初始化完成")
     print(f"支援交易所: {agg.exchanges}")
 
@@ -224,7 +225,7 @@ def demo_multi_exchange_aggregation():
         ("weighted_mean", "加權平均", "根據交易量加權"),
         ("median", "中位數", "減少異常值影響"),
         ("mean", "簡單平均", "所有交易所平等權重"),
-        ("sum", "總和", "用於持倉量等指標")
+        ("sum", "總和", "用於持倉量等指標"),
     ]
 
     for method, name, desc in methods:
@@ -259,9 +260,9 @@ def demo_data_pipeline_integration():
     print()
     print("新增數據處理器:")
     processors = [
-        ('basis_data', 'BasisData', '期現基差計算'),
-        ('liquidation_data', 'LiquidationData', '爆倉數據監控'),
-        ('long_short_ratio_data', 'LongShortRatioData', '多空持倉比分析')
+        ("basis_data", "BasisData", "期現基差計算"),
+        ("liquidation_data", "LiquidationData", "爆倉數據監控"),
+        ("long_short_ratio_data", "LongShortRatioData", "多空持倉比分析"),
     ]
 
     for attr, class_name, desc in processors:
@@ -278,7 +279,7 @@ def demo_data_pipeline_integration():
         (DataSource.OPEN_INTEREST, "Phase A", "持倉量"),
         (DataSource.BASIS, "Phase B", "期現基差"),
         (DataSource.LIQUIDATIONS, "Phase B", "爆倉數據"),
-        (DataSource.LONG_SHORT_RATIO, "Phase B", "多空比")
+        (DataSource.LONG_SHORT_RATIO, "Phase B", "多空比"),
     ]
 
     for source, version, desc in sources:
@@ -428,5 +429,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -12,30 +12,24 @@ SuperDog Risk Management v0.6 Phase 4
 Version: v0.6.0-phase4
 """
 
-from .support_resistance import (
-    SupportResistanceDetector,
-    SRLevel,
-    SRType,
-    detect_support_resistance
-)
-
 from .dynamic_stops import (
     DynamicStopManager,
     StopLossType,
-    TakeProfitType,
     StopUpdate,
+    TakeProfitType,
     create_atr_stops,
-    create_resistance_stops
+    create_resistance_stops,
+)
+from .support_resistance import (
+    SRLevel,
+    SRType,
+    SupportResistanceDetector,
+    detect_support_resistance,
 )
 
 try:
-    from .risk_calculator import (
-        RiskCalculator,
-        RiskMetrics,
-        PositionRisk,
-        calculate_position_risk as calc_pos_risk,
-        calculate_portfolio_risk
-    )
+    from .risk_calculator import PositionRisk, RiskCalculator, RiskMetrics, calculate_portfolio_risk
+    from .risk_calculator import calculate_position_risk as calc_pos_risk
 except ImportError:
     RiskCalculator = None
     RiskMetrics = None
@@ -45,11 +39,11 @@ except ImportError:
 
 try:
     from .position_sizer import (
-        PositionSizer,
         PositionSize,
+        PositionSizer,
         SizingMethod,
+        calculate_fixed_risk_size,
         calculate_kelly_size,
-        calculate_fixed_risk_size
     )
 except ImportError:
     PositionSizer = None
@@ -60,35 +54,32 @@ except ImportError:
 
 __all__ = [
     # Support/Resistance
-    'SupportResistanceDetector',
-    'SRLevel',
-    'SRType',
-    'detect_support_resistance',
-
+    "SupportResistanceDetector",
+    "SRLevel",
+    "SRType",
+    "detect_support_resistance",
     # Dynamic Stops
-    'DynamicStopManager',
-    'StopLossType',
-    'TakeProfitType',
-    'StopUpdate',
-    'create_atr_stops',
-    'create_resistance_stops',
-
+    "DynamicStopManager",
+    "StopLossType",
+    "TakeProfitType",
+    "StopUpdate",
+    "create_atr_stops",
+    "create_resistance_stops",
     # Risk Calculator
-    'RiskCalculator',
-    'RiskMetrics',
-    'PositionRisk',
-    'calc_pos_risk',
-    'calculate_portfolio_risk',
-
+    "RiskCalculator",
+    "RiskMetrics",
+    "PositionRisk",
+    "calc_pos_risk",
+    "calculate_portfolio_risk",
     # Position Sizer
-    'PositionSizer',
-    'PositionSize',
-    'SizingMethod',
-    'calculate_kelly_size',
-    'calculate_fixed_risk_size',
+    "PositionSizer",
+    "PositionSize",
+    "SizingMethod",
+    "calculate_kelly_size",
+    "calculate_fixed_risk_size",
 ]
 
 # Convenience alias
 calculate_position_risk = calc_pos_risk
 
-__version__ = '0.6.0-phase4'
+__version__ = "0.6.0-phase4"

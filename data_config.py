@@ -20,7 +20,7 @@ class DataConfig:
     def _detect_paths(self) -> Dict[str, Path]:
         """自動偵測系統路徑"""
         system = platform.system()
-        
+
         if system == "Darwin":  # macOS
             ssd_path = Path(f"/Volumes/{self.ssd_name}/SuperDogData")
         elif system == "Windows":
@@ -44,13 +44,9 @@ class DataConfig:
             # SSD存在但SuperDogData資料夾不存在，將會在setup時創建
             pass
 
-        return {
-            "project": Path.cwd(),
-            "ssd": ssd_path,
-            "data": ssd_path
-        }
+        return {"project": Path.cwd(), "ssd": ssd_path, "data": ssd_path}
 
-    @property 
+    @property
     def project_root(self) -> Path:
         """專案根目錄"""
         return self._base_paths["project"]
@@ -98,12 +94,12 @@ class DataConfig:
             self.historical_data / "bybit",
             self.historical_data / "coinbase",
             self.backtest_results / "single_runs",
-            self.backtest_results / "portfolio_runs"
+            self.backtest_results / "portfolio_runs",
         ]
 
         for dir_path in dirs_to_create:
             dir_path.mkdir(parents=True, exist_ok=True)
-            
+
         print(f"✅ 數據目錄結構已創建: {self.data_root}")
 
     def get_data_file_path(self, symbol: str, timeframe: str, exchange: str = "binance") -> Path:
@@ -112,7 +108,9 @@ class DataConfig:
 
     def get_backtest_result_path(self, strategy: str, symbol: str, timeframe: str) -> Path:
         """獲取回測結果路徑"""
-        filename = f"{strategy}_{symbol}_{timeframe}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+        filename = (
+            f"{strategy}_{symbol}_{timeframe}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+        )
         return self.backtest_results / "single_runs" / filename
 
     def get_portfolio_result_path(self, portfolio_name: str) -> Path:
@@ -131,13 +129,16 @@ class DataConfig:
             "ssd_name": self.ssd_name,
             "project_root": str(self.project_root),
             "data_root": str(self.data_root),
-            "ssd_free_space": self._get_free_space(self.data_root) if self.is_ssd_available() else None
+            "ssd_free_space": self._get_free_space(self.data_root)
+            if self.is_ssd_available()
+            else None,
         }
 
     def _get_free_space(self, path: Path) -> str:
         """獲取磁碟可用空間"""
         try:
             import shutil
+
             total, used, free = shutil.disk_usage(path)
             return f"{free // (2**30)} GB"
         except:
@@ -147,19 +148,20 @@ class DataConfig:
 # 全局配置實例
 config = DataConfig()
 
+
 # 便捷函數
 def setup_data_environment():
     """初始化數據環境"""
     config.setup_directories()
     status = config.get_status()
-    
+
     print("🚀 SuperDog 數據環境配置")
     print("=" * 40)
     print(f"SSD 狀態: {'✅ 可用' if status['ssd_available'] else '❌ 不可用'}")
     print(f"SSD 名稱: {status['ssd_name']}")
     print(f"專案目錄: {status['project_root']}")
     print(f"數據目錄: {status['data_root']}")
-    if status['ssd_free_space']:
+    if status["ssd_free_space"]:
         print(f"可用空間: {status['ssd_free_space']}")
     print("=" * 40)
 

@@ -17,11 +17,11 @@ Author: SuperDog Quant Team
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, Union, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from data.exchanges import BinanceConnector
 
@@ -41,10 +41,7 @@ class BasisData:
     - 套利機會識別
     """
 
-    def __init__(
-        self,
-        storage_path: Optional[Path] = None
-    ):
+    def __init__(self, storage_path: Optional[Path] = None):
         """初始化基差數據處理器
 
         Args:
@@ -53,12 +50,12 @@ class BasisData:
         # 設置存儲路徑
         if storage_path is None:
             # 優先使用 SSD
-            ssd_path = Path('/Volumes/權志龍的寶藏/SuperDogData/perpetual/basis')
+            ssd_path = Path("/Volumes/權志龍的寶藏/SuperDogData/perpetual/basis")
             if ssd_path.parent.parent.exists():
                 storage_path = ssd_path
             else:
                 # 回退到項目目錄
-                storage_path = Path.cwd() / 'data_storage' / 'perpetual' / 'basis'
+                storage_path = Path.cwd() / "data_storage" / "perpetual" / "basis"
 
         self.storage_path = storage_path
         self.storage_path.mkdir(parents=True, exist_ok=True)
@@ -72,9 +69,7 @@ class BasisData:
         logger.info(f"BasisData initialized with storage at {self.storage_path}")
 
     def calculate_basis(
-        self,
-        perp_price: Union[pd.Series, float],
-        spot_price: Union[pd.Series, float]
+        self, perp_price: Union[pd.Series, float], spot_price: Union[pd.Series, float]
     ) -> Union[pd.Series, float]:
         """計算基差
 
@@ -90,9 +85,7 @@ class BasisData:
         return perp_price - spot_price
 
     def calculate_basis_percentage(
-        self,
-        perp_price: Union[pd.Series, float],
-        spot_price: Union[pd.Series, float]
+        self, perp_price: Union[pd.Series, float], spot_price: Union[pd.Series, float]
     ) -> Union[pd.Series, float]:
         """計算基差百分比
 
@@ -109,9 +102,7 @@ class BasisData:
         return (basis / spot_price) * 100
 
     def calculate_annualized_basis(
-        self,
-        perp_price: Union[pd.Series, float],
-        spot_price: Union[pd.Series, float]
+        self, perp_price: Union[pd.Series, float], spot_price: Union[pd.Series, float]
     ) -> Union[pd.Series, float]:
         """計算年化基差
 
@@ -132,8 +123,8 @@ class BasisData:
         symbol: str,
         start_time: Optional[Union[str, datetime]] = None,
         end_time: Optional[Union[str, datetime]] = None,
-        interval: str = '1h',
-        exchange: str = 'binance'
+        interval: str = "1h",
+        exchange: str = "binance",
     ) -> pd.DataFrame:
         """獲取價格數據並計算基差
 
@@ -163,9 +154,10 @@ class BasisData:
             start_time = pd.to_datetime(start_time)
             end_time = pd.to_datetime(end_time) if end_time else datetime.now()
 
-        if exchange == 'binance':
+        if exchange == "binance":
             # 獲取永續合約價格（使用標記價格）
             from data.perpetual.funding_rate import FundingRateData
+
             fr = FundingRateData()
             perp_df = fr.fetch(symbol, start_time, end_time, exchange=exchange)
 
@@ -184,30 +176,40 @@ class BasisData:
             # 合併數據（按時間對齊）
             # 使用 merge_asof 進行時間對齊
             df = pd.merge_asof(
-                perp_df.sort_values('timestamp'),
-                spot_df[['timestamp', 'spot_price']].sort_values('timestamp'),
-                on='timestamp',
-                direction='nearest',
-                tolerance=pd.Timedelta('15min')  # 允許15分鐘誤差
+                perp_df.sort_values("timestamp"),
+                spot_df[["timestamp", "spot_price"]].sort_values("timestamp"),
+                on="timestamp",
+                direction="nearest",
+                tolerance=pd.Timedelta("15min"),  # 允許15分鐘誤差
             )
 
             # 刪除沒有匹配的行
-            df = df.dropna(subset=['spot_price'])
+            df = df.dropna(subset=["spot_price"])
 
             # 重命名永續價格
-            df = df.rename(columns={'mark_price': 'perp_price'})
+            df = df.rename(columns={"mark_price": "perp_price"})
 
             # 計算基差指標
-            df['basis'] = self.calculate_basis(df['perp_price'], df['spot_price'])
-            df['basis_pct'] = self.calculate_basis_percentage(df['perp_price'], df['spot_price'])
-            df['annualized_basis'] = self.calculate_annualized_basis(df['perp_price'], df['spot_price'])
-            df['exchange'] = exchange
+            df["basis"] = self.calculate_basis(df["perp_price"], df["spot_price"])
+            df["basis_pct"] = self.calculate_basis_percentage(df["perp_price"], df["spot_price"])
+            df["annualized_basis"] = self.calculate_annualized_basis(
+                df["perp_price"], df["spot_price"]
+            )
+            df["exchange"] = exchange
 
             # 選擇需要的欄位
-            df = df[[
-                'timestamp', 'symbol', 'perp_price', 'spot_price',
-                'basis', 'basis_pct', 'annualized_basis', 'exchange'
-            ]]
+            df = df[
+                [
+                    "timestamp",
+                    "symbol",
+                    "perp_price",
+                    "spot_price",
+                    "basis",
+                    "basis_pct",
+                    "annualized_basis",
+                    "exchange",
+                ]
+            ]
 
             logger.info(f"Calculated basis for {symbol}: {len(df)} records")
 
@@ -218,11 +220,7 @@ class BasisData:
             return pd.DataFrame()
 
     def _fetch_spot_price(
-        self,
-        symbol: str,
-        start_time: datetime,
-        end_time: datetime,
-        interval: str = '1h'
+        self, symbol: str, start_time: datetime, end_time: datetime, interval: str = "1h"
     ) -> pd.DataFrame:
         """獲取現貨價格數據
 
@@ -241,15 +239,16 @@ class BasisData:
         spot_url = "https://api.binance.com/api/v3/klines"
 
         params = {
-            'symbol': symbol,
-            'interval': interval,
-            'startTime': int(start_time.timestamp() * 1000),
-            'endTime': int(end_time.timestamp() * 1000),
-            'limit': 1000
+            "symbol": symbol,
+            "interval": interval,
+            "startTime": int(start_time.timestamp() * 1000),
+            "endTime": int(end_time.timestamp() * 1000),
+            "limit": 1000,
         }
 
         try:
             import requests
+
             response = requests.get(spot_url, params=params, timeout=30)
             response.raise_for_status()
             data = response.json()
@@ -259,16 +258,28 @@ class BasisData:
 
             # Binance K線格式：
             # [時間, 開, 高, 低, 收, 量, 收盤時間, ...]
-            df = pd.DataFrame(data, columns=[
-                'timestamp', 'open', 'high', 'low', 'close', 'volume',
-                'close_time', 'quote_volume', 'trades', 'taker_buy_base',
-                'taker_buy_quote', 'ignore'
-            ])
+            df = pd.DataFrame(
+                data,
+                columns=[
+                    "timestamp",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                    "close_time",
+                    "quote_volume",
+                    "trades",
+                    "taker_buy_base",
+                    "taker_buy_quote",
+                    "ignore",
+                ],
+            )
 
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            df['spot_price'] = df['close'].astype(float)
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df["spot_price"] = df["close"].astype(float)
 
-            df = df[['timestamp', 'spot_price']]
+            df = df[["timestamp", "spot_price"]]
 
             logger.info(f"Fetched {len(df)} spot price records")
 
@@ -278,11 +289,7 @@ class BasisData:
             logger.error(f"Failed to fetch spot price: {e}")
             return pd.DataFrame()
 
-    def analyze_basis_convergence(
-        self,
-        df: pd.DataFrame,
-        window: int = 24
-    ) -> Dict[str, Any]:
+    def analyze_basis_convergence(self, df: pd.DataFrame, window: int = 24) -> Dict[str, Any]:
         """分析基差收斂趨勢
 
         Args:
@@ -293,22 +300,18 @@ class BasisData:
             分析結果
         """
         if df.empty or len(df) < window:
-            return {
-                'status': 'insufficient_data',
-                'records': len(df),
-                'required': window
-            }
+            return {"status": "insufficient_data", "records": len(df), "required": window}
 
         recent = df.tail(window)
 
         # 基差統計
-        basis_mean = recent['basis_pct'].mean()
-        basis_std = recent['basis_pct'].std()
-        current_basis = recent['basis_pct'].iloc[-1]
+        basis_mean = recent["basis_pct"].mean()
+        basis_std = recent["basis_pct"].std()
+        current_basis = recent["basis_pct"].iloc[-1]
 
         # 趨勢分析（線性回歸）
         x = np.arange(len(recent))
-        y = recent['basis_pct'].values
+        y = recent["basis_pct"].values
 
         if len(x) > 1 and basis_std > 0:
             # 簡單線性回歸
@@ -316,14 +319,14 @@ class BasisData:
 
             # 判斷趨勢
             if slope < -0.01:
-                trend = 'converging'  # 收斂（基差縮小）
+                trend = "converging"  # 收斂（基差縮小）
             elif slope > 0.01:
-                trend = 'diverging'   # 發散（基差擴大）
+                trend = "diverging"  # 發散（基差擴大）
             else:
-                trend = 'stable'
+                trend = "stable"
         else:
             slope = 0
-            trend = 'stable'
+            trend = "stable"
 
         # Z-score (標準化距離)
         if basis_std > 0:
@@ -332,20 +335,18 @@ class BasisData:
             z_score = 0
 
         return {
-            'current_basis_pct': current_basis,
-            'mean_basis_pct': basis_mean,
-            'std_basis_pct': basis_std,
-            'trend': trend,
-            'slope': slope,
-            'z_score': z_score,
-            'window_hours': window,
-            'is_extreme': abs(z_score) > 2.0
+            "current_basis_pct": current_basis,
+            "mean_basis_pct": basis_mean,
+            "std_basis_pct": basis_std,
+            "trend": trend,
+            "slope": slope,
+            "z_score": z_score,
+            "window_hours": window,
+            "is_extreme": abs(z_score) > 2.0,
         }
 
     def identify_arbitrage_opportunities(
-        self,
-        df: pd.DataFrame,
-        threshold: float = 0.5
+        self, df: pd.DataFrame, threshold: float = 0.5
     ) -> pd.DataFrame:
         """識別套利機會
 
@@ -366,30 +367,24 @@ class BasisData:
         df = df.copy()
 
         # 標記套利機會
-        df['is_arbitrage'] = df['basis_pct'].abs() > threshold
+        df["is_arbitrage"] = df["basis_pct"].abs() > threshold
 
         # 套利類型
         # Cash and Carry: 基差為正，做空永續+做多現貨
         # Reverse: 基差為負，做多永續+做空現貨
-        df['arbitrage_type'] = 'none'
-        df.loc[df['basis_pct'] > threshold, 'arbitrage_type'] = 'cash_and_carry'
-        df.loc[df['basis_pct'] < -threshold, 'arbitrage_type'] = 'reverse'
+        df["arbitrage_type"] = "none"
+        df.loc[df["basis_pct"] > threshold, "arbitrage_type"] = "cash_and_carry"
+        df.loc[df["basis_pct"] < -threshold, "arbitrage_type"] = "reverse"
 
         # 預期收益（年化）
-        df['expected_return_pct'] = df['annualized_basis'].abs()
+        df["expected_return_pct"] = df["annualized_basis"].abs()
 
-        arbitrage_count = df['is_arbitrage'].sum()
+        arbitrage_count = df["is_arbitrage"].sum()
         logger.info(f"Identified {arbitrage_count} arbitrage opportunities")
 
         return df
 
-    def save(
-        self,
-        df: pd.DataFrame,
-        symbol: str,
-        exchange: str,
-        format: str = 'parquet'
-    ) -> Path:
+    def save(self, df: pd.DataFrame, symbol: str, exchange: str, format: str = "parquet") -> Path:
         """保存基差數據到存儲
 
         Args:
@@ -410,15 +405,15 @@ class BasisData:
         exchange_dir.mkdir(exist_ok=True)
 
         # 生成文件名
-        start_date = df['timestamp'].min().strftime('%Y%m%d')
-        end_date = df['timestamp'].max().strftime('%Y%m%d')
+        start_date = df["timestamp"].min().strftime("%Y%m%d")
+        end_date = df["timestamp"].max().strftime("%Y%m%d")
         filename = f"{symbol}_basis_{start_date}_{end_date}.{format}"
         filepath = exchange_dir / filename
 
         # 保存
-        if format == 'parquet':
-            df.to_parquet(filepath, compression='snappy', index=False)
-        elif format == 'csv':
+        if format == "parquet":
+            df.to_parquet(filepath, compression="snappy", index=False)
+        elif format == "csv":
             df.to_csv(filepath, index=False)
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -432,7 +427,7 @@ class BasisData:
         symbol: str,
         exchange: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> pd.DataFrame:
         """從存儲載入基差數據
 
@@ -466,13 +461,13 @@ class BasisData:
             dfs.append(df)
 
         df = pd.concat(dfs, ignore_index=True)
-        df = df.sort_values('timestamp').drop_duplicates('timestamp')
+        df = df.sort_values("timestamp").drop_duplicates("timestamp")
 
         # 篩選日期範圍
         if start_date:
-            df = df[df['timestamp'] >= pd.to_datetime(start_date)]
+            df = df[df["timestamp"] >= pd.to_datetime(start_date)]
         if end_date:
-            df = df[df['timestamp'] <= pd.to_datetime(end_date)]
+            df = df[df["timestamp"] <= pd.to_datetime(end_date)]
 
         logger.info(f"Loaded {len(df)} basis records for {symbol}")
 
@@ -484,7 +479,7 @@ def calculate_basis(
     symbol: str,
     start_time: Optional[Union[str, datetime]] = None,
     end_time: Optional[Union[str, datetime]] = None,
-    exchange: str = 'binance'
+    exchange: str = "binance",
 ) -> pd.DataFrame:
     """便捷函數：計算期現基差
 
@@ -497,9 +492,7 @@ def calculate_basis(
 
 
 def find_arbitrage_opportunities(
-    symbol: str,
-    threshold: float = 0.5,
-    exchange: str = 'binance'
+    symbol: str, threshold: float = 0.5, exchange: str = "binance"
 ) -> pd.DataFrame:
     """便捷函數：尋找套利機會
 

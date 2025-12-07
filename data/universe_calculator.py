@@ -14,13 +14,14 @@ Version: v0.6 Phase 1
 Design Reference: docs/specs/v0.6/superdog_v06_universe_manager_spec.md
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, Optional, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
+import pandas as pd
 
 # 設定日誌
 logging.basicConfig(level=logging.INFO)
@@ -30,30 +31,33 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VolumeMetrics:
     """成交額指標"""
-    volume_30d_avg: float          # 30日平均成交額 (USD)
-    volume_7d_avg: float           # 7日平均成交額 (USD)
-    volume_30d_total: float        # 30日總成交額 (USD)
-    volume_trend: float            # 成交量趨勢 (-1到1)
-    volume_volatility: float       # 成交量波動率
+
+    volume_30d_avg: float  # 30日平均成交額 (USD)
+    volume_7d_avg: float  # 7日平均成交額 (USD)
+    volume_30d_total: float  # 30日總成交額 (USD)
+    volume_trend: float  # 成交量趨勢 (-1到1)
+    volume_volatility: float  # 成交量波動率
 
 
 @dataclass
 class OIMetrics:
     """持倉量指標"""
-    oi_avg_usd: float              # 平均持倉量 (USD)
-    oi_trend: float                # 持倉量趨勢 (-1到1)
-    oi_volatility: float           # 持倉量波動率
-    oi_growth_rate: float          # 年化增長率
+
+    oi_avg_usd: float  # 平均持倉量 (USD)
+    oi_trend: float  # 持倉量趨勢 (-1到1)
+    oi_volatility: float  # 持倉量波動率
+    oi_growth_rate: float  # 年化增長率
 
 
 @dataclass
 class AssetTypeInfo:
     """資產類型信息"""
-    is_stablecoin: bool            # 是否穩定幣
-    has_perpetual: bool            # 是否有永續合約
-    is_defi: bool                  # 是否DeFi代幣
-    is_layer1: bool                # 是否Layer1公鏈
-    is_meme: bool                  # 是否Meme幣
+
+    is_stablecoin: bool  # 是否穩定幣
+    has_perpetual: bool  # 是否有永續合約
+    is_defi: bool  # 是否DeFi代幣
+    is_layer1: bool  # 是否Layer1公鏈
+    is_meme: bool  # 是否Meme幣
 
 
 class UniverseCalculator:
@@ -68,18 +72,47 @@ class UniverseCalculator:
     """
 
     # 穩定幣列表
-    STABLECOINS = ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'USDP', 'USDD', 'FRAX']
+    STABLECOINS = ["USDT", "USDC", "BUSD", "DAI", "TUSD", "USDP", "USDD", "FRAX"]
 
     # DeFi代幣列表
-    DEFI_TOKENS = ['UNI', 'SUSHI', 'AAVE', 'COMP', 'CRV', 'YFI', 'MKR', '1INCH',
-                   'SNX', 'BAL', 'ALPHA', 'RUNE', 'LUNA', 'CAKE']
+    DEFI_TOKENS = [
+        "UNI",
+        "SUSHI",
+        "AAVE",
+        "COMP",
+        "CRV",
+        "YFI",
+        "MKR",
+        "1INCH",
+        "SNX",
+        "BAL",
+        "ALPHA",
+        "RUNE",
+        "LUNA",
+        "CAKE",
+    ]
 
     # Layer1公鏈列表
-    LAYER1_CHAINS = ['BTC', 'ETH', 'BNB', 'SOL', 'ADA', 'AVAX', 'DOT', 'MATIC',
-                     'ATOM', 'NEAR', 'FTM', 'ALGO', 'ONE', 'EGLD', 'HBAR']
+    LAYER1_CHAINS = [
+        "BTC",
+        "ETH",
+        "BNB",
+        "SOL",
+        "ADA",
+        "AVAX",
+        "DOT",
+        "MATIC",
+        "ATOM",
+        "NEAR",
+        "FTM",
+        "ALGO",
+        "ONE",
+        "EGLD",
+        "HBAR",
+    ]
 
     # Meme幣列表
-    MEME_COINS = ['DOGE', 'SHIB', 'PEPE', 'FLOKI', 'ELON', 'BONK', 'BABYDOGE']
+    MEME_COINS = ["DOGE", "SHIB", "PEPE", "FLOKI", "ELON", "BONK", "BABYDOGE"]
 
     def __init__(self, data_dir: Optional[str] = None):
         """初始化計算器
@@ -88,14 +121,11 @@ class UniverseCalculator:
             data_dir: 數據目錄路徑，默認為 'data/raw'
         """
         if data_dir is None:
-            data_dir = Path(__file__).parent / 'raw'
+            data_dir = Path(__file__).parent / "raw"
         self.data_dir = Path(data_dir)
 
     def calculate_volume_metrics(
-        self,
-        symbol: str,
-        days: int = 30,
-        ohlcv_data: Optional[pd.DataFrame] = None
+        self, symbol: str, days: int = 30, ohlcv_data: Optional[pd.DataFrame] = None
     ) -> VolumeMetrics:
         """計算成交額相關指標
 
@@ -124,7 +154,7 @@ class UniverseCalculator:
             raise ValueError(f"數據不足: 只有 {len(ohlcv_data)} 天，至少需要 7 天")
 
         # 計算成交額 (成交量 * 收盤價 = USD成交額)
-        volume_usd = ohlcv_data['volume'] * ohlcv_data['close']
+        volume_usd = ohlcv_data["volume"] * ohlcv_data["close"]
 
         # 計算各項指標
         volume_30d_avg = volume_usd.tail(min(30, len(volume_usd))).mean()
@@ -132,9 +162,10 @@ class UniverseCalculator:
         volume_30d_total = volume_usd.tail(min(30, len(volume_usd))).sum()
         volume_trend = self._calculate_volume_trend(volume_usd)
         volume_volatility = (
-            volume_usd.tail(min(30, len(volume_usd))).std() /
-            volume_usd.tail(min(30, len(volume_usd))).mean()
-            if volume_usd.tail(min(30, len(volume_usd))).mean() > 0 else 0
+            volume_usd.tail(min(30, len(volume_usd))).std()
+            / volume_usd.tail(min(30, len(volume_usd))).mean()
+            if volume_usd.tail(min(30, len(volume_usd))).mean() > 0
+            else 0
         )
 
         return VolumeMetrics(
@@ -142,14 +173,10 @@ class UniverseCalculator:
             volume_7d_avg=volume_7d_avg,
             volume_30d_total=volume_30d_total,
             volume_trend=volume_trend,
-            volume_volatility=volume_volatility
+            volume_volatility=volume_volatility,
         )
 
-    def calculate_history_days(
-        self,
-        symbol: str,
-        ohlcv_data: Optional[pd.DataFrame] = None
-    ) -> int:
+    def calculate_history_days(self, symbol: str, ohlcv_data: Optional[pd.DataFrame] = None) -> int:
         """計算上市天數
 
         Args:
@@ -181,11 +208,7 @@ class UniverseCalculator:
 
         return (current_date - first_date).days
 
-    def calculate_oi_metrics(
-        self,
-        symbol: str,
-        days: int = 30
-    ) -> OIMetrics:
+    def calculate_oi_metrics(self, symbol: str, days: int = 30) -> OIMetrics:
         """計算持倉量相關指標
 
         Args:
@@ -204,12 +227,7 @@ class UniverseCalculator:
         """
         # 檢查是否有永續合約
         if not self._has_perpetual_data(symbol):
-            return OIMetrics(
-                oi_avg_usd=0,
-                oi_trend=0,
-                oi_volatility=0,
-                oi_growth_rate=0
-            )
+            return OIMetrics(oi_avg_usd=0, oi_trend=0, oi_volatility=0, oi_growth_rate=0)
 
         try:
             # 加載持倉量數據
@@ -220,21 +238,17 @@ class UniverseCalculator:
             aligned_data = self._align_data(oi_data, ohlcv_data)
 
             # 計算USD價值 (OI * 價格)
-            oi_usd = aligned_data['open_interest'] * aligned_data['close']
+            oi_usd = aligned_data["open_interest"] * aligned_data["close"]
 
             # 計算各項指標
             oi_avg_usd = oi_usd.mean()
             oi_trend = self._calculate_oi_trend(oi_usd)
-            oi_volatility = (
-                oi_usd.std() / oi_usd.mean()
-                if oi_usd.mean() > 0 else 0
-            )
+            oi_volatility = oi_usd.std() / oi_usd.mean() if oi_usd.mean() > 0 else 0
 
             # 計算年化增長率
             if len(oi_usd) >= 2:
                 oi_growth_rate = (
-                    (oi_usd.iloc[-1] / oi_usd.iloc[0] - 1) * 365 / days
-                    if oi_usd.iloc[0] > 0 else 0
+                    (oi_usd.iloc[-1] / oi_usd.iloc[0] - 1) * 365 / days if oi_usd.iloc[0] > 0 else 0
                 )
             else:
                 oi_growth_rate = 0
@@ -243,7 +257,7 @@ class UniverseCalculator:
                 oi_avg_usd=oi_avg_usd,
                 oi_trend=oi_trend,
                 oi_volatility=oi_volatility,
-                oi_growth_rate=oi_growth_rate
+                oi_growth_rate=oi_growth_rate,
             )
 
         except Exception as e:
@@ -265,7 +279,7 @@ class UniverseCalculator:
             ...     print("這是Layer1公鏈")
         """
         # 移除報價幣種後綴
-        base_asset = symbol.replace('USDT', '').replace('USD', '').replace('BUSD', '')
+        base_asset = symbol.replace("USDT", "").replace("USD", "").replace("BUSD", "")
 
         # 檢測各種類型
         is_stablecoin = any(stable in symbol for stable in self.STABLECOINS)
@@ -279,7 +293,7 @@ class UniverseCalculator:
             has_perpetual=has_perpetual,
             is_defi=is_defi,
             is_layer1=is_layer1,
-            is_meme=is_meme
+            is_meme=is_meme,
         )
 
     def get_market_cap_rank(self, symbol: str) -> Optional[int]:
@@ -296,19 +310,59 @@ class UniverseCalculator:
         """
         # 預定義的市值排名（前50）
         market_cap_ranks = {
-            'BTC': 1, 'ETH': 2, 'BNB': 3, 'SOL': 4, 'XRP': 5,
-            'ADA': 6, 'DOGE': 7, 'AVAX': 8, 'TRX': 9, 'DOT': 10,
-            'MATIC': 11, 'LTC': 12, 'LINK': 13, 'UNI': 14, 'ATOM': 15,
-            'XLM': 16, 'XMR': 17, 'ALGO': 18, 'VET': 19, 'FIL': 20,
-            'NEAR': 21, 'HBAR': 22, 'APT': 23, 'ICP': 24, 'AAVE': 25,
-            'MKR': 26, 'SNX': 27, 'RUNE': 28, 'EGLD': 29, 'SAND': 30,
-            'MANA': 31, 'AXS': 32, 'FTM': 33, 'ONE': 34, 'ROSE': 35,
-            'GALA': 36, 'ENJ': 37, 'CHZ': 38, 'THETA': 39, 'ZIL': 40,
-            'BAT': 41, 'COMP': 42, 'YFI': 43, 'CRV': 44, '1INCH': 45,
-            'SUSHI': 46, 'CAKE': 47, 'ALPHA': 48, 'BAL': 49, 'LUNA': 50
+            "BTC": 1,
+            "ETH": 2,
+            "BNB": 3,
+            "SOL": 4,
+            "XRP": 5,
+            "ADA": 6,
+            "DOGE": 7,
+            "AVAX": 8,
+            "TRX": 9,
+            "DOT": 10,
+            "MATIC": 11,
+            "LTC": 12,
+            "LINK": 13,
+            "UNI": 14,
+            "ATOM": 15,
+            "XLM": 16,
+            "XMR": 17,
+            "ALGO": 18,
+            "VET": 19,
+            "FIL": 20,
+            "NEAR": 21,
+            "HBAR": 22,
+            "APT": 23,
+            "ICP": 24,
+            "AAVE": 25,
+            "MKR": 26,
+            "SNX": 27,
+            "RUNE": 28,
+            "EGLD": 29,
+            "SAND": 30,
+            "MANA": 31,
+            "AXS": 32,
+            "FTM": 33,
+            "ONE": 34,
+            "ROSE": 35,
+            "GALA": 36,
+            "ENJ": 37,
+            "CHZ": 38,
+            "THETA": 39,
+            "ZIL": 40,
+            "BAT": 41,
+            "COMP": 42,
+            "YFI": 43,
+            "CRV": 44,
+            "1INCH": 45,
+            "SUSHI": 46,
+            "CAKE": 47,
+            "ALPHA": 48,
+            "BAL": 49,
+            "LUNA": 50,
         }
 
-        base_asset = symbol.replace('USDT', '').replace('USD', '').replace('BUSD', '')
+        base_asset = symbol.replace("USDT", "").replace("USD", "").replace("BUSD", "")
         return market_cap_ranks.get(base_asset)
 
     # ===== 私有輔助方法 =====
@@ -350,13 +404,14 @@ class UniverseCalculator:
         """
         # 嘗試從永續數據目錄加載
         try:
-            from data.perpetual import fetch_open_interest
             from datetime import datetime, timedelta
+
+            from data.perpetual import fetch_open_interest
 
             end_time = datetime.now()
             start_time = end_time - timedelta(days=days)
 
-            oi_data = fetch_open_interest(symbol, start_time, end_time, interval='1d')
+            oi_data = fetch_open_interest(symbol, start_time, end_time, interval="1d")
             return oi_data
 
         except Exception as e:
@@ -382,11 +437,7 @@ class UniverseCalculator:
         except Exception:
             return False
 
-    def _align_data(
-        self,
-        oi_data: pd.DataFrame,
-        ohlcv_data: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _align_data(self, oi_data: pd.DataFrame, ohlcv_data: pd.DataFrame) -> pd.DataFrame:
         """對齊持倉量和OHLCV數據
 
         Args:
@@ -398,11 +449,11 @@ class UniverseCalculator:
         """
         # 將兩個數據集按時間對齊
         merged = pd.merge(
-            oi_data[['open_interest']],
-            ohlcv_data[['close']],
+            oi_data[["open_interest"]],
+            ohlcv_data[["close"]],
             left_index=True,
             right_index=True,
-            how='inner'
+            how="inner",
         )
 
         return merged
@@ -455,10 +506,9 @@ class UniverseCalculator:
 
 # ===== 便捷函數 =====
 
+
 def calculate_all_metrics(
-    symbol: str,
-    days: int = 30,
-    calculator: Optional[UniverseCalculator] = None
+    symbol: str, days: int = 30, calculator: Optional[UniverseCalculator] = None
 ) -> Dict:
     """計算幣種所有指標
 
@@ -488,30 +538,26 @@ def calculate_all_metrics(
         market_cap_rank = calculator.get_market_cap_rank(symbol)
 
         return {
-            'symbol': symbol,
-            'volume_30d_avg': vol_metrics.volume_30d_avg,
-            'volume_7d_avg': vol_metrics.volume_7d_avg,
-            'volume_30d_total': vol_metrics.volume_30d_total,
-            'volume_trend': vol_metrics.volume_trend,
-            'volume_volatility': vol_metrics.volume_volatility,
-            'history_days': history_days,
-            'oi_avg_usd': oi_metrics.oi_avg_usd,
-            'oi_trend': oi_metrics.oi_trend,
-            'oi_volatility': oi_metrics.oi_volatility,
-            'oi_growth_rate': oi_metrics.oi_growth_rate,
-            'is_stablecoin': asset_type.is_stablecoin,
-            'has_perpetual': asset_type.has_perpetual,
-            'is_defi': asset_type.is_defi,
-            'is_layer1': asset_type.is_layer1,
-            'is_meme': asset_type.is_meme,
-            'market_cap_rank': market_cap_rank,
-            'last_updated': datetime.now().isoformat()
+            "symbol": symbol,
+            "volume_30d_avg": vol_metrics.volume_30d_avg,
+            "volume_7d_avg": vol_metrics.volume_7d_avg,
+            "volume_30d_total": vol_metrics.volume_30d_total,
+            "volume_trend": vol_metrics.volume_trend,
+            "volume_volatility": vol_metrics.volume_volatility,
+            "history_days": history_days,
+            "oi_avg_usd": oi_metrics.oi_avg_usd,
+            "oi_trend": oi_metrics.oi_trend,
+            "oi_volatility": oi_metrics.oi_volatility,
+            "oi_growth_rate": oi_metrics.oi_growth_rate,
+            "is_stablecoin": asset_type.is_stablecoin,
+            "has_perpetual": asset_type.has_perpetual,
+            "is_defi": asset_type.is_defi,
+            "is_layer1": asset_type.is_layer1,
+            "is_meme": asset_type.is_meme,
+            "market_cap_rank": market_cap_rank,
+            "last_updated": datetime.now().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"計算 {symbol} 指標失敗: {e}")
-        return {
-            'symbol': symbol,
-            'error': str(e),
-            'last_updated': datetime.now().isoformat()
-        }
+        return {"symbol": symbol, "error": str(e), "last_updated": datetime.now().isoformat()}

@@ -13,8 +13,10 @@ Version: v0.4
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
+from typing import Any, Dict, List, Optional
+
 import click
-from typing import Dict, Any, List, Optional
+
 from strategies.api_v2 import BaseStrategy, ParameterSpec, ParameterType
 
 
@@ -62,17 +64,13 @@ class ParameterValidator:
         # 1. 檢查並驗證提供的參數
         for param_name, param_value in params.items():
             if param_name not in parameter_specs:
-                self.warnings.append(
-                    f"Unknown parameter '{param_name}' will be ignored"
-                )
+                self.warnings.append(f"Unknown parameter '{param_name}' will be ignored")
                 continue
 
             param_spec = parameter_specs[param_name]
 
             try:
-                validated_value = self._validate_single_param(
-                    param_name, param_value, param_spec
-                )
+                validated_value = self._validate_single_param(param_name, param_value, param_spec)
                 validated_params[param_name] = validated_value
             except (ValueError, TypeError) as e:
                 self.errors.append(
@@ -127,7 +125,7 @@ class ParameterValidator:
             click.echo(
                 f"  ✓ {param_name}: {param_value} → {validated_value} "
                 f"({param_spec.param_type.value})",
-                err=True
+                err=True,
             )
 
         return validated_value
@@ -215,8 +213,8 @@ class ParameterValidator:
             - 某些參數組合可能無效
         """
         # 通用檢查：如果策略有 short_window 和 long_window，確保 short < long
-        if 'short_window' in params and 'long_window' in params:
-            if params['short_window'] >= params['long_window']:
+        if "short_window" in params and "long_window" in params:
+            if params["short_window"] >= params["long_window"]:
                 self.errors.append(
                     f"Parameter dependency error: 'short_window' ({params['short_window']}) "
                     f"must be less than 'long_window' ({params['long_window']})"
@@ -273,9 +271,7 @@ class BacktestConfigValidator:
         self.verbose = verbose
         self.param_validator = ParameterValidator(verbose=verbose)
 
-    def validate_config(
-        self, config: Dict[str, Any], strategy: BaseStrategy
-    ) -> Dict[str, Any]:
+    def validate_config(self, config: Dict[str, Any], strategy: BaseStrategy) -> Dict[str, Any]:
         """驗證完整的回測配置
 
         Args:
@@ -291,7 +287,7 @@ class BacktestConfigValidator:
         validated_config = {}
 
         # 1. 驗證必需的基本參數
-        required_params = ['symbol', 'timeframe']
+        required_params = ["symbol", "timeframe"]
         for param in required_params:
             if param not in config:
                 raise click.BadParameter(f"Missing required parameter: {param}")
@@ -299,11 +295,11 @@ class BacktestConfigValidator:
 
         # 2. 驗證可選的基本參數
         optional_params = {
-            'cash': 10000.0,
-            'fee': 0.0005,
-            'leverage': 1.0,
-            'stop_loss': None,
-            'take_profit': None
+            "cash": 10000.0,
+            "fee": 0.0005,
+            "leverage": 1.0,
+            "stop_loss": None,
+            "take_profit": None,
         }
 
         for param, default_value in optional_params.items():
@@ -313,17 +309,15 @@ class BacktestConfigValidator:
         self._validate_numeric_ranges(validated_config)
 
         # 4. 驗證策略參數
-        strategy_params = config.get('strategy_params', {})
-        validated_strategy_params = self.param_validator.validate(
-            strategy_params, strategy
-        )
-        validated_config['strategy_params'] = validated_strategy_params
+        strategy_params = config.get("strategy_params", {})
+        validated_strategy_params = self.param_validator.validate(strategy_params, strategy)
+        validated_config["strategy_params"] = validated_strategy_params
 
         # 5. 驗證時間週期格式
-        self._validate_timeframe(validated_config['timeframe'])
+        self._validate_timeframe(validated_config["timeframe"])
 
         # 6. 驗證交易對格式
-        self._validate_symbol(validated_config['symbol'])
+        self._validate_symbol(validated_config["symbol"])
 
         return validated_config
 
@@ -337,32 +331,24 @@ class BacktestConfigValidator:
             click.BadParameter: 數值超出範圍
         """
         # 初始資金
-        if config['cash'] <= 0:
-            raise click.BadParameter(
-                f"Initial cash must be positive, got {config['cash']}"
-            )
+        if config["cash"] <= 0:
+            raise click.BadParameter(f"Initial cash must be positive, got {config['cash']}")
 
         # 手續費率
-        if not (0 <= config['fee'] < 1):
-            raise click.BadParameter(
-                f"Fee rate must be in [0, 1), got {config['fee']}"
-            )
+        if not (0 <= config["fee"] < 1):
+            raise click.BadParameter(f"Fee rate must be in [0, 1), got {config['fee']}")
 
         # 槓桿倍數
-        if not (1 <= config['leverage'] <= 100):
-            raise click.BadParameter(
-                f"Leverage must be in [1, 100], got {config['leverage']}"
-            )
+        if not (1 <= config["leverage"] <= 100):
+            raise click.BadParameter(f"Leverage must be in [1, 100], got {config['leverage']}")
 
         # 停損停利
-        if config['stop_loss'] is not None:
-            if not (0 < config['stop_loss'] < 1):
-                raise click.BadParameter(
-                    f"Stop loss must be in (0, 1), got {config['stop_loss']}"
-                )
+        if config["stop_loss"] is not None:
+            if not (0 < config["stop_loss"] < 1):
+                raise click.BadParameter(f"Stop loss must be in (0, 1), got {config['stop_loss']}")
 
-        if config['take_profit'] is not None:
-            if not (0 < config['take_profit'] < 10):
+        if config["take_profit"] is not None:
+            if not (0 < config["take_profit"] < 10):
                 raise click.BadParameter(
                     f"Take profit must be in (0, 10), got {config['take_profit']}"
                 )
@@ -376,13 +362,12 @@ class BacktestConfigValidator:
         Raises:
             click.BadParameter: 時間週期格式無效
         """
-        valid_timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w']
+        valid_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]
 
         if timeframe not in valid_timeframes:
             valid_str = ", ".join(valid_timeframes)
             raise click.BadParameter(
-                f"Invalid timeframe '{timeframe}'. "
-                f"Valid options: {valid_str}"
+                f"Invalid timeframe '{timeframe}'. " f"Valid options: {valid_str}"
             )
 
     def _validate_symbol(self, symbol: str) -> None:
@@ -397,24 +382,21 @@ class BacktestConfigValidator:
         # 基本格式檢查
         if not symbol or len(symbol) < 6:
             raise click.BadParameter(
-                f"Invalid symbol '{symbol}'. "
-                f"Expected format: BTCUSDT, ETHUSDT, etc."
+                f"Invalid symbol '{symbol}'. " f"Expected format: BTCUSDT, ETHUSDT, etc."
             )
 
         # 檢查是否以 USDT 或 USD 結尾（常見格式）
-        if not (symbol.endswith('USDT') or symbol.endswith('USD') or symbol.endswith('BTC')):
+        if not (symbol.endswith("USDT") or symbol.endswith("USD") or symbol.endswith("BTC")):
             # 警告但不報錯
             if self.verbose:
                 click.echo(
                     f"Warning: Symbol '{symbol}' has unusual format. "
                     f"Expected to end with USDT, USD, or BTC",
-                    err=True
+                    err=True,
                 )
 
 
-def validate_strategy_params_cli(
-    ctx: click.Context, param: click.Parameter, value: Any
-) -> Any:
+def validate_strategy_params_cli(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
     """Click 參數驗證回調函數
 
     用於 click.option 的 callback 參數

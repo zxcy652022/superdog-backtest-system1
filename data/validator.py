@@ -5,15 +5,15 @@ Data Validator Module v0.1
 檢查項目：欄位、缺漏、數據合理性
 """
 
-import pandas as pd
+import logging
 from datetime import datetime, timedelta
 from typing import Dict
-import logging
+
+import pandas as pd
 
 # 設定日誌
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class OHLCVValidator:
     """OHLCV 數據驗證器"""
 
-    REQUIRED_COLUMNS = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+    REQUIRED_COLUMNS = ["timestamp", "open", "high", "low", "close", "volume"]
 
     def __init__(self):
         """初始化驗證器"""
@@ -69,10 +69,10 @@ class OHLCVValidator:
                 warnings.append(f"包含額外欄位: {extra_columns}")
 
             # 2. 檢查資料型態
-            if not pd.api.types.is_numeric_dtype(df['timestamp']):
+            if not pd.api.types.is_numeric_dtype(df["timestamp"]):
                 errors.append("timestamp 欄位應為數值型態")
 
-            for col in ['open', 'high', 'low', 'close', 'volume']:
+            for col in ["open", "high", "low", "close", "volume"]:
                 if not pd.api.types.is_numeric_dtype(df[col]):
                     errors.append(f"{col} 欄位應為數值型態")
 
@@ -86,35 +86,26 @@ class OHLCVValidator:
             if not errors:
                 # 檢查 OHLC 邏輯
                 invalid_ohlc = df[
-                    (df['high'] < df['low']) |
-                    (df['high'] < df['open']) |
-                    (df['high'] < df['close']) |
-                    (df['low'] > df['open']) |
-                    (df['low'] > df['close'])
+                    (df["high"] < df["low"])
+                    | (df["high"] < df["open"])
+                    | (df["high"] < df["close"])
+                    | (df["low"] > df["open"])
+                    | (df["low"] > df["close"])
                 ]
                 if len(invalid_ohlc) > 0:
-                    warnings.append(
-                        f"發現 {len(invalid_ohlc)} 列 OHLC 邏輯不合理的數據"
-                    )
+                    warnings.append(f"發現 {len(invalid_ohlc)} 列 OHLC 邏輯不合理的數據")
 
                 # 檢查負數價格
                 negative_prices = df[
-                    (df['open'] <= 0) |
-                    (df['high'] <= 0) |
-                    (df['low'] <= 0) |
-                    (df['close'] <= 0)
+                    (df["open"] <= 0) | (df["high"] <= 0) | (df["low"] <= 0) | (df["close"] <= 0)
                 ]
                 if len(negative_prices) > 0:
-                    errors.append(
-                        f"發現 {len(negative_prices)} 列價格為負數或零的數據"
-                    )
+                    errors.append(f"發現 {len(negative_prices)} 列價格為負數或零的數據")
 
                 # 檢查負數成交量
-                negative_volume = df[df['volume'] < 0]
+                negative_volume = df[df["volume"] < 0]
                 if len(negative_volume) > 0:
-                    errors.append(
-                        f"發現 {len(negative_volume)} 列負成交量的數據"
-                    )
+                    errors.append(f"發現 {len(negative_volume)} 列負成交量的數據")
 
             # 5. 計算缺少的 K 線數量
             missing_bars = 0
@@ -123,11 +114,11 @@ class OHLCVValidator:
 
             if len(df) > 0 and not errors:
                 # 排序確保時間順序
-                df_sorted = df.sort_values('timestamp')
+                df_sorted = df.sort_values("timestamp")
 
                 # 取得開始和結束時間
-                start_ts = df_sorted['timestamp'].iloc[0]
-                end_ts = df_sorted['timestamp'].iloc[-1]
+                start_ts = df_sorted["timestamp"].iloc[0]
+                end_ts = df_sorted["timestamp"].iloc[-1]
 
                 start_date = self._milliseconds_to_date(start_ts)
                 end_date = self._milliseconds_to_date(end_ts)
@@ -142,12 +133,11 @@ class OHLCVValidator:
 
                 if missing_bars > 0:
                     warnings.append(
-                        f"缺少約 {missing_bars} 根 K 線 "
-                        f"(預期: {expected_bars}, 實際: {actual_bars})"
+                        f"缺少約 {missing_bars} 根 K 線 " f"(預期: {expected_bars}, 實際: {actual_bars})"
                     )
 
                 # 檢查重複時間戳
-                duplicate_ts = df_sorted['timestamp'].duplicated().sum()
+                duplicate_ts = df_sorted["timestamp"].duplicated().sum()
                 if duplicate_ts > 0:
                     warnings.append(f"發現 {duplicate_ts} 個重複時間戳")
 
@@ -162,7 +152,7 @@ class OHLCVValidator:
                 "errors": errors,
                 "warnings": warnings,
                 "start_date": start_date,
-                "end_date": end_date
+                "end_date": end_date,
             }
 
             # 輸出結果
@@ -206,7 +196,7 @@ class OHLCVValidator:
             str: 日期字串
         """
         dt = datetime.fromtimestamp(ms / 1000)
-        return dt.strftime('%Y-%m-%d %H:%M:%S')
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
     def _timeframe_to_milliseconds(self, timeframe: str) -> int:
         """
@@ -222,10 +212,10 @@ class OHLCVValidator:
         amount = int(timeframe[:-1])
 
         unit_ms = {
-            'm': 60 * 1000,                    # 分鐘
-            'h': 60 * 60 * 1000,               # 小時
-            'd': 24 * 60 * 60 * 1000,          # 天
-            'w': 7 * 24 * 60 * 60 * 1000,      # 週
+            "m": 60 * 1000,  # 分鐘
+            "h": 60 * 60 * 1000,  # 小時
+            "d": 24 * 60 * 60 * 1000,  # 天
+            "w": 7 * 24 * 60 * 60 * 1000,  # 週
         }
 
         if unit not in unit_ms:
@@ -267,14 +257,14 @@ if __name__ == "__main__":
         print(f"缺少 K 線: {report['missing_bars']}")
         print(f"時間範圍: {report['start_date']} ~ {report['end_date']}")
 
-        if report['errors']:
+        if report["errors"]:
             print(f"\n錯誤 ({len(report['errors'])}):")
-            for error in report['errors']:
+            for error in report["errors"]:
                 print(f"  - {error}")
 
-        if report['warnings']:
+        if report["warnings"]:
             print(f"\n警告 ({len(report['warnings'])}):")
-            for warning in report['warnings']:
+            for warning in report["warnings"]:
                 print(f"  - {warning}")
 
     except Exception as e:

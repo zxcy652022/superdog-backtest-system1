@@ -1,16 +1,14 @@
-# SuperDog Backtest v0.3
+# SuperDog Backtest v0.6.0
 
-研究級加密貨幣回測引擎，專為量化交易策略研究設計。v0.3 聚焦於多策略批量回測、方向感知風控、純文本報表與 CLI 入口。
+企業級加密貨幣量化交易平台，專為量化交易策略研究與實盤執行設計。v0.6 實現四大核心系統，達到 95.7% 驗證成功率。
 
-## 新功能 (v0.3)
+## 核心功能 (v0.6)
 
-### 核心功能
-- ✅ 做空交易支援 (Short Selling)
-- ✅ 槓桿交易 (Leverage 1-100x)
-- ✅ 方向感知的 SL/TP (Long/Short)
-- ✅ 批量回測 (Portfolio Runner)
-- ✅ 文本報表生成器
-- ✅ 命令行介面 (CLI)
+### 四大核心系統
+- ✅ 幣種宇宙管理 (Universe Manager) - 動態幣種篩選與配置
+- ✅ 策略實驗室 (Strategy Lab) - 批量實驗與參數優化
+- ✅ 真實執行模型 (Execution Model) - 完整訂單流程模擬
+- ✅ 動態風控系統 (Risk Management) - 智能止損止盈與倉位管理
 
 ## 快速開始
 
@@ -54,13 +52,13 @@ print(result.summary())
 
 ## API 文檔
 
-- **Broker v0.3**  
+- **Broker v0.3**
   `buy(size, price, time, leverage)` 開多/平空；`sell(...)` 開空/平多；`position_direction`；`is_long`/`is_short`
-- **Engine v0.3**  
+- **Engine v0.3**
   `run_backtest(..., leverage=1.0)`；方向感知 `_check_sl_tp()`
-- **Portfolio Runner v0.3**  
+- **Portfolio Runner v0.3**
   `run_portfolio(configs)`；`RunConfig`；`PortfolioResult`；`load_configs_from_yaml(path)`
-- **Text Reporter v0.3**  
+- **Text Reporter v0.3**
   `render_single(result)`；`render_portfolio(result)`
 
 ## 測試

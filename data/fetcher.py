@@ -5,18 +5,18 @@ Data Fetcher Module v0.1
 使用 ccxt 庫與 Binance 交易所互動。
 """
 
+import logging
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
 import ccxt
 import pandas as pd
-from datetime import datetime
-from typing import Optional
-import time
-import logging
-from pathlib import Path
 
 # 設定日誌
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -43,12 +43,14 @@ class OHLCVFetcher:
         """
         try:
             exchange_class = getattr(ccxt, self.exchange_name)
-            exchange = exchange_class({
-                'enableRateLimit': True,  # 啟用速率限制
-                'options': {
-                    'defaultType': 'spot',  # 使用現貨市場
+            exchange = exchange_class(
+                {
+                    "enableRateLimit": True,  # 啟用速率限制
+                    "options": {
+                        "defaultType": "spot",  # 使用現貨市場
+                    },
                 }
-            })
+            )
             logger.info(f"成功初始化交易所: {self.exchange_name}")
             return exchange
         except Exception as e:
@@ -62,7 +64,7 @@ class OHLCVFetcher:
         start_date: str,
         end_date: str,
         save_path: str,
-        max_retries: int = 3
+        max_retries: int = 3,
     ) -> str:
         """
         下載 OHLCV 數據並儲存為 CSV
@@ -104,10 +106,7 @@ class OHLCVFetcher:
                 try:
                     # 下載數據
                     ohlcv = self.exchange.fetch_ohlcv(
-                        symbol=symbol,
-                        timeframe=timeframe,
-                        since=current_ts,
-                        limit=limit
+                        symbol=symbol, timeframe=timeframe, since=current_ts, limit=limit
                     )
 
                     if not ohlcv:
@@ -115,10 +114,7 @@ class OHLCVFetcher:
                         break
 
                     # 過濾超出結束時間的數據
-                    filtered_ohlcv = [
-                        candle for candle in ohlcv
-                        if candle[0] < end_ts
-                    ]
+                    filtered_ohlcv = [candle for candle in ohlcv if candle[0] < end_ts]
 
                     if filtered_ohlcv:
                         all_ohlcv.extend(filtered_ohlcv)
@@ -139,11 +135,9 @@ class OHLCVFetcher:
 
                 except Exception as e:
                     retry_count += 1
-                    logger.warning(
-                        f"API 請求失敗 (重試 {retry_count}/{max_retries}): {e}"
-                    )
+                    logger.warning(f"API 請求失敗 (重試 {retry_count}/{max_retries}): {e}")
                     if retry_count < max_retries:
-                        time.sleep(2 ** retry_count)  # 指數退避
+                        time.sleep(2**retry_count)  # 指數退避
                     else:
                         logger.error(f"達到最大重試次數，放棄請求")
                         raise Exception(f"API 請求失敗: {e}")
@@ -156,15 +150,14 @@ class OHLCVFetcher:
 
         # 轉換為 DataFrame
         df = pd.DataFrame(
-            all_ohlcv,
-            columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            all_ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"]
         )
 
         # 移除重複的時間戳（如果有）
-        df = df.drop_duplicates(subset=['timestamp'], keep='first')
+        df = df.drop_duplicates(subset=["timestamp"], keep="first")
 
         # 排序
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        df = df.sort_values("timestamp").reset_index(drop=True)
 
         # 確保目錄存在
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
@@ -186,7 +179,7 @@ class OHLCVFetcher:
         Returns:
             int: 毫秒時間戳
         """
-        dt = datetime.strptime(date_str, '%Y-%m-%d')
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
         return int(dt.timestamp() * 1000)
 
     def _milliseconds_to_date(self, ms: int) -> str:
@@ -200,7 +193,7 @@ class OHLCVFetcher:
             str: 日期字串，格式 'YYYY-MM-DD HH:MM:SS'
         """
         dt = datetime.fromtimestamp(ms / 1000)
-        return dt.strftime('%Y-%m-%d %H:%M:%S')
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
     def _timeframe_to_milliseconds(self, timeframe: str) -> int:
         """
@@ -216,10 +209,10 @@ class OHLCVFetcher:
         amount = int(timeframe[:-1])
 
         unit_ms = {
-            'm': 60 * 1000,           # 分鐘
-            'h': 60 * 60 * 1000,      # 小時
-            'd': 24 * 60 * 60 * 1000, # 天
-            'w': 7 * 24 * 60 * 60 * 1000, # 週
+            "m": 60 * 1000,  # 分鐘
+            "h": 60 * 60 * 1000,  # 小時
+            "d": 24 * 60 * 60 * 1000,  # 天
+            "w": 7 * 24 * 60 * 60 * 1000,  # 週
         }
 
         if unit not in unit_ms:
@@ -231,7 +224,7 @@ class OHLCVFetcher:
 def download_btcusdt_1h(
     start_date: str = "2020-01-01",
     end_date: str = "2024-01-01",
-    save_path: str = "data/raw/BTCUSDT_1h.csv"
+    save_path: str = "data/raw/BTCUSDT_1h.csv",
 ) -> str:
     """
     便捷函數：下載 BTCUSDT 1h 數據
@@ -250,7 +243,7 @@ def download_btcusdt_1h(
         timeframe="1h",
         start_date=start_date,
         end_date=end_date,
-        save_path=save_path
+        save_path=save_path,
     )
 
 
@@ -265,4 +258,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n✗ 下載失敗: {e}")
         import sys
+
         sys.exit(1)

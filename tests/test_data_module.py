@@ -1,7 +1,8 @@
 # 測試 Data Module v0.1
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.abspath("."))
 
 from data.fetcher import download_btcusdt_1h
@@ -18,9 +19,7 @@ def test_fetch_and_validate():
 
     print("\n=== Step 1：下載 BTCUSDT 1h ===")
     csv_path = download_btcusdt_1h(
-        start_date="2023-01-01",
-        end_date="2023-02-01",
-        save_path="data/raw/BTCUSDT_1h_test.csv"
+        start_date="2023-01-01", end_date="2023-02-01", save_path="data/raw/BTCUSDT_1h_test.csv"
     )
 
     print(f"CSV 下載完成：{csv_path}")

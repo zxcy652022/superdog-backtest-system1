@@ -14,46 +14,49 @@ Version: v0.6 Phase 2
 Design Reference: docs/specs/v0.6/superdog_v06_strategy_lab_spec.md
 """
 
+import json
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Callable, Tuple
 from datetime import datetime
 from enum import Enum
-import numpy as np
-import json
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
+
+from .experiment_runner import ExperimentRunner, ParameterExpander
 from .experiments import (
     ExperimentConfig,
-    ExperimentRun,
     ExperimentResult,
+    ExperimentRun,
     ExperimentStatus,
-    ParameterRange
+    ParameterRange,
 )
-from .experiment_runner import ExperimentRunner, ParameterExpander
 
 
 class OptimizationMode(Enum):
     """優化模式"""
-    GRID = "grid"                    # 網格搜索
-    RANDOM = "random"                # 隨機搜索
-    BAYESIAN = "bayesian"            # 貝葉斯優化
-    GENETIC = "genetic"              # 遺傳算法（未實現）
+
+    GRID = "grid"  # 網格搜索
+    RANDOM = "random"  # 隨機搜索
+    BAYESIAN = "bayesian"  # 貝葉斯優化
+    GENETIC = "genetic"  # 遺傳算法（未實現）
 
 
 @dataclass
 class OptimizationConfig:
     """優化配置"""
+
     mode: OptimizationMode = OptimizationMode.GRID
-    metric: str = "sharpe_ratio"     # 優化目標指標
-    maximize: bool = True            # True=最大化，False=最小化
+    metric: str = "sharpe_ratio"  # 優化目標指標
+    maximize: bool = True  # True=最大化，False=最小化
 
     # 早停配置
-    early_stopping: bool = False     # 是否啟用早停
-    patience: int = 10               # 容忍輪數
-    min_improvement: float = 0.01    # 最小改進幅度
+    early_stopping: bool = False  # 是否啟用早停
+    patience: int = 10  # 容忍輪數
+    min_improvement: float = 0.01  # 最小改進幅度
 
     # 貝葉斯優化配置
-    n_initial_points: int = 10       # 初始隨機點數
-    acquisition_function: str = "EI" # Expected Improvement
+    n_initial_points: int = 10  # 初始隨機點數
+    acquisition_function: str = "EI"  # Expected Improvement
 
     # 並行配置
     max_workers: int = 4
@@ -78,7 +81,7 @@ class ParameterOptimizer:
         self,
         config: ExperimentConfig,
         backtest_func: Callable,
-        opt_config: Optional[OptimizationConfig] = None
+        opt_config: Optional[OptimizationConfig] = None,
     ):
         """初始化
 
@@ -91,12 +94,10 @@ class ParameterOptimizer:
         self.backtest_func = backtest_func
         self.opt_config = opt_config or OptimizationConfig()
 
-        self.runner = ExperimentRunner(
-            max_workers=self.opt_config.max_workers
-        )
+        self.runner = ExperimentRunner(max_workers=self.opt_config.max_workers)
 
         # 優化狀態
-        self.best_score = float('-inf') if self.opt_config.maximize else float('inf')
+        self.best_score = float("-inf") if self.opt_config.maximize else float("inf")
         self.no_improvement_count = 0
         self.iteration = 0
 
@@ -142,6 +143,7 @@ class ParameterOptimizer:
         """
         # 設置為隨機模式
         from .experiments import ParameterExpansionMode
+
         original_mode = self.config.expansion_mode
         self.config.expansion_mode = ParameterExpansionMode.RANDOM
 
@@ -170,7 +172,7 @@ class ParameterOptimizer:
         experiment_id = self.config.get_experiment_id()
 
         for i in range(0, len(all_tasks), batch_size):
-            batch_tasks = all_tasks[i:i+batch_size]
+            batch_tasks = all_tasks[i : i + batch_size]
             print(f"\n📦 批次 {i//batch_size + 1}/{(len(all_tasks)-1)//batch_size + 1}")
 
             # 執行批次
@@ -198,7 +200,7 @@ class ParameterOptimizer:
 
         try:
             from skopt import gp_minimize
-            from skopt.space import Real, Integer, Categorical
+            from skopt.space import Categorical, Integer, Real
             from skopt.utils import use_named_args
         except ImportError:
             print("❌ scikit-optimize 未安裝，回退到隨機搜索")
@@ -230,7 +232,7 @@ class ParameterOptimizer:
             n_initial_points=self.opt_config.n_initial_points,
             acq_func=self.opt_config.acquisition_function,
             random_state=42,
-            verbose=True
+            verbose=True,
         )
 
         # 轉換為 ExperimentResult
@@ -242,7 +244,7 @@ class ParameterOptimizer:
         Returns:
             List: 搜索空間定義
         """
-        from skopt.space import Real, Integer
+        from skopt.space import Integer, Real
 
         space = []
         for name, param_range in self.config.parameters.items():
@@ -256,17 +258,15 @@ class ParameterOptimizer:
             else:
                 # 連續範圍
                 if param_range.log_scale:
-                    space.append(Real(param_range.start, param_range.stop, prior='log-uniform', name=name))
+                    space.append(
+                        Real(param_range.start, param_range.stop, prior="log-uniform", name=name)
+                    )
                 else:
                     space.append(Real(param_range.start, param_range.stop, name=name))
 
         return space
 
-    def _execute_batch(
-        self,
-        tasks: List[Dict],
-        experiment_id: str
-    ) -> List[ExperimentRun]:
+    def _execute_batch(self, tasks: List[Dict], experiment_id: str) -> List[ExperimentRun]:
         """執行一批任務
 
         Args:
@@ -289,10 +289,10 @@ class ParameterOptimizer:
                     self.runner._execute_single_run,
                     run_id=run_id,
                     experiment_id=experiment_id,
-                    symbol=task['symbol'],
-                    parameters=task['parameters'],
+                    symbol=task["symbol"],
+                    parameters=task["parameters"],
                     config=self.config,
-                    backtest_func=self.backtest_func
+                    backtest_func=self.backtest_func,
                 )
                 futures.append(future)
 
@@ -358,15 +358,11 @@ class ParameterOptimizer:
                 scores.append(score)
 
         if not scores:
-            return float('-inf') if self.opt_config.maximize else float('inf')
+            return float("-inf") if self.opt_config.maximize else float("inf")
 
         return max(scores) if self.opt_config.maximize else min(scores)
 
-    def _create_result(
-        self,
-        experiment_id: str,
-        runs: List[ExperimentRun]
-    ) -> ExperimentResult:
+    def _create_result(self, experiment_id: str, runs: List[ExperimentRun]) -> ExperimentResult:
         """創建實驗結果
 
         Args:
@@ -386,21 +382,16 @@ class ParameterOptimizer:
             total_runs=len(runs),
             completed_runs=len(completed),
             failed_runs=len(failed),
-            best_metric=self.opt_config.metric
+            best_metric=self.opt_config.metric,
         )
 
         result.best_run = result.get_best_run(
-            metric=self.opt_config.metric,
-            ascending=not self.opt_config.maximize
+            metric=self.opt_config.metric, ascending=not self.opt_config.maximize
         )
 
         return result
 
-    def _convert_bayesian_result(
-        self,
-        result_bo: Any,
-        param_names: List[str]
-    ) -> ExperimentResult:
+    def _convert_bayesian_result(self, result_bo: Any, param_names: List[str]) -> ExperimentResult:
         """轉換貝葉斯優化結果
 
         Args:
@@ -423,7 +414,7 @@ class ParameterOptimizer:
                 run_id=f"bayesian_run_{i:04d}",
                 symbol=self.config.symbols[0],
                 parameters=params,
-                status=ExperimentStatus.COMPLETED
+                status=ExperimentStatus.COMPLETED,
             )
 
             # 設置指標
@@ -434,10 +425,7 @@ class ParameterOptimizer:
         # 創建結果
         return self._create_result(self.config.get_experiment_id(), runs)
 
-    def analyze_parameter_importance(
-        self,
-        result: ExperimentResult
-    ) -> Dict[str, float]:
+    def analyze_parameter_importance(self, result: ExperimentResult) -> Dict[str, float]:
         """分析參數重要性
 
         使用方差分析來評估每個參數對結果的影響
@@ -455,8 +443,8 @@ class ParameterOptimizer:
         for run in result.runs:
             if run.status == ExperimentStatus.COMPLETED:
                 row = run.parameters.copy()
-                row['_metric'] = getattr(run, self.opt_config.metric, None)
-                if row['_metric'] is not None:
+                row["_metric"] = getattr(run, self.opt_config.metric, None)
+                if row["_metric"] is not None:
                     data.append(row)
 
         if not data:
@@ -466,11 +454,11 @@ class ParameterOptimizer:
 
         # 計算每個參數的方差貢獻
         importance = {}
-        total_variance = df['_metric'].var()
+        total_variance = df["_metric"].var()
 
-        for param in [c for c in df.columns if c != '_metric']:
+        for param in [c for c in df.columns if c != "_metric"]:
             # 計算分組方差
-            grouped = df.groupby(param)['_metric'].var()
+            grouped = df.groupby(param)["_metric"].var()
             param_variance = grouped.mean()
 
             # 方差比例
@@ -479,19 +467,20 @@ class ParameterOptimizer:
         # 歸一化
         total = sum(importance.values())
         if total > 0:
-            importance = {k: v/total for k, v in importance.items()}
+            importance = {k: v / total for k, v in importance.items()}
 
         return importance
 
 
 # ===== 便捷函數 =====
 
+
 def optimize_parameters(
     config: ExperimentConfig,
     backtest_func: Callable,
     mode: str = "grid",
     metric: str = "sharpe_ratio",
-    **kwargs
+    **kwargs,
 ) -> ExperimentResult:
     """優化參數的便捷函數
 
@@ -513,11 +502,7 @@ def optimize_parameters(
         ...     metric="sharpe_ratio"
         ... )
     """
-    opt_config = OptimizationConfig(
-        mode=OptimizationMode(mode),
-        metric=metric,
-        **kwargs
-    )
+    opt_config = OptimizationConfig(mode=OptimizationMode(mode), metric=metric, **kwargs)
 
     optimizer = ParameterOptimizer(config, backtest_func, opt_config)
     return optimizer.optimize()

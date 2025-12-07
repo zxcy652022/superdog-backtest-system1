@@ -14,9 +14,10 @@ Version: v0.6.0-phase4
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
-import pandas as pd
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
+import pandas as pd
 from scipy import stats
 
 
@@ -71,6 +72,7 @@ class RiskMetrics:
 @dataclass
 class PositionRisk:
     """單筆持倉風險評估"""
+
     position_value: float
     risk_amount: float  # 風險金額
     risk_pct: float  # 風險百分比
@@ -94,9 +96,7 @@ class RiskCalculator:
     """
 
     def __init__(
-        self,
-        risk_free_rate: float = 0.02,  # 無風險利率（年化）
-        trading_days: int = 365  # 每年交易日數
+        self, risk_free_rate: float = 0.02, trading_days: int = 365  # 無風險利率（年化）  # 每年交易日數
     ):
         """初始化風險計算器
 
@@ -108,9 +108,7 @@ class RiskCalculator:
         self.trading_days = trading_days
 
     def calculate_portfolio_risk(
-        self,
-        returns: pd.Series,
-        equity_curve: Optional[pd.Series] = None
+        self, returns: pd.Series, equity_curve: Optional[pd.Series] = None
     ) -> RiskMetrics:
         """計算投資組合風險指標
 
@@ -146,20 +144,26 @@ class RiskCalculator:
         excess_returns = returns - daily_rf_rate
         sharpe_ratio = (
             excess_returns.mean() / excess_returns.std() * np.sqrt(self.trading_days)
-            if excess_returns.std() > 0 else 0
+            if excess_returns.std() > 0
+            else 0
         )
 
         # Sortino Ratio
         sortino_ratio = (
             excess_returns.mean() / downside_volatility * np.sqrt(self.trading_days)
-            if downside_volatility > 0 else 0
+            if downside_volatility > 0
+            else 0
         )
 
         # VaR 和 CVaR
         var_95 = np.percentile(returns, 5)
         var_99 = np.percentile(returns, 1)
-        cvar_95 = returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
-        cvar_99 = returns[returns <= var_99].mean() if len(returns[returns <= var_99]) > 0 else var_99
+        cvar_95 = (
+            returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
+        )
+        cvar_99 = (
+            returns[returns <= var_99].mean() if len(returns[returns <= var_99]) > 0 else var_99
+        )
 
         # 回撤分析
         if equity_curve is not None:
@@ -171,8 +175,9 @@ class RiskCalculator:
 
         # Calmar Ratio
         calmar_ratio = (
-            annualized_return / abs(dd_metrics['max_drawdown_pct'])
-            if dd_metrics['max_drawdown_pct'] != 0 else 0
+            annualized_return / abs(dd_metrics["max_drawdown_pct"])
+            if dd_metrics["max_drawdown_pct"] != 0
+            else 0
         )
 
         # 勝率分析
@@ -196,16 +201,16 @@ class RiskCalculator:
             var_99=var_99,
             cvar_95=cvar_95,
             cvar_99=cvar_99,
-            max_drawdown=dd_metrics['max_drawdown'],
-            max_drawdown_pct=dd_metrics['max_drawdown_pct'],
-            avg_drawdown=dd_metrics['avg_drawdown'],
-            max_drawdown_duration=dd_metrics['max_drawdown_duration'],
-            win_rate=win_rate_metrics['win_rate'],
-            profit_factor=win_rate_metrics['profit_factor'],
-            avg_win=win_rate_metrics['avg_win'],
-            avg_loss=win_rate_metrics['avg_loss'],
+            max_drawdown=dd_metrics["max_drawdown"],
+            max_drawdown_pct=dd_metrics["max_drawdown_pct"],
+            avg_drawdown=dd_metrics["avg_drawdown"],
+            max_drawdown_duration=dd_metrics["max_drawdown_duration"],
+            win_rate=win_rate_metrics["win_rate"],
+            profit_factor=win_rate_metrics["profit_factor"],
+            avg_win=win_rate_metrics["avg_win"],
+            avg_loss=win_rate_metrics["avg_loss"],
             skewness=skewness,
-            kurtosis=kurtosis
+            kurtosis=kurtosis,
         )
 
     def _calculate_drawdown_metrics(self, equity_curve: pd.Series) -> Dict:
@@ -235,10 +240,10 @@ class RiskCalculator:
         max_dd_duration = self._calculate_max_drawdown_duration(drawdown)
 
         return {
-            'max_drawdown': max_drawdown,
-            'max_drawdown_pct': max_drawdown_pct,
-            'avg_drawdown': avg_drawdown,
-            'max_drawdown_duration': max_dd_duration
+            "max_drawdown": max_drawdown,
+            "max_drawdown_pct": max_drawdown_pct,
+            "avg_drawdown": avg_drawdown,
+            "max_drawdown_duration": max_dd_duration,
         }
 
     def _calculate_max_drawdown_duration(self, drawdown: pd.Series) -> int:
@@ -294,10 +299,10 @@ class RiskCalculator:
         profit_factor = total_wins / total_losses if total_losses > 0 else 0
 
         return {
-            'win_rate': win_rate,
-            'avg_win': avg_win,
-            'avg_loss': avg_loss,
-            'profit_factor': profit_factor
+            "win_rate": win_rate,
+            "avg_win": avg_win,
+            "avg_loss": avg_loss,
+            "profit_factor": profit_factor,
         }
 
     def calculate_position_risk(
@@ -308,7 +313,7 @@ class RiskCalculator:
         account_balance: float,
         current_price: Optional[float] = None,
         leverage: float = 1.0,
-        liquidation_price: Optional[float] = None
+        liquidation_price: Optional[float] = None,
     ) -> PositionRisk:
         """計算單筆持倉風險
 
@@ -345,7 +350,9 @@ class RiskCalculator:
         risk_pct = risk_amount / account_balance if account_balance > 0 else 0
 
         # 倉位占比
-        position_size_pct = position_value / (account_balance * leverage) if account_balance > 0 else 0
+        position_size_pct = (
+            position_value / (account_balance * leverage) if account_balance > 0 else 0
+        )
 
         # 止損距離
         stop_loss_distance = abs(current_price - stop_loss) / current_price
@@ -362,14 +369,11 @@ class RiskCalculator:
             position_size_pct=position_size_pct,
             leverage=leverage,
             stop_loss_distance=stop_loss_distance,
-            liquidation_distance=liquidation_distance
+            liquidation_distance=liquidation_distance,
         )
 
     def calculate_var(
-        self,
-        returns: pd.Series,
-        confidence_level: float = 0.95,
-        method: str = 'historical'
+        self, returns: pd.Series, confidence_level: float = 0.95, method: str = "historical"
     ) -> float:
         """計算 VaR (Value at Risk)
 
@@ -385,18 +389,18 @@ class RiskCalculator:
             >>> var = calculator.calculate_var(returns, confidence_level=0.95)
             >>> print(f"95% VaR: {var:.4f}")
         """
-        if method == 'historical':
+        if method == "historical":
             # 歷史模擬法
             return np.percentile(returns, (1 - confidence_level) * 100)
 
-        elif method == 'parametric':
+        elif method == "parametric":
             # 參數法（假設正態分佈）
             mean = returns.mean()
             std = returns.std()
             z_score = stats.norm.ppf(1 - confidence_level)
             return mean + z_score * std
 
-        elif method == 'monte_carlo':
+        elif method == "monte_carlo":
             # 蒙特卡羅模擬
             mean = returns.mean()
             std = returns.std()
@@ -406,11 +410,7 @@ class RiskCalculator:
         else:
             raise ValueError(f"Unknown method: {method}")
 
-    def calculate_cvar(
-        self,
-        returns: pd.Series,
-        confidence_level: float = 0.95
-    ) -> float:
+    def calculate_cvar(self, returns: pd.Series, confidence_level: float = 0.95) -> float:
         """計算 CVaR (Conditional VaR / Expected Shortfall)
 
         Args:
@@ -420,15 +420,12 @@ class RiskCalculator:
         Returns:
             float: CVaR 值
         """
-        var = self.calculate_var(returns, confidence_level, method='historical')
+        var = self.calculate_var(returns, confidence_level, method="historical")
         # CVaR 是超過 VaR 的損失的期望值
         tail_losses = returns[returns <= var]
         return tail_losses.mean() if len(tail_losses) > 0 else var
 
-    def calculate_correlation_matrix(
-        self,
-        returns_dict: Dict[str, pd.Series]
-    ) -> pd.DataFrame:
+    def calculate_correlation_matrix(self, returns_dict: Dict[str, pd.Series]) -> pd.DataFrame:
         """計算多資產相關性矩陣
 
         Args:
@@ -449,9 +446,7 @@ class RiskCalculator:
         return df.corr()
 
     def calculate_portfolio_volatility(
-        self,
-        weights: Dict[str, float],
-        returns_dict: Dict[str, pd.Series]
+        self, weights: Dict[str, float], returns_dict: Dict[str, pd.Series]
     ) -> float:
         """計算投資組合波動率
 
@@ -476,11 +471,7 @@ class RiskCalculator:
 
         return np.sqrt(portfolio_variance)
 
-    def calculate_beta(
-        self,
-        asset_returns: pd.Series,
-        market_returns: pd.Series
-    ) -> float:
+    def calculate_beta(self, asset_returns: pd.Series, market_returns: pd.Series) -> float:
         """計算 Beta 係數
 
         Args:
@@ -496,9 +487,7 @@ class RiskCalculator:
         return covariance / market_variance if market_variance > 0 else 0
 
     def calculate_information_ratio(
-        self,
-        strategy_returns: pd.Series,
-        benchmark_returns: pd.Series
+        self, strategy_returns: pd.Series, benchmark_returns: pd.Series
     ) -> float:
         """計算信息比率 (Information Ratio)
 
@@ -519,12 +508,9 @@ class RiskCalculator:
 
 # ===== 便捷函數 =====
 
+
 def calculate_position_risk(
-    entry_price: float,
-    stop_loss: float,
-    position_size: float,
-    account_balance: float,
-    **kwargs
+    entry_price: float, stop_loss: float, position_size: float, account_balance: float, **kwargs
 ) -> PositionRisk:
     """快速計算持倉風險
 
@@ -553,9 +539,7 @@ def calculate_position_risk(
 
 
 def calculate_portfolio_risk(
-    returns: pd.Series,
-    equity_curve: Optional[pd.Series] = None,
-    **kwargs
+    returns: pd.Series, equity_curve: Optional[pd.Series] = None, **kwargs
 ) -> RiskMetrics:
     """快速計算投資組合風險
 

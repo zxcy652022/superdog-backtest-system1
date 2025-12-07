@@ -14,12 +14,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from datetime import datetime, timedelta
+
 from data.perpetual import (
     FundingRateData,
     OpenInterestData,
     fetch_funding_rate,
     fetch_open_interest,
-    get_latest_funding_rate
+    get_latest_funding_rate,
 )
 
 
@@ -32,7 +33,7 @@ def test_funding_rate():
     # 1. 獲取最新資金費率
     print("\n1. 獲取 BTCUSDT 最新資金費率...")
     try:
-        latest = get_latest_funding_rate('BTCUSDT', exchange='binance')
+        latest = get_latest_funding_rate("BTCUSDT", exchange="binance")
         print(f"   交易對: {latest['symbol']}")
         print(f"   資金費率: {latest['funding_rate']:.6f} ({latest['funding_rate']*100:.4f}%)")
         print(f"   年化費率: {latest['annual_rate']:.2f}%")
@@ -48,7 +49,7 @@ def test_funding_rate():
         end_time = datetime.now()
         start_time = end_time - timedelta(days=7)
 
-        df = fetch_funding_rate('BTCUSDT', start_time, end_time, exchange='binance')
+        df = fetch_funding_rate("BTCUSDT", start_time, end_time, exchange="binance")
 
         if not df.empty:
             print(f"   獲取記錄數: {len(df)}")
@@ -57,7 +58,7 @@ def test_funding_rate():
             print(f"   最高費率: {df['funding_rate'].max():.6f}")
             print(f"   最低費率: {df['funding_rate'].min():.6f}")
             print("\n   最近5筆記錄:")
-            print(df[['timestamp', 'funding_rate', 'annual_rate']].tail())
+            print(df[["timestamp", "funding_rate", "annual_rate"]].tail())
             print("   ✓ 成功")
         else:
             print("   ⚠ 未獲取到數據")
@@ -95,13 +96,7 @@ def test_open_interest():
         end_time = datetime.now()
         start_time = end_time - timedelta(days=7)
 
-        df = fetch_open_interest(
-            'BTCUSDT',
-            start_time,
-            end_time,
-            interval='1h',
-            exchange='binance'
-        )
+        df = fetch_open_interest("BTCUSDT", start_time, end_time, interval="1h", exchange="binance")
 
         if not df.empty:
             print(f"   獲取記錄數: {len(df)}")
@@ -109,7 +104,7 @@ def test_open_interest():
             print(f"   當前持倉量: {df['open_interest'].iloc[-1]:,.0f} 張")
             print(f"   持倉量價值: ${df['open_interest_value'].iloc[-1]:,.0f}")
             print("\n   最近5筆記錄:")
-            print(df[['timestamp', 'open_interest', 'open_interest_value', 'oi_change_pct']].tail())
+            print(df[["timestamp", "open_interest", "open_interest_value", "oi_change_pct"]].tail())
             print("   ✓ 成功")
         else:
             print("   ⚠ 未獲取到數據")
@@ -150,19 +145,19 @@ def test_data_quality():
         start_time = end_time - timedelta(days=30)
 
         fr = FundingRateData()
-        df = fr.fetch('BTCUSDT', start_time, end_time, exchange='binance')
+        df = fr.fetch("BTCUSDT", start_time, end_time, exchange="binance")
 
         if not df.empty:
             df_with_anomalies = fr.detect_anomalies(df, threshold=0.003)  # 0.3%
 
-            anomaly_count = df_with_anomalies['is_anomaly'].sum()
+            anomaly_count = df_with_anomalies["is_anomaly"].sum()
             print(f"   總記錄數: {len(df_with_anomalies)}")
             print(f"   異常值數量: {anomaly_count}")
 
             if anomaly_count > 0:
                 print("\n   異常記錄:")
-                anomalies = df_with_anomalies[df_with_anomalies['is_anomaly']]
-                print(anomalies[['timestamp', 'funding_rate', 'anomaly_type']].head(10))
+                anomalies = df_with_anomalies[df_with_anomalies["is_anomaly"]]
+                print(anomalies[["timestamp", "funding_rate", "anomaly_type"]].head(10))
 
             print("   ✓ 成功")
         else:
@@ -198,8 +193,9 @@ def main():
     except Exception as e:
         print(f"\n\n測試過程中發生錯誤: {e}")
         import traceback
+
         traceback.print_exc()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

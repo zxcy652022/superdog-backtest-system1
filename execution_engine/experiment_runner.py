@@ -14,23 +14,24 @@ Version: v0.6 Phase 2
 Design Reference: docs/specs/v0.6/superdog_v06_strategy_lab_spec.md
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Callable
-from datetime import datetime
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
 import itertools
 import json
-import hashlib
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
+
 from tqdm import tqdm
 
 from .experiments import (
     ExperimentConfig,
-    ExperimentRun,
     ExperimentResult,
+    ExperimentRun,
     ExperimentStatus,
-    ParameterRange
+    ParameterRange,
 )
 
 
@@ -128,10 +129,7 @@ class ParameterExpander:
         tasks = []
         for symbol in self.config.symbols:
             for params in combinations:
-                tasks.append({
-                    'symbol': symbol,
-                    'parameters': params
-                })
+                tasks.append({"symbol": symbol, "parameters": params})
 
         return tasks
 
@@ -152,7 +150,7 @@ class ExperimentRunner:
         retry_failed: bool = True,
         max_retries: int = 2,
         fail_fast: bool = False,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
     ):
         """初始化
 
@@ -172,7 +170,7 @@ class ExperimentRunner:
     def run_experiment(
         self,
         config: ExperimentConfig,
-        backtest_func: Callable[[str, str, Dict, ExperimentConfig], Dict]
+        backtest_func: Callable[[str, str, Dict, ExperimentConfig], Dict],
     ) -> ExperimentResult:
         """執行完整實驗
 
@@ -220,10 +218,10 @@ class ExperimentRunner:
                     self._execute_single_run,
                     run_id=run_id,
                     experiment_id=experiment_id,
-                    symbol=task['symbol'],
-                    parameters=task['parameters'],
+                    symbol=task["symbol"],
+                    parameters=task["parameters"],
                     config=config,
-                    backtest_func=backtest_func
+                    backtest_func=backtest_func,
                 )
                 future_to_task[future] = task
 
@@ -262,7 +260,9 @@ class ExperimentRunner:
                         self.progress_callback(completed, total_tasks, failed_count)
 
         completed_at = datetime.now().isoformat()
-        duration = (datetime.fromisoformat(completed_at) - datetime.fromisoformat(started_at)).total_seconds()
+        duration = (
+            datetime.fromisoformat(completed_at) - datetime.fromisoformat(started_at)
+        ).total_seconds()
 
         # 統計結果
         completed_runs = len([r for r in runs if r.status == ExperimentStatus.COMPLETED])
@@ -283,11 +283,13 @@ class ExperimentRunner:
             failed_runs=failed_runs,
             started_at=started_at,
             completed_at=completed_at,
-            duration_seconds=duration
+            duration_seconds=duration,
         )
 
         # 找出最佳執行
-        result.best_run = result.get_best_run(metric=config.tags[0] if config.tags else "sharpe_ratio")
+        result.best_run = result.get_best_run(
+            metric=config.tags[0] if config.tags else "sharpe_ratio"
+        )
 
         return result
 
@@ -298,7 +300,7 @@ class ExperimentRunner:
         symbol: str,
         parameters: Dict[str, Any],
         config: ExperimentConfig,
-        backtest_func: Callable
+        backtest_func: Callable,
     ) -> ExperimentRun:
         """執行單個實驗運行
 
@@ -320,7 +322,7 @@ class ExperimentRunner:
             run_id=run_id,
             symbol=symbol,
             parameters=parameters,
-            status=ExperimentStatus.PENDING
+            status=ExperimentStatus.PENDING,
         )
 
         retries = 0
@@ -334,17 +336,27 @@ class ExperimentRunner:
                 metrics = backtest_func(symbol, config.timeframe, parameters, config)
 
                 # 記錄結果
-                run.total_return = metrics.get('total_return')
-                run.max_drawdown = metrics.get('max_drawdown')
-                run.sharpe_ratio = metrics.get('sharpe_ratio')
-                run.num_trades = metrics.get('num_trades')
-                run.win_rate = metrics.get('win_rate')
-                run.profit_factor = metrics.get('profit_factor')
+                run.total_return = metrics.get("total_return")
+                run.max_drawdown = metrics.get("max_drawdown")
+                run.sharpe_ratio = metrics.get("sharpe_ratio")
+                run.num_trades = metrics.get("num_trades")
+                run.win_rate = metrics.get("win_rate")
+                run.profit_factor = metrics.get("profit_factor")
 
                 # 保存額外指標
-                run.metrics = {k: v for k, v in metrics.items()
-                              if k not in ['total_return', 'max_drawdown', 'sharpe_ratio',
-                                          'num_trades', 'win_rate', 'profit_factor']}
+                run.metrics = {
+                    k: v
+                    for k, v in metrics.items()
+                    if k
+                    not in [
+                        "total_return",
+                        "max_drawdown",
+                        "sharpe_ratio",
+                        "num_trades",
+                        "win_rate",
+                        "profit_factor",
+                    ]
+                }
 
                 # 標記完成
                 run.status = ExperimentStatus.COMPLETED
@@ -380,9 +392,9 @@ class ExperimentRunner:
 
         # 追加模式寫入
         output_file = output_dir / "runs.jsonl"
-        with open(output_file, 'a') as f:
+        with open(output_file, "a") as f:
             for run in runs:
-                f.write(json.dumps(run.to_dict()) + '\n')
+                f.write(json.dumps(run.to_dict()) + "\n")
 
     def save_result(self, result: ExperimentResult, output_path: Optional[str] = None):
         """保存完整實驗結果
@@ -400,7 +412,7 @@ class ExperimentRunner:
 
         # 保存摘要
         summary_file = output_dir / "summary.json"
-        with open(summary_file, 'w') as f:
+        with open(summary_file, "w") as f:
             json.dump(result.to_dict(), f, indent=2, ensure_ascii=False)
 
         # 保存配置
@@ -410,9 +422,9 @@ class ExperimentRunner:
         # 保存所有運行記錄（如果還沒寫入）
         runs_file = output_dir / "runs.jsonl"
         if not runs_file.exists():
-            with open(runs_file, 'w') as f:
+            with open(runs_file, "w") as f:
                 for run in result.runs:
-                    f.write(json.dumps(run.to_dict()) + '\n')
+                    f.write(json.dumps(run.to_dict()) + "\n")
 
         print(f"💾 結果已保存: {output_dir}")
 
@@ -429,41 +441,39 @@ class ExperimentRunner:
 
         # 加載摘要
         summary_file = result_dir / "summary.json"
-        with open(summary_file, 'r') as f:
+        with open(summary_file, "r") as f:
             data = json.load(f)
 
         # 重建對象
-        config = ExperimentConfig.from_dict(data['config'])
+        config = ExperimentConfig.from_dict(data["config"])
 
         runs = []
-        for run_data in data['runs']:
+        for run_data in data["runs"]:
             runs.append(ExperimentRun.from_dict(run_data))
 
         result = ExperimentResult(
-            experiment_id=data['experiment_id'],
+            experiment_id=data["experiment_id"],
             config=config,
             runs=runs,
-            total_runs=data['total_runs'],
-            completed_runs=data['completed_runs'],
-            failed_runs=data['failed_runs'],
-            started_at=data['started_at'],
-            completed_at=data['completed_at'],
-            duration_seconds=data['duration_seconds']
+            total_runs=data["total_runs"],
+            completed_runs=data["completed_runs"],
+            failed_runs=data["failed_runs"],
+            started_at=data["started_at"],
+            completed_at=data["completed_at"],
+            duration_seconds=data["duration_seconds"],
         )
 
-        if data['best_run']:
-            result.best_run = ExperimentRun.from_dict(data['best_run'])
+        if data["best_run"]:
+            result.best_run = ExperimentRun.from_dict(data["best_run"])
 
         return result
 
 
 # ===== 便捷函數 =====
 
+
 def run_experiment(
-    config: ExperimentConfig,
-    backtest_func: Callable,
-    max_workers: int = 4,
-    **runner_kwargs
+    config: ExperimentConfig, backtest_func: Callable, max_workers: int = 4, **runner_kwargs
 ) -> ExperimentResult:
     """運行實驗的便捷函數
 

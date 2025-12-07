@@ -13,14 +13,15 @@ Features:
 Design Reference: docs/specs/planned/v0.3_portfolio_runner_api.md
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List, Callable
-from datetime import datetime
 import time
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
+
 import pandas as pd
 
 # Backtest engine imports
-from backtest.engine import run_backtest, BacktestResult
+from backtest.engine import BacktestResult, run_backtest
 from backtest.position_sizer import AllInSizer, FixedCashSizer, PercentOfEquitySizer
 from data.storage import load_ohlcv
 from strategies.registry_v2 import get_registry
@@ -33,14 +34,15 @@ class RunConfig:
 
     每個 RunConfig 對應一次 run_backtest() 調用
     """
+
     # 必填字段
-    strategy: str          # 策略名稱（在 registry 中查找）
-    symbol: str            # 交易對（例如: "BTCUSDT"）
-    timeframe: str         # 時間周期（例如: "1h", "4h", "1d"）
+    strategy: str  # 策略名稱（在 registry 中查找）
+    symbol: str  # 交易對（例如: "BTCUSDT"）
+    timeframe: str  # 時間周期（例如: "1h", "4h", "1d"）
 
     # 可選字段（時間範圍）
-    start: Optional[str] = None    # 開始日期（YYYY-MM-DD 格式）
-    end: Optional[str] = None      # 結束日期（YYYY-MM-DD 格式）
+    start: Optional[str] = None  # 開始日期（YYYY-MM-DD 格式）
+    end: Optional[str] = None  # 結束日期（YYYY-MM-DD 格式）
 
     # 可選字段（回測參數）
     initial_cash: float = 10000.0
@@ -89,7 +91,7 @@ class RunConfig:
             "position_sizer": self.position_sizer,
             "stop_loss_pct": self.stop_loss_pct,
             "take_profit_pct": self.take_profit_pct,
-            "strategy_params": self.strategy_params
+            "strategy_params": self.strategy_params,
         }
 
 
@@ -100,6 +102,7 @@ class SingleRunResult:
 
     無論成功或失敗，都會創建一個 SingleRunResult 對象
     """
+
     # 配置信息（方便追溯）
     strategy: str
     symbol: str
@@ -107,12 +110,12 @@ class SingleRunResult:
     config: RunConfig
 
     # 執行結果
-    success: bool                                # 是否成功
+    success: bool  # 是否成功
     backtest_result: Optional[BacktestResult] = None  # 成功時有值
-    error: Optional[str] = None                  # 失敗時記錄錯誤
+    error: Optional[str] = None  # 失敗時記錄錯誤
 
     # 元數據
-    execution_time: float = 0.0                  # 執行耗時（秒）
+    execution_time: float = 0.0  # 執行耗時（秒）
     timestamp: datetime = field(default_factory=datetime.now)
 
     def get_metrics(self) -> Dict[str, float]:
@@ -128,7 +131,7 @@ class SingleRunResult:
 
     def __repr__(self) -> str:
         if self.success:
-            total_return = self.get_metric('total_return', 0)
+            total_return = self.get_metric("total_return", 0)
             return f"<SingleRunResult: {self.strategy}@{self.symbol} [{self.timeframe}] ✓ {total_return:.2%}>"
         else:
             return f"<SingleRunResult: {self.strategy}@{self.symbol} [{self.timeframe}] ✗ {self.error}>"
@@ -141,6 +144,7 @@ class PortfolioResult:
 
     包含多個 SingleRunResult，並提供查詢、過濾、排序等功能
     """
+
     runs: List[SingleRunResult]
     total_time: float = 0.0  # 總耗時（秒）
 
@@ -197,9 +201,7 @@ class PortfolioResult:
 
         # 按 metric 降序排序
         sorted_runs = sorted(
-            successful,
-            key=lambda r: r.get_metric(metric, float('-inf')),
-            reverse=True
+            successful, key=lambda r: r.get_metric(metric, float("-inf")), reverse=True
         )
         return sorted_runs[:top_n]
 
@@ -210,9 +212,7 @@ class PortfolioResult:
             return []
 
         sorted_runs = sorted(
-            successful,
-            key=lambda r: r.get_metric(metric, float('inf')),
-            reverse=False
+            successful, key=lambda r: r.get_metric(metric, float("inf")), reverse=False
         )
         return sorted_runs[:bottom_n]
 
@@ -270,27 +270,31 @@ class PortfolioResult:
 
             if run.success:
                 metrics = run.get_metrics()
-                record.update({
-                    "total_return": metrics.get("total_return", 0),
-                    "max_drawdown": metrics.get("max_drawdown", 0),
-                    "profit_factor": metrics.get("profit_factor", 0),
-                    "num_trades": metrics.get("num_trades", 0),
-                    "win_rate": metrics.get("win_rate", 0),
-                    "expectancy": metrics.get("expectancy", 0),
-                    "execution_time": run.execution_time,
-                    "error": ""
-                })
+                record.update(
+                    {
+                        "total_return": metrics.get("total_return", 0),
+                        "max_drawdown": metrics.get("max_drawdown", 0),
+                        "profit_factor": metrics.get("profit_factor", 0),
+                        "num_trades": metrics.get("num_trades", 0),
+                        "win_rate": metrics.get("win_rate", 0),
+                        "expectancy": metrics.get("expectancy", 0),
+                        "execution_time": run.execution_time,
+                        "error": "",
+                    }
+                )
             else:
-                record.update({
-                    "total_return": None,
-                    "max_drawdown": None,
-                    "profit_factor": None,
-                    "num_trades": None,
-                    "win_rate": None,
-                    "expectancy": None,
-                    "execution_time": run.execution_time,
-                    "error": run.error or ""
-                })
+                record.update(
+                    {
+                        "total_return": None,
+                        "max_drawdown": None,
+                        "profit_factor": None,
+                        "num_trades": None,
+                        "win_rate": None,
+                        "expectancy": None,
+                        "execution_time": run.execution_time,
+                        "error": run.error or "",
+                    }
+                )
 
             records.append(record)
 
@@ -319,10 +323,9 @@ class PortfolioResult:
 
 # === 核心函數：run_portfolio ===
 
+
 def run_portfolio(
-    configs: List[RunConfig],
-    verbose: bool = False,
-    fail_fast: bool = False
+    configs: List[RunConfig], verbose: bool = False, fail_fast: bool = False
 ) -> PortfolioResult:
     """
     批量執行回測任務
@@ -347,7 +350,9 @@ def run_portfolio(
 
     for i, config in enumerate(configs, 1):
         if verbose:
-            print(f"[{i}/{len(configs)}] Running: {config.strategy} on {config.symbol} ({config.timeframe})...")
+            print(
+                f"[{i}/{len(configs)}] Running: {config.strategy} on {config.symbol} ({config.timeframe})..."
+            )
 
         # 執行單次回測
         run_result = _run_single_backtest(config, verbose=verbose)
@@ -365,7 +370,7 @@ def run_portfolio(
                 break
         else:
             if verbose:
-                total_return = run_result.get_metric('total_return', 0)
+                total_return = run_result.get_metric("total_return", 0)
                 print(f"  ✓ Success: {total_return:.2%}")
 
     total_time = time.time() - start_time
@@ -422,7 +427,7 @@ def _run_single_backtest(config: RunConfig, verbose: bool = False) -> SingleRunR
             position_sizer=position_sizer,
             stop_loss_pct=config.stop_loss_pct,
             take_profit_pct=config.take_profit_pct,
-            leverage=config.leverage
+            leverage=config.leverage,
         )
 
         execution_time = time.time() - start_time
@@ -436,7 +441,7 @@ def _run_single_backtest(config: RunConfig, verbose: bool = False) -> SingleRunR
             success=True,
             backtest_result=backtest_result,
             error=None,
-            execution_time=execution_time
+            execution_time=execution_time,
         )
 
     except Exception as e:
@@ -445,6 +450,7 @@ def _run_single_backtest(config: RunConfig, verbose: bool = False) -> SingleRunR
 
         if verbose:
             import traceback
+
             traceback.print_exc()
 
         return SingleRunResult(
@@ -455,14 +461,12 @@ def _run_single_backtest(config: RunConfig, verbose: bool = False) -> SingleRunR
             success=False,
             backtest_result=None,
             error=str(e),
-            execution_time=execution_time
+            execution_time=execution_time,
         )
 
 
 def _filter_date_range(
-    data: pd.DataFrame,
-    start: Optional[str],
-    end: Optional[str]
+    data: pd.DataFrame, start: Optional[str], end: Optional[str]
 ) -> pd.DataFrame:
     """過濾日期範圍"""
     if start:
@@ -497,6 +501,7 @@ def _build_position_sizer(config: RunConfig):
 
 # === YAML 配置支援（可選功能） ===
 
+
 def load_configs_from_yaml(yaml_path: str) -> List[RunConfig]:
     """
     從 YAML 文件加載配置
@@ -513,7 +518,7 @@ def load_configs_from_yaml(yaml_path: str) -> List[RunConfig]:
     """
     import yaml
 
-    with open(yaml_path, 'r') as f:
+    with open(yaml_path, "r") as f:
         data = yaml.safe_load(f)
 
     if not isinstance(data, dict):

@@ -13,17 +13,18 @@ Version: v0.4
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
-from typing import Optional, List, Dict, Set
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict, List, Optional, Set
 
 
 class QuoteAsset(Enum):
     """報價資產類型"""
+
     USDT = "USDT"  # Tether USD
-    USD = "USD"    # US Dollar
-    BTC = "BTC"    # Bitcoin
-    ETH = "ETH"    # Ethereum
+    USD = "USD"  # US Dollar
+    BTC = "BTC"  # Bitcoin
+    ETH = "ETH"  # Ethereum
 
 
 @dataclass
@@ -40,6 +41,7 @@ class SymbolInfo:
         is_active: 是否活躍
         market_cap_rank: 市值排名（可選）
     """
+
     symbol: str
     base_asset: str
     quote_asset: str
@@ -90,26 +92,26 @@ class SymbolManager:
 
     # 支援的前20大加密貨幣（按市值）
     TOP_CRYPTOS = [
-        "BTC",   # Bitcoin
-        "ETH",   # Ethereum
-        "BNB",   # Binance Coin
-        "SOL",   # Solana
-        "XRP",   # Ripple
-        "ADA",   # Cardano
+        "BTC",  # Bitcoin
+        "ETH",  # Ethereum
+        "BNB",  # Binance Coin
+        "SOL",  # Solana
+        "XRP",  # Ripple
+        "ADA",  # Cardano
         "DOGE",  # Dogecoin
         "AVAX",  # Avalanche
-        "DOT",   # Polkadot
-        "MATIC", # Polygon
-        "LTC",   # Litecoin
+        "DOT",  # Polkadot
+        "MATIC",  # Polygon
+        "LTC",  # Litecoin
         "LINK",  # Chainlink
-        "UNI",   # Uniswap
+        "UNI",  # Uniswap
         "ATOM",  # Cosmos
-        "XLM",   # Stellar
-        "FIL",   # Filecoin
+        "XLM",  # Stellar
+        "FIL",  # Filecoin
         "NEAR",  # NEAR Protocol
-        "APT",   # Aptos
-        "ARB",   # Arbitrum
-        "OP",    # Optimism
+        "APT",  # Aptos
+        "ARB",  # Arbitrum
+        "OP",  # Optimism
     ]
 
     # 預定義的交易對信息
@@ -117,32 +119,23 @@ class SymbolManager:
         # BTC pairs
         "BTCUSDT": SymbolInfo("BTCUSDT", "BTC", "USDT", 2, 6, 10.0, market_cap_rank=1),
         "BTCUSD": SymbolInfo("BTCUSD", "BTC", "USD", 2, 6, 10.0, market_cap_rank=1),
-
         # ETH pairs
         "ETHUSDT": SymbolInfo("ETHUSDT", "ETH", "USDT", 2, 5, 10.0, market_cap_rank=2),
         "ETHBTC": SymbolInfo("ETHBTC", "ETH", "BTC", 6, 5, 0.001),
-
         # BNB pairs
         "BNBUSDT": SymbolInfo("BNBUSDT", "BNB", "USDT", 2, 4, 10.0, market_cap_rank=3),
-
         # SOL pairs
         "SOLUSDT": SymbolInfo("SOLUSDT", "SOL", "USDT", 3, 3, 10.0, market_cap_rank=4),
-
         # XRP pairs
         "XRPUSDT": SymbolInfo("XRPUSDT", "XRP", "USDT", 4, 1, 10.0, market_cap_rank=5),
-
         # ADA pairs
         "ADAUSDT": SymbolInfo("ADAUSDT", "ADA", "USDT", 4, 0, 10.0, market_cap_rank=6),
-
         # DOGE pairs
         "DOGEUSDT": SymbolInfo("DOGEUSDT", "DOGE", "USDT", 5, 0, 10.0, market_cap_rank=7),
-
         # AVAX pairs
         "AVAXUSDT": SymbolInfo("AVAXUSDT", "AVAX", "USDT", 3, 2, 10.0, market_cap_rank=8),
-
         # DOT pairs
         "DOTUSDT": SymbolInfo("DOTUSDT", "DOT", "USDT", 3, 2, 10.0, market_cap_rank=9),
-
         # MATIC pairs
         "MATICUSDT": SymbolInfo("MATICUSDT", "MATIC", "USDT", 4, 1, 10.0, market_cap_rank=10),
     }
@@ -239,14 +232,14 @@ class SymbolManager:
         # 解析基礎資產和報價資產
         for quote in ["USDT", "USD", "BTC", "ETH"]:
             if symbol.endswith(quote):
-                base = symbol[:-len(quote)]
+                base = symbol[: -len(quote)]
                 return SymbolInfo(
                     symbol=symbol,
                     base_asset=base,
                     quote_asset=quote,
                     price_precision=4,
                     quantity_precision=4,
-                    min_notional=10.0
+                    min_notional=10.0,
                 )
 
         # 默認配置
@@ -256,7 +249,7 @@ class SymbolManager:
             quote_asset=symbol[-4:] if len(symbol) > 4 else "USDT",
             price_precision=4,
             quantity_precision=4,
-            min_notional=10.0
+            min_notional=10.0,
         )
 
     def register_symbol(self, info: SymbolInfo) -> None:
@@ -288,10 +281,7 @@ class SymbolManager:
         symbols = list(self.SYMBOL_INFO.keys()) + list(self._custom_symbols.keys())
 
         if quote_asset:
-            symbols = [
-                s for s in symbols
-                if s.endswith(quote_asset)
-            ]
+            symbols = [s for s in symbols if s.endswith(quote_asset)]
 
         return sorted(symbols)
 
@@ -345,7 +335,7 @@ class SymbolManager:
         # 默認解析
         for quote in ["USDT", "USD", "BTC", "ETH"]:
             if symbol.endswith(quote):
-                return (symbol[:-len(quote)], quote)
+                return (symbol[: -len(quote)], quote)
 
         # 無法解析
         return (symbol, "UNKNOWN")

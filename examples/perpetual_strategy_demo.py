@@ -16,14 +16,16 @@ Usage:
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from datetime import datetime, timedelta
+
 from data.perpetual import (
-    get_latest_funding_rate,
-    analyze_oi_trend,
     FundingRateData,
-    OpenInterestData
+    OpenInterestData,
+    analyze_oi_trend,
+    get_latest_funding_rate,
 )
 
 
@@ -36,10 +38,10 @@ def market_sentiment_analysis():
 
     try:
         # 獲取當前資金費率
-        funding = get_latest_funding_rate('BTCUSDT')
+        funding = get_latest_funding_rate("BTCUSDT")
 
-        annual_rate = funding['annual_rate']
-        funding_rate = funding['funding_rate']
+        annual_rate = funding["annual_rate"]
+        funding_rate = funding["funding_rate"]
 
         print("📊 當前市場狀態")
         print(f"  交易對: {funding['symbol']}")
@@ -86,7 +88,7 @@ def market_sentiment_analysis():
         end_time = datetime.now()
         start_time = end_time - timedelta(days=7)
 
-        df = fr.fetch('BTCUSDT', start_time, end_time)
+        df = fr.fetch("BTCUSDT", start_time, end_time)
 
         if not df.empty:
             stats = fr.calculate_statistics(df)
@@ -99,7 +101,7 @@ def market_sentiment_analysis():
 
             # 極端值檢測
             anomalies = fr.detect_anomalies(df, threshold=0.005)
-            anomaly_count = anomalies['is_anomaly'].sum()
+            anomaly_count = anomalies["is_anomaly"].sum()
 
             if anomaly_count > 0:
                 print(f"  ⚠️  檢測到 {anomaly_count} 次極端費率")
@@ -121,7 +123,7 @@ def capital_flow_analysis():
 
     try:
         # 獲取持倉量趨勢
-        trend = analyze_oi_trend('BTCUSDT', interval='1h')
+        trend = analyze_oi_trend("BTCUSDT", interval="1h")
 
         print("📊 持倉量動能")
         print(f"  當前持倉量: {trend['current_oi']:,.0f} 張")
@@ -131,10 +133,10 @@ def capital_flow_analysis():
         print()
 
         # 趨勢分析
-        trend_direction = trend['trend']
-        change_24h = trend['change_24h']
-        change_24h_pct = trend['change_24h_pct']
-        volatility = trend['volatility']
+        trend_direction = trend["trend"]
+        change_24h = trend["change_24h"]
+        change_24h_pct = trend["change_24h_pct"]
+        volatility = trend["volatility"]
 
         print("🎯 趨勢分析")
         print(f"  趨勢方向: {trend_direction.upper()}")
@@ -145,14 +147,14 @@ def capital_flow_analysis():
         # 信號判斷
         print("⚡ 交易信號")
 
-        if trend_direction == 'increasing':
+        if trend_direction == "increasing":
             if change_24h_pct > 10:
                 signal = "🟢 強力買入信號 - 資金大量流入"
             elif change_24h_pct > 5:
                 signal = "🟢 買入信號 - 資金持續流入"
             else:
                 signal = "🟡 弱買入 - 資金緩慢流入"
-        elif trend_direction == 'decreasing':
+        elif trend_direction == "decreasing":
             if change_24h_pct < -10:
                 signal = "🔴 強力賣出信號 - 資金大量流出"
             elif change_24h_pct < -5:
@@ -172,16 +174,16 @@ def capital_flow_analysis():
         end_time = datetime.now()
         start_time = end_time - timedelta(days=7)
 
-        df = oi.fetch('BTCUSDT', start_time, end_time, interval='1h')
+        df = oi.fetch("BTCUSDT", start_time, end_time, interval="1h")
 
         if not df.empty:
             # 檢測突增/突減
             spikes = oi.detect_spikes(df, threshold=2.0)
-            spike_count = spikes['is_spike'].sum()
+            spike_count = spikes["is_spike"].sum()
 
             if spike_count > 0:
-                surge_count = (spikes['spike_type'] == 'surge').sum()
-                drop_count = (spikes['spike_type'] == 'drop').sum()
+                surge_count = (spikes["spike_type"] == "surge").sum()
+                drop_count = (spikes["spike_type"] == "drop").sum()
 
                 print(f"  突增次數: {surge_count}")
                 print(f"  突減次數: {drop_count}")
@@ -210,15 +212,15 @@ def multi_factor_signal():
 
     try:
         # 1. 資金費率因子
-        funding = get_latest_funding_rate('BTCUSDT')
-        annual_rate = funding['annual_rate']
+        funding = get_latest_funding_rate("BTCUSDT")
+        annual_rate = funding["annual_rate"]
 
         # 標準化資金費率分數 (-100 到 +100)
         funding_score = max(-100, min(100, annual_rate))
 
         # 2. 持倉量因子
-        trend = analyze_oi_trend('BTCUSDT', interval='1h')
-        change_24h_pct = trend['change_24h_pct']
+        trend = analyze_oi_trend("BTCUSDT", interval="1h")
+        change_24h_pct = trend["change_24h_pct"]
 
         # 標準化持倉量分數 (-100 到 +100)
         oi_score = max(-100, min(100, change_24h_pct * 5))
@@ -384,5 +386,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

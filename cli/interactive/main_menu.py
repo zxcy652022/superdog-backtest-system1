@@ -12,7 +12,7 @@ Usage:
 
 import sys
 from pathlib import Path
-from typing import Optional, Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 
 class MenuOption:
@@ -155,10 +155,12 @@ class MainMenu:
         if choice == "1":
             print("\n正在運行 Phase B 示範...")
             import subprocess
+
             subprocess.run([sys.executable, "examples/phase_b_quick_demo.py"])
         elif choice == "2":
             print("\n正在運行系統驗證...")
             import subprocess
+
             subprocess.run([sys.executable, "verify_v05_phase_b.py"])
         elif choice == "3":
             print("\n正在顯示文檔...")
@@ -226,8 +228,8 @@ class MainMenu:
         print()
 
         # 檢查 SSD 路徑
-        ssd_path = Path('/Volumes/權志龍的寶藏/SuperDogData')
-        local_path = Path('data_storage')
+        ssd_path = Path("/Volumes/權志龍的寶藏/SuperDogData")
+        local_path = Path("data_storage")
 
         storage_path = ssd_path if ssd_path.exists() else local_path
 
@@ -236,13 +238,15 @@ class MainMenu:
 
         if storage_path.exists():
             # 統計文件
-            file_count = sum(1 for _ in storage_path.rglob('*.parquet'))
+            file_count = sum(1 for _ in storage_path.rglob("*.parquet"))
             print(f"已下載文件: {file_count} 個 Parquet 文件")
 
             # 列出最近的文件
             if file_count > 0:
                 print("\n最近下載:")
-                files = sorted(storage_path.rglob('*.parquet'), key=lambda x: x.stat().st_mtime, reverse=True)[:5]
+                files = sorted(
+                    storage_path.rglob("*.parquet"), key=lambda x: x.stat().st_mtime, reverse=True
+                )[:5]
                 for f in files:
                     size_mb = f.stat().st_size / 1024 / 1024
                     print(f"  - {f.name} ({size_mb:.2f} MB)")
@@ -382,7 +386,10 @@ class MainMenu:
         print()
 
         import subprocess
-        result = subprocess.run([sys.executable, "verify_v05_phase_b.py"], capture_output=True, text=True)
+
+        result = subprocess.run(
+            [sys.executable, "verify_v05_phase_b.py"], capture_output=True, text=True
+        )
         print(result.stdout)
 
         input("\n按 Enter 繼續...")
@@ -399,7 +406,7 @@ class MainMenu:
 
         # 檢查依賴
         print("依賴檢查:")
-        dependencies = ['pandas', 'numpy', 'requests', 'pyarrow']
+        dependencies = ["pandas", "numpy", "requests", "pyarrow"]
         for dep in dependencies:
             try:
                 __import__(dep)
@@ -410,7 +417,7 @@ class MainMenu:
         print()
 
         # 檢查數據存儲
-        ssd_path = Path('/Volumes/權志龍的寶藏/SuperDogData')
+        ssd_path = Path("/Volumes/權志龍的寶藏/SuperDogData")
         print("數據存儲:")
         print(f"  SSD: {'✓ 可用' if ssd_path.exists() else '✗ 不可用'}")
         print(f"  本地: ✓ 可用")
@@ -494,5 +501,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

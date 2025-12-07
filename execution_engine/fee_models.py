@@ -14,21 +14,23 @@ Design Reference: docs/specs/v0.6/superdog_v06_execution_model_spec.md
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 from enum import Enum
+from typing import Dict, Optional
 
 
 class InstrumentType(Enum):
     """交易工具類型"""
-    SPOT = "spot"           # 現貨
-    FUTURES = "futures"     # 永續合約
-    OPTIONS = "options"     # 期權（未來支援）
+
+    SPOT = "spot"  # 現貨
+    FUTURES = "futures"  # 永續合約
+    OPTIONS = "options"  # 期權（未來支援）
 
 
 class OrderType(Enum):
     """訂單類型"""
-    LIMIT = "limit"         # 限價單 (Maker)
-    MARKET = "market"       # 市價單 (Taker)
+
+    LIMIT = "limit"  # 限價單 (Maker)
+    MARKET = "market"  # 市價單 (Taker)
     STOP_LIMIT = "stop_limit"
     STOP_MARKET = "stop_market"
 
@@ -46,35 +48,34 @@ class FeeStructure:
     """
 
     # 現貨交易費率
-    spot_maker_fee: float = 0.001      # 0.1% Maker
-    spot_taker_fee: float = 0.001      # 0.1% Taker
+    spot_maker_fee: float = 0.001  # 0.1% Maker
+    spot_taker_fee: float = 0.001  # 0.1% Taker
 
     # 永續合約費率（Binance標準）
     futures_maker_fee: float = 0.0002  # 0.02% Maker
     futures_taker_fee: float = 0.0004  # 0.04% Taker
 
     # VIP等級費率（Binance VIP結構）
-    vip_levels: Dict[str, Dict[str, float]] = field(default_factory=lambda: {
-        'VIP0': {'maker': 0.0002, 'taker': 0.0004},  # 默認
-        'VIP1': {'maker': 0.00016, 'taker': 0.00040},
-        'VIP2': {'maker': 0.00014, 'taker': 0.00035},
-        'VIP3': {'maker': 0.00012, 'taker': 0.00032},
-        'VIP4': {'maker': 0.00010, 'taker': 0.00028},
-        'VIP5': {'maker': 0.00008, 'taker': 0.00024},
-        'VIP6': {'maker': 0.00006, 'taker': 0.00020},
-        'VIP7': {'maker': 0.00004, 'taker': 0.00016},
-        'VIP8': {'maker': 0.00002, 'taker': 0.00012},
-        'VIP9': {'maker': 0.00000, 'taker': 0.00010},  # Maker 返佣
-    })
+    vip_levels: Dict[str, Dict[str, float]] = field(
+        default_factory=lambda: {
+            "VIP0": {"maker": 0.0002, "taker": 0.0004},  # 默認
+            "VIP1": {"maker": 0.00016, "taker": 0.00040},
+            "VIP2": {"maker": 0.00014, "taker": 0.00035},
+            "VIP3": {"maker": 0.00012, "taker": 0.00032},
+            "VIP4": {"maker": 0.00010, "taker": 0.00028},
+            "VIP5": {"maker": 0.00008, "taker": 0.00024},
+            "VIP6": {"maker": 0.00006, "taker": 0.00020},
+            "VIP7": {"maker": 0.00004, "taker": 0.00016},
+            "VIP8": {"maker": 0.00002, "taker": 0.00012},
+            "VIP9": {"maker": 0.00000, "taker": 0.00010},  # Maker 返佣
+        }
+    )
 
     # 最小手續費（防止極小訂單）
     min_fee: float = 0.0  # USDT
 
     def get_fee_rate(
-        self,
-        instrument_type: InstrumentType,
-        order_type: OrderType,
-        vip_level: str = 'VIP0'
+        self, instrument_type: InstrumentType, order_type: OrderType, vip_level: str = "VIP0"
     ) -> float:
         """獲取費率
 
@@ -93,25 +94,28 @@ class FeeStructure:
         """
         # VIP等級優先
         if vip_level in self.vip_levels:
-            fee_type = 'maker' if order_type == OrderType.LIMIT else 'taker'
+            fee_type = "maker" if order_type == OrderType.LIMIT else "taker"
             return self.vip_levels[vip_level][fee_type]
 
         # 默認費率
         if instrument_type == InstrumentType.SPOT:
             return self.spot_maker_fee if order_type == OrderType.LIMIT else self.spot_taker_fee
         else:  # FUTURES
-            return self.futures_maker_fee if order_type == OrderType.LIMIT else self.futures_taker_fee
+            return (
+                self.futures_maker_fee if order_type == OrderType.LIMIT else self.futures_taker_fee
+            )
 
 
 @dataclass
 class FeeCost:
     """手續費成本詳情"""
-    base_fee: float                # 基礎手續費
-    discount: float = 0.0          # 折扣金額
-    rebate: float = 0.0            # 返佣金額
-    final_fee: float = 0.0         # 最終手續費
-    fee_rate: float = 0.0          # 實際費率
-    vip_level: str = 'VIP0'        # VIP等級
+
+    base_fee: float  # 基礎手續費
+    discount: float = 0.0  # 折扣金額
+    rebate: float = 0.0  # 返佣金額
+    final_fee: float = 0.0  # 最終手續費
+    fee_rate: float = 0.0  # 實際費率
+    vip_level: str = "VIP0"  # VIP等級
 
     def __post_init__(self):
         """計算最終手續費"""
@@ -137,8 +141,8 @@ class FeeCalculator:
     def __init__(
         self,
         fee_structure: Optional[FeeStructure] = None,
-        default_vip_level: str = 'VIP0',
-        enable_rebates: bool = False
+        default_vip_level: str = "VIP0",
+        enable_rebates: bool = False,
     ):
         """初始化手續費計算器
 
@@ -162,7 +166,7 @@ class FeeCalculator:
         notional_value: float,
         instrument_type: InstrumentType = InstrumentType.FUTURES,
         vip_level: Optional[str] = None,
-        apply_discount: float = 0.0
+        apply_discount: float = 0.0,
     ) -> FeeCost:
         """計算交易手續費
 
@@ -189,11 +193,7 @@ class FeeCalculator:
         vip_level = vip_level or self.default_vip_level
 
         # 獲取費率
-        fee_rate = self.fee_structure.get_fee_rate(
-            instrument_type,
-            order_type,
-            vip_level
-        )
+        fee_rate = self.fee_structure.get_fee_rate(instrument_type, order_type, vip_level)
 
         # 計算基礎手續費
         base_fee = notional_value * fee_rate
@@ -203,7 +203,7 @@ class FeeCalculator:
 
         # 計算返佣（僅 Maker 訂單且 VIP9）
         rebate = 0.0
-        if self.enable_rebates and order_type == OrderType.LIMIT and vip_level == 'VIP9':
+        if self.enable_rebates and order_type == OrderType.LIMIT and vip_level == "VIP9":
             # VIP9 Maker 返佣 (負費率)
             rebate = abs(base_fee)  # 返佣等於手續費
 
@@ -221,7 +221,7 @@ class FeeCalculator:
             rebate=rebate,
             final_fee=final_fee,
             fee_rate=fee_rate,
-            vip_level=vip_level
+            vip_level=vip_level,
         )
 
     def calculate_round_trip_fee(
@@ -230,7 +230,7 @@ class FeeCalculator:
         instrument_type: InstrumentType = InstrumentType.FUTURES,
         entry_order_type: OrderType = OrderType.LIMIT,
         exit_order_type: OrderType = OrderType.MARKET,
-        vip_level: Optional[str] = None
+        vip_level: Optional[str] = None,
     ) -> float:
         """計算往返手續費（開倉 + 平倉）
 
@@ -252,18 +252,12 @@ class FeeCalculator:
         """
         # 開倉手續費
         entry_fee = self.calculate_trading_fee(
-            entry_order_type,
-            notional_value,
-            instrument_type,
-            vip_level
+            entry_order_type, notional_value, instrument_type, vip_level
         )
 
         # 平倉手續費
         exit_fee = self.calculate_trading_fee(
-            exit_order_type,
-            notional_value,
-            instrument_type,
-            vip_level
+            exit_order_type, notional_value, instrument_type, vip_level
         )
 
         return entry_fee.final_fee + exit_fee.final_fee
@@ -273,7 +267,7 @@ class FeeCalculator:
         daily_volume: float,
         instrument_type: InstrumentType = InstrumentType.FUTURES,
         maker_ratio: float = 0.6,
-        vip_level: Optional[str] = None
+        vip_level: Optional[str] = None,
     ) -> Dict[str, float]:
         """估算每日手續費
 
@@ -294,31 +288,25 @@ class FeeCalculator:
 
         # 計算費用
         maker_fee_cost = self.calculate_trading_fee(
-            OrderType.LIMIT,
-            maker_volume,
-            instrument_type,
-            vip_level
+            OrderType.LIMIT, maker_volume, instrument_type, vip_level
         )
 
         taker_fee_cost = self.calculate_trading_fee(
-            OrderType.MARKET,
-            taker_volume,
-            instrument_type,
-            vip_level
+            OrderType.MARKET, taker_volume, instrument_type, vip_level
         )
 
         total_fee = maker_fee_cost.final_fee + taker_fee_cost.final_fee
 
         return {
-            'daily_volume': daily_volume,
-            'maker_volume': maker_volume,
-            'taker_volume': taker_volume,
-            'maker_fee': maker_fee_cost.final_fee,
-            'taker_fee': taker_fee_cost.final_fee,
-            'total_fee': total_fee,
-            'fee_rate': total_fee / daily_volume if daily_volume > 0 else 0,
-            'maker_rebate': maker_fee_cost.rebate,
-            'vip_level': vip_level
+            "daily_volume": daily_volume,
+            "maker_volume": maker_volume,
+            "taker_volume": taker_volume,
+            "maker_fee": maker_fee_cost.final_fee,
+            "taker_fee": taker_fee_cost.final_fee,
+            "total_fee": total_fee,
+            "fee_rate": total_fee / daily_volume if daily_volume > 0 else 0,
+            "maker_rebate": maker_fee_cost.rebate,
+            "vip_level": vip_level,
         }
 
     def get_statistics(self) -> Dict[str, float]:
@@ -328,11 +316,11 @@ class FeeCalculator:
             Dict: 統計信息
         """
         return {
-            'total_fees_paid': self.total_fees_paid,
-            'total_rebates': self.total_rebates,
-            'net_fees': self.total_fees_paid - self.total_rebates,
-            'fee_count': self.fee_count,
-            'avg_fee': self.total_fees_paid / self.fee_count if self.fee_count > 0 else 0
+            "total_fees_paid": self.total_fees_paid,
+            "total_rebates": self.total_rebates,
+            "net_fees": self.total_fees_paid - self.total_rebates,
+            "fee_count": self.fee_count,
+            "avg_fee": self.total_fees_paid / self.fee_count if self.fee_count > 0 else 0,
         }
 
     def reset_statistics(self):
@@ -344,10 +332,8 @@ class FeeCalculator:
 
 # ===== 便捷函數 =====
 
-def calculate_simple_fee(
-    notional_value: float,
-    fee_rate: float = 0.0004
-) -> float:
+
+def calculate_simple_fee(notional_value: float, fee_rate: float = 0.0004) -> float:
     """簡化的手續費計算
 
     Args:
@@ -371,14 +357,14 @@ def get_binance_vip_requirements() -> Dict[str, Dict]:
         Dict: VIP等級要求（30日交易量和BNB持倉）
     """
     return {
-        'VIP0': {'volume_30d': 0, 'bnb_balance': 0},
-        'VIP1': {'volume_30d': 250, 'bnb_balance': 50},  # $250K, 50 BNB
-        'VIP2': {'volume_30d': 2500, 'bnb_balance': 200},
-        'VIP3': {'volume_30d': 7500, 'bnb_balance': 500},
-        'VIP4': {'volume_30d': 22500, 'bnb_balance': 1000},
-        'VIP5': {'volume_30d': 50000, 'bnb_balance': 2000},
-        'VIP6': {'volume_30d': 100000, 'bnb_balance': 3500},
-        'VIP7': {'volume_30d': 200000, 'bnb_balance': 6000},
-        'VIP8': {'volume_30d': 400000, 'bnb_balance': 9000},
-        'VIP9': {'volume_30d': 750000, 'bnb_balance': 11000},
+        "VIP0": {"volume_30d": 0, "bnb_balance": 0},
+        "VIP1": {"volume_30d": 250, "bnb_balance": 50},  # $250K, 50 BNB
+        "VIP2": {"volume_30d": 2500, "bnb_balance": 200},
+        "VIP3": {"volume_30d": 7500, "bnb_balance": 500},
+        "VIP4": {"volume_30d": 22500, "bnb_balance": 1000},
+        "VIP5": {"volume_30d": 50000, "bnb_balance": 2000},
+        "VIP6": {"volume_30d": 100000, "bnb_balance": 3500},
+        "VIP7": {"volume_30d": 200000, "bnb_balance": 6000},
+        "VIP8": {"volume_30d": 400000, "bnb_balance": 9000},
+        "VIP9": {"volume_30d": 750000, "bnb_balance": 11000},
     }

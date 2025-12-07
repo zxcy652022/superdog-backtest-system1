@@ -9,12 +9,13 @@ Backtest Engine v0.1 測試
 - 驗證績效指標
 """
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.abspath("."))
 
+from backtest.engine import BacktestResult, run_backtest
 from data.storage import load_ohlcv
-from backtest.engine import run_backtest, BacktestResult
 from strategies.simple_sma import SimpleSMAStrategy
 
 
@@ -27,14 +28,11 @@ def test_backtest_basic():
 
     # 確認數據載入成功
     assert len(data) > 0, "數據應該不為空"
-    assert 'close' in data.columns, "數據應包含 close 欄位"
+    assert "close" in data.columns, "數據應包含 close 欄位"
 
     # 2. 執行回測
     result = run_backtest(
-        data=data,
-        strategy_cls=SimpleSMAStrategy,
-        initial_cash=10000,
-        fee_rate=0.0005
+        data=data, strategy_cls=SimpleSMAStrategy, initial_cash=10000, fee_rate=0.0005
     )
 
     # 3. 驗證回測結果類型
@@ -49,7 +47,13 @@ def test_backtest_basic():
     assert len(result.trades) == result.metrics["num_trades"], "交易記錄數量應與指標一致"
 
     # 6. 驗證績效指標
-    required_metrics = ['total_return', 'max_drawdown', 'num_trades', 'win_rate', 'avg_trade_return']
+    required_metrics = [
+        "total_return",
+        "max_drawdown",
+        "num_trades",
+        "win_rate",
+        "avg_trade_return",
+    ]
     for metric in required_metrics:
         assert metric in result.metrics, f"績效指標應包含 {metric}"
 
@@ -69,10 +73,7 @@ def test_backtest_has_trades():
 
     # 執行回測
     result = run_backtest(
-        data=data,
-        strategy_cls=SimpleSMAStrategy,
-        initial_cash=10000,
-        fee_rate=0.0005
+        data=data, strategy_cls=SimpleSMAStrategy, initial_cash=10000, fee_rate=0.0005
     )
 
     # 驗證有交易產生
@@ -101,10 +102,7 @@ def test_backtest_equity_curve():
 
     # 執行回測
     result = run_backtest(
-        data=data,
-        strategy_cls=SimpleSMAStrategy,
-        initial_cash=10000,
-        fee_rate=0.0005
+        data=data, strategy_cls=SimpleSMAStrategy, initial_cash=10000, fee_rate=0.0005
     )
 
     # 驗證權益曲線
@@ -112,7 +110,7 @@ def test_backtest_equity_curve():
     assert result.equity_curve.iloc[-1] >= 0, "最終權益不應為負數"  # Demo test: 不強制盈利，只要不為負
     # 驗證總報酬率計算正確
     expected_return = (result.equity_curve.iloc[-1] - 10000) / 10000
-    assert abs(result.metrics['total_return'] - expected_return) < 0.0001, "總報酬率計算應正確"
+    assert abs(result.metrics["total_return"] - expected_return) < 0.0001, "總報酬率計算應正確"
 
     print(f"\nOK 權益曲線測試通過")
     print(f"   初始權益: {result.equity_curve.iloc[0]:.2f}")
@@ -129,16 +127,13 @@ def test_backtest_metrics_validity():
 
     # 執行回測
     result = run_backtest(
-        data=data,
-        strategy_cls=SimpleSMAStrategy,
-        initial_cash=10000,
-        fee_rate=0.0005
+        data=data, strategy_cls=SimpleSMAStrategy, initial_cash=10000, fee_rate=0.0005
     )
 
     # 驗證指標合理性
-    assert 0 <= result.metrics['win_rate'] <= 1, "勝率應在 0-1 之間"
-    assert result.metrics['max_drawdown'] <= 0, "最大回撤應為負值或零"
-    assert result.metrics['num_trades'] >= 0, "交易數量應大於等於 0"
+    assert 0 <= result.metrics["win_rate"] <= 1, "勝率應在 0-1 之間"
+    assert result.metrics["max_drawdown"] <= 0, "最大回撤應為負值或零"
+    assert result.metrics["num_trades"] >= 0, "交易數量應大於等於 0"
 
     print(f"\nOK 指標合理性測試通過")
     print(f"   勝率: {result.metrics['win_rate']:.2%}")
@@ -167,5 +162,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nERROR 發生錯誤: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

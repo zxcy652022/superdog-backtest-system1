@@ -14,31 +14,32 @@ Author: SuperDog Development Team
 Version: v0.6.0-phase2
 """
 
-import unittest
-import tempfile
-import shutil
-from pathlib import Path
-from datetime import datetime
 import json
-import pandas as pd
+import shutil
+import tempfile
+import unittest
+from datetime import datetime
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
 
 from execution_engine import (
+    AnalysisReport,
     ExperimentConfig,
-    ExperimentRun,
     ExperimentResult,
-    ExperimentStatus,
-    ParameterRange,
-    ParameterExpansionMode,
-    create_experiment_config,
-    load_experiment_config,
+    ExperimentRun,
     ExperimentRunner,
-    ParameterExpander,
-    ParameterOptimizer,
+    ExperimentStatus,
     OptimizationConfig,
     OptimizationMode,
+    ParameterExpander,
+    ParameterExpansionMode,
+    ParameterOptimizer,
+    ParameterRange,
     ResultAnalyzer,
-    AnalysisReport
+    create_experiment_config,
+    load_experiment_config,
 )
 
 
@@ -73,13 +74,7 @@ class TestParameterRange(unittest.TestCase):
 
     def test_expand_log_scale(self):
         """測試對數刻度展開"""
-        param = ParameterRange(
-            name="learning_rate",
-            start=0.001,
-            stop=0.1,
-            num=5,
-            log_scale=True
-        )
+        param = ParameterRange(name="learning_rate", start=0.001, stop=0.1, num=5, log_scale=True)
         result = param.expand()
 
         self.assertEqual(len(result), 5)
@@ -114,9 +109,9 @@ class TestExperimentConfig(unittest.TestCase):
             symbols=["BTCUSDT", "ETHUSDT"],
             parameters={
                 "sma_short": [5, 10, 15],
-                "sma_long": {"start": 20, "stop": 100, "step": 20}
+                "sma_long": {"start": 20, "stop": 100, "step": 20},
             },
-            timeframe="1h"
+            timeframe="1h",
         )
 
         self.assertEqual(config.name, "Test_Experiment")
@@ -132,14 +127,14 @@ class TestExperimentConfig(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10, 20]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         config_dict = config.to_dict()
 
         self.assertIsInstance(config_dict, dict)
-        self.assertEqual(config_dict['name'], "Test")
-        self.assertEqual(config_dict['expansion_mode'], "grid")
+        self.assertEqual(config_dict["name"], "Test")
+        self.assertEqual(config_dict["expansion_mode"], "grid")
 
     def test_config_save_and_load_yaml(self):
         """測試 YAML 保存和加載"""
@@ -148,7 +143,7 @@ class TestExperimentConfig(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10, 20, 30]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         # 保存
@@ -169,7 +164,7 @@ class TestExperimentConfig(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10, 20]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         # 保存
@@ -188,7 +183,7 @@ class TestExperimentConfig(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         config2 = create_experiment_config(
@@ -196,7 +191,7 @@ class TestExperimentConfig(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         # 相同配置應該生成相同ID
@@ -208,7 +203,7 @@ class TestExperimentConfig(unittest.TestCase):
             strategy="simple_sma",
             symbols=["ETHUSDT"],  # 不同幣種
             parameters={"period": [10]},
-            timeframe="1h"
+            timeframe="1h",
         )
         self.assertNotEqual(config1.get_experiment_id(), config3.get_experiment_id())
 
@@ -222,12 +217,9 @@ class TestParameterExpander(unittest.TestCase):
             name="Grid_Test",
             strategy="simple_sma",
             symbols=["BTCUSDT"],
-            parameters={
-                "param1": [1, 2, 3],
-                "param2": [10, 20]
-            },
+            parameters={"param1": [1, 2, 3], "param2": [10, 20]},
             timeframe="1h",
-            expansion_mode="grid"
+            expansion_mode="grid",
         )
 
         expander = ParameterExpander(config)
@@ -242,11 +234,8 @@ class TestParameterExpander(unittest.TestCase):
             name="Task_Test",
             strategy="simple_sma",
             symbols=["BTCUSDT", "ETHUSDT"],
-            parameters={
-                "param1": [1, 2],
-                "param2": [10, 20]
-            },
-            timeframe="1h"
+            parameters={"param1": [1, 2], "param2": [10, 20]},
+            timeframe="1h",
         )
 
         expander = ParameterExpander(config)
@@ -257,8 +246,8 @@ class TestParameterExpander(unittest.TestCase):
 
         # 驗證任務結構
         task = tasks[0]
-        self.assertIn('symbol', task)
-        self.assertIn('parameters', task)
+        self.assertIn("symbol", task)
+        self.assertIn("parameters", task)
 
     def test_max_combinations_limit(self):
         """測試最大組合數限制"""
@@ -269,10 +258,10 @@ class TestParameterExpander(unittest.TestCase):
             parameters={
                 "param1": list(range(10)),
                 "param2": list(range(10)),
-                "param3": list(range(10))
+                "param3": list(range(10)),
             },
             timeframe="1h",
-            max_combinations=50  # 限制最大組合數
+            max_combinations=50,  # 限制最大組合數
         )
 
         expander = ParameterExpander(config)
@@ -302,14 +291,15 @@ class TestExperimentRunner(unittest.TestCase):
 
     def test_execute_single_run(self):
         """測試單個運行執行"""
+
         def mock_backtest(symbol, timeframe, params, config):
             return {
-                'total_return': 0.15,
-                'sharpe_ratio': 1.5,
-                'max_drawdown': -0.10,
-                'num_trades': 100,
-                'win_rate': 0.6,
-                'profit_factor': 2.0
+                "total_return": 0.15,
+                "sharpe_ratio": 1.5,
+                "max_drawdown": -0.10,
+                "num_trades": 100,
+                "win_rate": 0.6,
+                "profit_factor": 2.0,
             }
 
         config = create_experiment_config(
@@ -317,7 +307,7 @@ class TestExperimentRunner(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         runner = ExperimentRunner(max_workers=1)
@@ -327,7 +317,7 @@ class TestExperimentRunner(unittest.TestCase):
             symbol="BTCUSDT",
             parameters={"period": 10},
             config=config,
-            backtest_func=mock_backtest
+            backtest_func=mock_backtest,
         )
 
         self.assertEqual(run.status, ExperimentStatus.COMPLETED)
@@ -337,6 +327,7 @@ class TestExperimentRunner(unittest.TestCase):
 
     def test_runner_with_failing_backtest(self):
         """測試失敗回測處理"""
+
         def failing_backtest(symbol, timeframe, params, config):
             raise ValueError("Mock backtest failure")
 
@@ -345,7 +336,7 @@ class TestExperimentRunner(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         runner = ExperimentRunner(max_workers=1, retry_failed=False)
@@ -355,7 +346,7 @@ class TestExperimentRunner(unittest.TestCase):
             symbol="BTCUSDT",
             parameters={"period": 10},
             config=config,
-            backtest_func=failing_backtest
+            backtest_func=failing_backtest,
         )
 
         self.assertEqual(run.status, ExperimentStatus.FAILED)
@@ -372,7 +363,7 @@ class TestExperimentResult(unittest.TestCase):
             strategy="simple_sma",
             symbols=["BTCUSDT"],
             parameters={"period": [10, 20, 30]},
-            timeframe="1h"
+            timeframe="1h",
         )
 
         # 創建模擬運行記錄
@@ -389,7 +380,7 @@ class TestExperimentResult(unittest.TestCase):
                 max_drawdown=-0.1,
                 num_trades=100,
                 win_rate=0.6,
-                profit_factor=2.0
+                profit_factor=2.0,
             )
             self.runs.append(run)
 
@@ -401,7 +392,7 @@ class TestExperimentResult(unittest.TestCase):
             runs=self.runs,
             total_runs=3,
             completed_runs=3,
-            failed_runs=0
+            failed_runs=0,
         )
 
         best_run = result.get_best_run(metric="sharpe_ratio", ascending=False)
@@ -417,15 +408,15 @@ class TestExperimentResult(unittest.TestCase):
             runs=self.runs,
             total_runs=3,
             completed_runs=3,
-            failed_runs=0
+            failed_runs=0,
         )
 
         stats = result.get_statistics()
 
-        self.assertIn('total_runs', stats)
-        self.assertIn('avg_return', stats)
-        self.assertIn('avg_sharpe', stats)
-        self.assertEqual(stats['completed'], 3)
+        self.assertIn("total_runs", stats)
+        self.assertIn("avg_return", stats)
+        self.assertIn("avg_sharpe", stats)
+        self.assertEqual(stats["completed"], 3)
 
 
 class TestResultAnalyzer(unittest.TestCase):
@@ -437,11 +428,8 @@ class TestResultAnalyzer(unittest.TestCase):
             name="Analyzer_Test",
             strategy="simple_sma",
             symbols=["BTCUSDT", "ETHUSDT"],
-            parameters={
-                "sma_short": [5, 10],
-                "sma_long": [20, 40]
-            },
-            timeframe="1h"
+            parameters={"sma_short": [5, 10], "sma_long": [20, 40]},
+            timeframe="1h",
         )
 
         # 創建多個運行記錄
@@ -461,7 +449,7 @@ class TestResultAnalyzer(unittest.TestCase):
                         max_drawdown=-np.random.uniform(0.05, 0.2),
                         num_trades=np.random.randint(50, 200),
                         win_rate=np.random.uniform(0.4, 0.7),
-                        profit_factor=np.random.uniform(1.0, 3.0)
+                        profit_factor=np.random.uniform(1.0, 3.0),
                     )
                     self.runs.append(run)
                     idx += 1
@@ -472,7 +460,7 @@ class TestResultAnalyzer(unittest.TestCase):
             runs=self.runs,
             total_runs=len(self.runs),
             completed_runs=len(self.runs),
-            failed_runs=0
+            failed_runs=0,
         )
 
     def test_analyzer_initialization(self):
@@ -534,7 +522,7 @@ class TestResultAnalyzer(unittest.TestCase):
             self.assertTrue(Path(output_path).exists())
 
             # 驗證內容
-            with open(output_path, 'r', encoding='utf-8') as f:
+            with open(output_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 self.assertIn("實驗分析報告", content)
                 self.assertIn("Analyzer_Test", content)
@@ -556,9 +544,9 @@ class TestResultAnalyzer(unittest.TestCase):
             self.assertTrue(Path(output_path).exists())
 
             # 驗證 JSON 格式
-            with open(output_path, 'r', encoding='utf-8') as f:
+            with open(output_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                self.assertEqual(data['experiment_name'], "Analyzer_Test")
+                self.assertEqual(data["experiment_name"], "Analyzer_Test")
 
         finally:
             shutil.rmtree(temp_dir)
@@ -573,10 +561,8 @@ class TestParameterOptimizer(unittest.TestCase):
             name="Optimizer_Test",
             strategy="simple_sma",
             symbols=["BTCUSDT"],
-            parameters={
-                "period": [10, 20, 30, 40, 50]
-            },
-            timeframe="1h"
+            parameters={"period": [10, 20, 30, 40, 50]},
+            timeframe="1h",
         )
 
         # Mock 回測函數
@@ -586,12 +572,12 @@ class TestParameterOptimizer(unittest.TestCase):
             sharpe = 0.5 + (period / 100.0) * 2.0
 
             return {
-                'total_return': 0.1 + period * 0.002,
-                'sharpe_ratio': sharpe,
-                'max_drawdown': -0.1,
-                'num_trades': 100,
-                'win_rate': 0.6,
-                'profit_factor': 2.0
+                "total_return": 0.1 + period * 0.002,
+                "sharpe_ratio": sharpe,
+                "max_drawdown": -0.1,
+                "num_trades": 100,
+                "win_rate": 0.6,
+                "profit_factor": 2.0,
             }
 
         self.backtest_func = mock_backtest
@@ -599,9 +585,7 @@ class TestParameterOptimizer(unittest.TestCase):
     def test_optimizer_initialization(self):
         """測試優化器初始化"""
         optimizer = ParameterOptimizer(
-            self.config,
-            self.backtest_func,
-            OptimizationConfig(mode=OptimizationMode.GRID)
+            self.config, self.backtest_func, OptimizationConfig(mode=OptimizationMode.GRID)
         )
 
         self.assertIsNotNone(optimizer)
@@ -610,10 +594,7 @@ class TestParameterOptimizer(unittest.TestCase):
     def test_grid_search_optimization(self):
         """測試網格搜索優化"""
         opt_config = OptimizationConfig(
-            mode=OptimizationMode.GRID,
-            metric="sharpe_ratio",
-            maximize=True,
-            max_workers=2
+            mode=OptimizationMode.GRID, metric="sharpe_ratio", maximize=True, max_workers=2
         )
 
         optimizer = ParameterOptimizer(self.config, self.backtest_func, opt_config)
@@ -625,6 +606,7 @@ class TestParameterOptimizer(unittest.TestCase):
 
 
 # ===== Test Runner =====
+
 
 def run_tests():
     """運行所有測試"""

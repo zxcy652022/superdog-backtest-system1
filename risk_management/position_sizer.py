@@ -14,13 +14,15 @@ Version: v0.6.0-phase4
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, List
 from enum import Enum
+from typing import Dict, List, Optional
+
 import numpy as np
 
 
 class SizingMethod(Enum):
     """倉位計算方法"""
+
     FIXED_AMOUNT = "fixed_amount"  # 固定金額
     FIXED_RISK = "fixed_risk"  # 固定風險百分比
     KELLY = "kelly"  # Kelly Criterion
@@ -76,7 +78,7 @@ class PositionSizer:
         default_risk_pct: float = 0.02,  # 默認風險 2%
         max_position_pct: float = 0.3,  # 最大倉位 30%
         max_leverage: float = 10,  # 最大槓桿
-        kelly_fraction: float = 0.25  # Kelly 分數（保守）
+        kelly_fraction: float = 0.25,  # Kelly 分數（保守）
     ):
         """初始化倉位管理器
 
@@ -103,7 +105,7 @@ class PositionSizer:
         win_rate: Optional[float] = None,
         avg_win: Optional[float] = None,
         avg_loss: Optional[float] = None,
-        target_position_value: Optional[float] = None
+        target_position_value: Optional[float] = None,
     ) -> PositionSize:
         """計算倉位大小
 
@@ -129,35 +131,41 @@ class PositionSizer:
         # 根據方法計算
         if method == SizingMethod.FIXED_AMOUNT:
             return self._fixed_amount_sizing(
-                account_balance, entry_price, stop_loss,
+                account_balance,
+                entry_price,
+                stop_loss,
                 target_position_value or (account_balance * self.max_position_pct),
-                leverage
+                leverage,
             )
 
         elif method == SizingMethod.FIXED_RISK:
             risk = risk_pct or self.default_risk_pct
-            return self._fixed_risk_sizing(
-                account_balance, entry_price, stop_loss, risk, leverage
-            )
+            return self._fixed_risk_sizing(account_balance, entry_price, stop_loss, risk, leverage)
 
         elif method == SizingMethod.KELLY:
             if win_rate is None or avg_win is None or avg_loss is None:
                 # 如果沒有提供 Kelly 參數，回退到固定風險
                 return self._fixed_risk_sizing(
-                    account_balance, entry_price, stop_loss,
-                    risk_pct or self.default_risk_pct, leverage
+                    account_balance,
+                    entry_price,
+                    stop_loss,
+                    risk_pct or self.default_risk_pct,
+                    leverage,
                 )
             return self._kelly_sizing(
-                account_balance, entry_price, stop_loss,
-                win_rate, avg_win, avg_loss, leverage
+                account_balance, entry_price, stop_loss, win_rate, avg_win, avg_loss, leverage
             )
 
         elif method == SizingMethod.VOLATILITY_ADJUSTED:
             if volatility is None:
                 raise ValueError("Volatility is required for VOLATILITY_ADJUSTED method")
             return self._volatility_adjusted_sizing(
-                account_balance, entry_price, stop_loss,
-                volatility, risk_pct or self.default_risk_pct, leverage
+                account_balance,
+                entry_price,
+                stop_loss,
+                volatility,
+                risk_pct or self.default_risk_pct,
+                leverage,
             )
 
         elif method == SizingMethod.EQUITY_PERCENTAGE:
@@ -175,7 +183,7 @@ class PositionSizer:
         entry_price: float,
         stop_loss: float,
         target_value: float,
-        leverage: float
+        leverage: float,
     ) -> PositionSize:
         """固定金額倉位計算
 
@@ -213,7 +221,7 @@ class PositionSizer:
             risk_pct=risk_pct,
             sizing_method=SizingMethod.FIXED_AMOUNT,
             max_position_reached=max_reached,
-            leverage=leverage
+            leverage=leverage,
         )
 
     def _fixed_risk_sizing(
@@ -222,7 +230,7 @@ class PositionSizer:
         entry_price: float,
         stop_loss: float,
         risk_pct: float,
-        leverage: float
+        leverage: float,
     ) -> PositionSize:
         """固定風險百分比倉位計算
 
@@ -274,7 +282,7 @@ class PositionSizer:
             risk_pct=risk_pct,
             sizing_method=SizingMethod.FIXED_RISK,
             max_position_reached=max_reached,
-            leverage=leverage
+            leverage=leverage,
         )
 
     def _kelly_sizing(
@@ -285,7 +293,7 @@ class PositionSizer:
         win_rate: float,
         avg_win: float,
         avg_loss: float,
-        leverage: float
+        leverage: float,
     ) -> PositionSize:
         """Kelly Criterion 倉位計算
 
@@ -346,7 +354,7 @@ class PositionSizer:
             sizing_method=SizingMethod.KELLY,
             max_position_reached=kelly_pct >= self.max_position_pct,
             leverage=leverage,
-            notes=notes
+            notes=notes,
         )
 
     def _volatility_adjusted_sizing(
@@ -356,7 +364,7 @@ class PositionSizer:
         stop_loss: float,
         volatility: float,
         base_risk_pct: float,
-        leverage: float
+        leverage: float,
     ) -> PositionSize:
         """波動率調整倉位計算
 
@@ -389,8 +397,7 @@ class PositionSizer:
 
         # 使用固定風險法計算
         result = self._fixed_risk_sizing(
-            account_balance, entry_price, stop_loss,
-            adjusted_risk_pct, leverage
+            account_balance, entry_price, stop_loss, adjusted_risk_pct, leverage
         )
 
         result.sizing_method = SizingMethod.VOLATILITY_ADJUSTED
@@ -399,11 +406,7 @@ class PositionSizer:
         return result
 
     def _equity_percentage_sizing(
-        self,
-        account_balance: float,
-        entry_price: float,
-        equity_pct: float,
-        leverage: float
+        self, account_balance: float, entry_price: float, equity_pct: float, leverage: float
     ) -> PositionSize:
         """權益百分比倉位計算
 
@@ -434,14 +437,11 @@ class PositionSizer:
             risk_pct=0,
             sizing_method=SizingMethod.EQUITY_PERCENTAGE,
             max_position_reached=equity_pct >= self.max_position_pct,
-            leverage=leverage
+            leverage=leverage,
         )
 
     def allocate_capital(
-        self,
-        total_capital: float,
-        strategies: List[Dict],
-        method: str = 'equal'
+        self, total_capital: float, strategies: List[Dict], method: str = "equal"
     ) -> Dict[str, float]:
         """多策略資金分配
 
@@ -460,41 +460,40 @@ class PositionSizer:
             ... ]
             >>> allocation = sizer.allocate_capital(100000, strategies, 'weighted')
         """
-        if method == 'equal':
+        if method == "equal":
             # 平均分配
             allocation_per_strategy = total_capital / len(strategies)
-            return {s['name']: allocation_per_strategy for s in strategies}
+            return {s["name"]: allocation_per_strategy for s in strategies}
 
-        elif method == 'weighted':
+        elif method == "weighted":
             # 按權重分配
-            total_weight = sum(s.get('weight', 1.0) for s in strategies)
+            total_weight = sum(s.get("weight", 1.0) for s in strategies)
             return {
-                s['name']: total_capital * s.get('weight', 1.0) / total_weight
-                for s in strategies
+                s["name"]: total_capital * s.get("weight", 1.0) / total_weight for s in strategies
             }
 
-        elif method == 'risk_parity':
+        elif method == "risk_parity":
             # 風險平價（根據波動率反向分配）
-            volatilities = [s.get('volatility', 0.02) for s in strategies]
-            inv_vols = [1/v if v > 0 else 0 for v in volatilities]
+            volatilities = [s.get("volatility", 0.02) for s in strategies]
+            inv_vols = [1 / v if v > 0 else 0 for v in volatilities]
             total_inv_vol = sum(inv_vols)
 
             return {
-                s['name']: total_capital * (inv_vols[i] / total_inv_vol)
+                s["name"]: total_capital * (inv_vols[i] / total_inv_vol)
                 for i, s in enumerate(strategies)
             }
 
-        elif method == 'sharpe_optimized':
+        elif method == "sharpe_optimized":
             # 按 Sharpe Ratio 分配
-            sharpes = [max(s.get('sharpe', 0), 0) for s in strategies]
+            sharpes = [max(s.get("sharpe", 0), 0) for s in strategies]
             total_sharpe = sum(sharpes)
 
             if total_sharpe == 0:
                 # 回退到平均分配
-                return {s['name']: total_capital / len(strategies) for s in strategies}
+                return {s["name"]: total_capital / len(strategies) for s in strategies}
 
             return {
-                s['name']: total_capital * (sharpes[i] / total_sharpe)
+                s["name"]: total_capital * (sharpes[i] / total_sharpe)
                 for i, s in enumerate(strategies)
             }
 
@@ -502,10 +501,7 @@ class PositionSizer:
             raise ValueError(f"Unknown allocation method: {method}")
 
     def calculate_optimal_leverage(
-        self,
-        expected_return: float,
-        volatility: float,
-        max_drawdown_tolerance: float = 0.20
+        self, expected_return: float, volatility: float, max_drawdown_tolerance: float = 0.20
     ) -> float:
         """計算最優槓桿
 
@@ -527,7 +523,7 @@ class PositionSizer:
             ... )
         """
         # Kelly Leverage = Expected Return / Variance
-        kelly_leverage = expected_return / (volatility ** 2) if volatility > 0 else 1
+        kelly_leverage = expected_return / (volatility**2) if volatility > 0 else 1
 
         # 基於回撤容忍度的槓桿
         # 假設最大回撤 ≈ 3 * volatility * leverage
@@ -544,12 +540,13 @@ class PositionSizer:
 
 # ===== 便捷函數 =====
 
+
 def calculate_kelly_size(
     account_balance: float,
     win_rate: float,
     avg_win: float,
     avg_loss: float,
-    kelly_fraction: float = 0.25
+    kelly_fraction: float = 0.25,
 ) -> float:
     """快速計算 Kelly 倉位百分比
 
@@ -585,10 +582,7 @@ def calculate_kelly_size(
 
 
 def calculate_fixed_risk_size(
-    account_balance: float,
-    entry_price: float,
-    stop_loss: float,
-    risk_pct: float = 0.02
+    account_balance: float, entry_price: float, stop_loss: float, risk_pct: float = 0.02
 ) -> float:
     """快速計算固定風險倉位
 

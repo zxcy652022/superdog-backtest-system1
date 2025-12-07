@@ -13,10 +13,11 @@ Version: v0.4
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
-from typing import Optional, List, Dict
-from enum import Enum
-import pandas as pd
 from datetime import timedelta
+from enum import Enum
+from typing import Dict, List, Optional
+
+import pandas as pd
 
 
 class Timeframe(Enum):
@@ -28,14 +29,15 @@ class Timeframe(Enum):
     - 日級：1d
     - 週級：1w
     """
-    M1 = "1m"      # 1 分鐘
-    M5 = "5m"      # 5 分鐘
-    M15 = "15m"    # 15 分鐘
-    M30 = "30m"    # 30 分鐘
-    H1 = "1h"      # 1 小時
-    H4 = "4h"      # 4 小時
-    D1 = "1d"      # 1 天
-    W1 = "1w"      # 1 週
+
+    M1 = "1m"  # 1 分鐘
+    M5 = "5m"  # 5 分鐘
+    M15 = "15m"  # 15 分鐘
+    M30 = "30m"  # 30 分鐘
+    H1 = "1h"  # 1 小時
+    H4 = "4h"  # 4 小時
+    D1 = "1d"  # 1 天
+    W1 = "1w"  # 1 週
 
     @classmethod
     def is_valid(cls, timeframe: str) -> bool:
@@ -69,7 +71,7 @@ class Timeframe(Enum):
         return [tf.value for tf in cls]
 
     @classmethod
-    def from_string(cls, timeframe: str) -> 'Timeframe':
+    def from_string(cls, timeframe: str) -> "Timeframe":
         """從字符串創建 Timeframe
 
         Args:
@@ -91,8 +93,7 @@ class Timeframe(Enum):
                 return tf
 
         raise ValueError(
-            f"Invalid timeframe '{timeframe}'. "
-            f"Valid options: {', '.join(cls.get_all())}"
+            f"Invalid timeframe '{timeframe}'. " f"Valid options: {', '.join(cls.get_all())}"
         )
 
 
@@ -192,10 +193,7 @@ class TimeframeManager:
         return timedelta(minutes=minutes)
 
     def resample_ohlcv(
-        self,
-        data: pd.DataFrame,
-        source_timeframe: str,
-        target_timeframe: str
+        self, data: pd.DataFrame, source_timeframe: str, target_timeframe: str
     ) -> pd.DataFrame:
         """重採樣 OHLCV 數據到不同時間週期
 
@@ -241,13 +239,9 @@ class TimeframeManager:
         rule = self.RESAMPLE_RULES[target_timeframe]
 
         # 重採樣
-        resampled = data.resample(rule).agg({
-            'open': 'first',
-            'high': 'max',
-            'low': 'min',
-            'close': 'last',
-            'volume': 'sum'
-        })
+        resampled = data.resample(rule).agg(
+            {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+        )
 
         # 移除 NaN 行
         resampled = resampled.dropna()
@@ -255,10 +249,7 @@ class TimeframeManager:
         return resampled
 
     def align_timeframes(
-        self,
-        data1: pd.DataFrame,
-        data2: pd.DataFrame,
-        how: str = 'inner'
+        self, data1: pd.DataFrame, data2: pd.DataFrame, how: str = "inner"
     ) -> tuple:
         """對齊兩個不同時間週期的數據
 
@@ -277,22 +268,22 @@ class TimeframeManager:
             ... )
         """
         # 使用 pandas 的 join 功能對齊索引
-        if how == 'inner':
+        if how == "inner":
             common_index = data1.index.intersection(data2.index)
             return data1.loc[common_index], data2.loc[common_index]
 
-        elif how == 'outer':
+        elif how == "outer":
             all_index = data1.index.union(data2.index).sort_values()
             return (
-                data1.reindex(all_index, method='ffill'),
-                data2.reindex(all_index, method='ffill')
+                data1.reindex(all_index, method="ffill"),
+                data2.reindex(all_index, method="ffill"),
             )
 
-        elif how == 'left':
-            return data1, data2.reindex(data1.index, method='ffill')
+        elif how == "left":
+            return data1, data2.reindex(data1.index, method="ffill")
 
-        elif how == 'right':
-            return data1.reindex(data2.index, method='ffill'), data2
+        elif how == "right":
+            return data1.reindex(data2.index, method="ffill"), data2
 
         else:
             raise ValueError(f"Invalid 'how' parameter: {how}")
@@ -325,10 +316,7 @@ class TimeframeManager:
         return compatible
 
     def calculate_bar_count(
-        self,
-        timeframe: str,
-        start_time: pd.Timestamp,
-        end_time: pd.Timestamp
+        self, timeframe: str, start_time: pd.Timestamp, end_time: pd.Timestamp
     ) -> int:
         """計算時間範圍內的 K 線數量
 

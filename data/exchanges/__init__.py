@@ -9,16 +9,16 @@ Supported Exchanges:
 - OKX (Phase B)
 """
 
-from .base_connector import ExchangeConnector, ExchangeAPIError, DataFormatError
+from .base_connector import DataFormatError, ExchangeAPIError, ExchangeConnector
 from .binance_connector import BinanceConnector
 from .bybit_connector import BybitConnector
 from .okx_connector import OKXConnector
 
 __all__ = [
-    'ExchangeConnector',
-    'ExchangeAPIError',
-    'DataFormatError',
-    'BinanceConnector',
-    'BybitConnector',
-    'OKXConnector'
+    "ExchangeConnector",
+    "ExchangeAPIError",
+    "DataFormatError",
+    "BinanceConnector",
+    "BybitConnector",
+    "OKXConnector",
 ]

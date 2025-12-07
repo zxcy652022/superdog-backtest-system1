@@ -13,22 +13,24 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
 import unittest
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+
 from strategies.api_v2 import (
-    ParameterType,
-    ParameterSpec,
-    DataSource,
-    DataRequirement,
     BaseStrategy,
+    DataRequirement,
+    DataSource,
+    ParameterSpec,
+    ParameterType,
+    bool_param,
     float_param,
     int_param,
     str_param,
-    bool_param
 )
-from strategies.simple_sma_v2 import SimpleSMAStrategyV2
 from strategies.kawamoku_demo import KawamokuStrategy
+from strategies.simple_sma_v2 import SimpleSMAStrategyV2
 
 
 class TestParameterSpec(unittest.TestCase):
@@ -109,10 +111,7 @@ class TestParameterSpec(unittest.TestCase):
 
     def test_str_validation_with_choices(self):
         """測試字符串驗證 - 帶選項"""
-        spec = ParameterSpec(
-            ParameterType.STR, "buy", "信號類型",
-            choices=["buy", "sell", "both"]
-        )
+        spec = ParameterSpec(ParameterType.STR, "buy", "信號類型", choices=["buy", "sell", "both"])
 
         # 有效選項
         self.assertEqual(spec.validate("buy"), "buy")
@@ -153,10 +152,7 @@ class TestDataRequirement(unittest.TestCase):
     def test_data_requirement_creation(self):
         """測試創建數據需求"""
         req = DataRequirement(
-            source=DataSource.OHLCV,
-            timeframe="1h",
-            lookback_periods=200,
-            required=True
+            source=DataSource.OHLCV, timeframe="1h", lookback_periods=200, required=True
         )
 
         self.assertEqual(req.source, DataSource.OHLCV)
@@ -180,7 +176,7 @@ class TestSimpleSMAStrategyV2(unittest.TestCase):
     def setUp(self):
         """設置測試數據"""
         # 創建測試數據（100根K線）
-        dates = pd.date_range(start='2024-01-01', periods=100, freq='1h')
+        dates = pd.date_range(start="2024-01-01", periods=100, freq="1h")
         np.random.seed(42)
 
         # 生成模擬價格數據
@@ -190,13 +186,10 @@ class TestSimpleSMAStrategyV2(unittest.TestCase):
         open_prices = close + np.random.randn(100) * 0.5
         volume = np.random.randint(1000, 10000, 100)
 
-        self.test_data = pd.DataFrame({
-            'open': open_prices,
-            'high': high,
-            'low': low,
-            'close': close,
-            'volume': volume
-        }, index=dates)
+        self.test_data = pd.DataFrame(
+            {"open": open_prices, "high": high, "low": low, "close": close, "volume": volume},
+            index=dates,
+        )
 
         self.strategy = SimpleSMAStrategyV2()
 
@@ -204,28 +197,28 @@ class TestSimpleSMAStrategyV2(unittest.TestCase):
         """測試策略元數據"""
         metadata = self.strategy.get_metadata()
 
-        self.assertEqual(metadata['name'], 'SimpleSMA')
-        self.assertEqual(metadata['version'], '2.0')
-        self.assertEqual(metadata['author'], 'SuperDog Team')
-        self.assertIn('short_window', metadata['parameters'])
-        self.assertIn('long_window', metadata['parameters'])
-        self.assertIn('ohlcv', metadata['data_sources'])
+        self.assertEqual(metadata["name"], "SimpleSMA")
+        self.assertEqual(metadata["version"], "2.0")
+        self.assertEqual(metadata["author"], "SuperDog Team")
+        self.assertIn("short_window", metadata["parameters"])
+        self.assertIn("long_window", metadata["parameters"])
+        self.assertIn("ohlcv", metadata["data_sources"])
 
     def test_parameters(self):
         """測試參數規格"""
         params = self.strategy.get_parameters()
 
-        self.assertIn('short_window', params)
-        self.assertIn('long_window', params)
+        self.assertIn("short_window", params)
+        self.assertIn("long_window", params)
 
         # 檢查參數規格
-        short_spec = params['short_window']
+        short_spec = params["short_window"]
         self.assertEqual(short_spec.param_type, ParameterType.INT)
         self.assertEqual(short_spec.default_value, 10)
         self.assertEqual(short_spec.min_value, 1)
         self.assertEqual(short_spec.max_value, 50)
 
-        long_spec = params['long_window']
+        long_spec = params["long_window"]
         self.assertEqual(long_spec.param_type, ParameterType.INT)
         self.assertEqual(long_spec.default_value, 20)
 
@@ -240,8 +233,8 @@ class TestSimpleSMAStrategyV2(unittest.TestCase):
 
     def test_compute_signals_success(self):
         """測試信號計算 - 成功案例"""
-        data = {'ohlcv': self.test_data}
-        params = {'short_window': 5, 'long_window': 10}
+        data = {"ohlcv": self.test_data}
+        params = {"short_window": 5, "long_window": 10}
 
         signals = self.strategy.compute_signals(data, params)
 
@@ -257,7 +250,7 @@ class TestSimpleSMAStrategyV2(unittest.TestCase):
     def test_compute_signals_missing_data(self):
         """測試信號計算 - 缺少數據"""
         data = {}  # 空數據
-        params = {'short_window': 5, 'long_window': 10}
+        params = {"short_window": 5, "long_window": 10}
 
         with self.assertRaises(ValueError):
             self.strategy.compute_signals(data, params)
@@ -266,8 +259,8 @@ class TestSimpleSMAStrategyV2(unittest.TestCase):
         """測試信號計算 - 數據不足"""
         # 只有 5 根 K 線，但需要 20 根
         short_data = self.test_data.iloc[:5]
-        data = {'ohlcv': short_data}
-        params = {'short_window': 5, 'long_window': 20}
+        data = {"ohlcv": short_data}
+        params = {"short_window": 5, "long_window": 20}
 
         with self.assertRaises(ValueError):
             self.strategy.compute_signals(data, params)
@@ -275,21 +268,18 @@ class TestSimpleSMAStrategyV2(unittest.TestCase):
     def test_validate_parameters(self):
         """測試參數驗證"""
         # 正常參數
-        validated = self.strategy.validate_parameters({
-            'short_window': '5',
-            'long_window': '20'
-        })
-        self.assertEqual(validated['short_window'], 5)
-        self.assertEqual(validated['long_window'], 20)
+        validated = self.strategy.validate_parameters({"short_window": "5", "long_window": "20"})
+        self.assertEqual(validated["short_window"], 5)
+        self.assertEqual(validated["long_window"], 20)
 
         # 使用預設值
         validated = self.strategy.validate_parameters({})
-        self.assertEqual(validated['short_window'], 10)
-        self.assertEqual(validated['long_window'], 20)
+        self.assertEqual(validated["short_window"], 10)
+        self.assertEqual(validated["long_window"], 20)
 
         # 超出範圍
         with self.assertRaises(ValueError):
-            self.strategy.validate_parameters({'short_window': 100})
+            self.strategy.validate_parameters({"short_window": 100})
 
 
 class TestKawamokuStrategy(unittest.TestCase):
@@ -297,7 +287,7 @@ class TestKawamokuStrategy(unittest.TestCase):
 
     def setUp(self):
         """設置測試數據"""
-        dates = pd.date_range(start='2024-01-01', periods=100, freq='1h')
+        dates = pd.date_range(start="2024-01-01", periods=100, freq="1h")
         np.random.seed(42)
 
         close = 100 + np.cumsum(np.random.randn(100) * 2)
@@ -306,13 +296,10 @@ class TestKawamokuStrategy(unittest.TestCase):
         open_prices = close + np.random.randn(100) * 0.5
         volume = np.random.randint(1000, 10000, 100)
 
-        self.test_data = pd.DataFrame({
-            'open': open_prices,
-            'high': high,
-            'low': low,
-            'close': close,
-            'volume': volume
-        }, index=dates)
+        self.test_data = pd.DataFrame(
+            {"open": open_prices, "high": high, "low": low, "close": close, "volume": volume},
+            index=dates,
+        )
 
         self.strategy = KawamokuStrategy()
 
@@ -320,27 +307,27 @@ class TestKawamokuStrategy(unittest.TestCase):
         """測試策略元數據"""
         metadata = self.strategy.get_metadata()
 
-        self.assertEqual(metadata['name'], 'Kawamoku')
-        self.assertEqual(metadata['version'], '1.0')
-        self.assertEqual(metadata['author'], 'DDragon')
-        self.assertIn('momentum_period', metadata['parameters'])
-        self.assertIn('funding_weight', metadata['parameters'])
+        self.assertEqual(metadata["name"], "Kawamoku")
+        self.assertEqual(metadata["version"], "1.0")
+        self.assertEqual(metadata["author"], "DDragon")
+        self.assertIn("momentum_period", metadata["parameters"])
+        self.assertIn("funding_weight", metadata["parameters"])
 
     def test_parameters(self):
         """測試參數規格 - 多種類型"""
         params = self.strategy.get_parameters()
 
         # 整數參數
-        self.assertIn('momentum_period', params)
-        self.assertEqual(params['momentum_period'].param_type, ParameterType.INT)
+        self.assertIn("momentum_period", params)
+        self.assertEqual(params["momentum_period"].param_type, ParameterType.INT)
 
         # 浮點參數
-        self.assertIn('momentum_threshold', params)
-        self.assertEqual(params['momentum_threshold'].param_type, ParameterType.FLOAT)
+        self.assertIn("momentum_threshold", params)
+        self.assertEqual(params["momentum_threshold"].param_type, ParameterType.FLOAT)
 
         # 布林參數
-        self.assertIn('enable_volume_filter', params)
-        self.assertEqual(params['enable_volume_filter'].param_type, ParameterType.BOOL)
+        self.assertIn("enable_volume_filter", params)
+        self.assertEqual(params["enable_volume_filter"].param_type, ParameterType.BOOL)
 
     def test_data_requirements(self):
         """測試數據需求 - 多數據源"""
@@ -361,16 +348,16 @@ class TestKawamokuStrategy(unittest.TestCase):
 
     def test_compute_signals_success(self):
         """測試信號計算 - 成功案例"""
-        data = {'ohlcv': self.test_data}
+        data = {"ohlcv": self.test_data}
         params = {
-            'momentum_period': 5,
-            'momentum_threshold': 0.02,
-            'volume_ma_period': 20,
-            'volume_threshold': 1.5,
-            'enable_volume_filter': True,
-            'funding_weight': 0.5,
-            'oi_threshold': 1.0,
-            'basis_lookback': 7
+            "momentum_period": 5,
+            "momentum_threshold": 0.02,
+            "volume_ma_period": 20,
+            "volume_threshold": 1.5,
+            "enable_volume_filter": True,
+            "funding_weight": 0.5,
+            "oi_threshold": 1.0,
+            "basis_lookback": 7,
         }
 
         signals = self.strategy.compute_signals(data, params)
@@ -386,16 +373,16 @@ class TestKawamokuStrategy(unittest.TestCase):
 
     def test_compute_signals_without_volume_filter(self):
         """測試信號計算 - 關閉成交量過濾"""
-        data = {'ohlcv': self.test_data}
+        data = {"ohlcv": self.test_data}
         params = {
-            'momentum_period': 5,
-            'momentum_threshold': 0.02,
-            'volume_ma_period': 20,
-            'volume_threshold': 1.5,
-            'enable_volume_filter': False,  # 關閉
-            'funding_weight': 0.5,
-            'oi_threshold': 1.0,
-            'basis_lookback': 7
+            "momentum_period": 5,
+            "momentum_threshold": 0.02,
+            "volume_ma_period": 20,
+            "volume_threshold": 1.5,
+            "enable_volume_filter": False,  # 關閉
+            "funding_weight": 0.5,
+            "oi_threshold": 1.0,
+            "basis_lookback": 7,
         }
 
         signals = self.strategy.compute_signals(data, params)
@@ -414,6 +401,7 @@ class TestBaseStrategyInterface(unittest.TestCase):
 
     def test_must_implement_abstract_methods(self):
         """測試必須實作抽象方法"""
+
         # 創建一個不完整的策略類
         class IncompleteStrategy(BaseStrategy):
             def __init__(self):
@@ -429,5 +417,5 @@ class TestBaseStrategyInterface(unittest.TestCase):
             IncompleteStrategy()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

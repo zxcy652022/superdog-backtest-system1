@@ -14,13 +14,19 @@ Design Reference: docs/specs/v0.6/superdog_v06_execution_model_spec.md
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 from datetime import datetime
+from typing import Dict, Optional
 
-from .fee_models import FeeCalculator, FeeStructure, FeeCost, InstrumentType, OrderType
-from .slippage_models import SlippageModel, SlippageConfig, SlippageResult, SymbolTier, SlippageModelType
-from .funding_models import FundingModel, FundingConfig, FundingResult
-from .liquidation_models import LiquidationModel, MarginConfig, LiquidationResult, RiskLevel
+from .fee_models import FeeCalculator, FeeCost, FeeStructure, InstrumentType, OrderType
+from .funding_models import FundingConfig, FundingModel, FundingResult
+from .liquidation_models import LiquidationModel, LiquidationResult, MarginConfig, RiskLevel
+from .slippage_models import (
+    SlippageConfig,
+    SlippageModel,
+    SlippageModelType,
+    SlippageResult,
+    SymbolTier,
+)
 
 
 @dataclass
@@ -50,7 +56,7 @@ class ExecutionConfig:
 
     # 執行參數
     slippage_model_type: SlippageModelType = SlippageModelType.ADAPTIVE
-    default_vip_level: str = 'VIP0'
+    default_vip_level: str = "VIP0"
     max_leverage: float = 20
     max_order_value: float = 1000000  # USD
 
@@ -58,6 +64,7 @@ class ExecutionConfig:
 @dataclass
 class TradeExecution:
     """交易執行結果"""
+
     # 基本信息
     symbol: str
     side: str  # 'buy'/'sell'
@@ -76,8 +83,8 @@ class TradeExecution:
     execution_price: float = 0.0  # 實際成交價格
 
     # 狀態
-    status: str = 'executed'  # 'executed'/'rejected'/'liquidated'
-    reason: str = ''
+    status: str = "executed"  # 'executed'/'rejected'/'liquidated'
+    reason: str = ""
 
     def __post_init__(self):
         """計算總成本和實際成交價格"""
@@ -89,7 +96,7 @@ class TradeExecution:
         # 計算實際成交價格（包含滑價）
         if self.slippage_result:
             slippage_rate = self.slippage_result.slippage_rate
-            if self.side == 'buy':
+            if self.side == "buy":
                 self.execution_price = self.price * (1 + slippage_rate)
             else:
                 self.execution_price = self.price * (1 - slippage_rate)
@@ -127,13 +134,11 @@ class RealisticExecutionEngine:
 
         # 初始化各個模型
         self.fee_calculator = FeeCalculator(
-            self.config.fee_structure,
-            self.config.default_vip_level
+            self.config.fee_structure, self.config.default_vip_level
         )
 
         self.slippage_model = SlippageModel(
-            self.config.slippage_model_type,
-            self.config.slippage_config
+            self.config.slippage_model_type, self.config.slippage_config
         )
 
         self.funding_model = FundingModel(self.config.funding_config)
@@ -159,7 +164,7 @@ class RealisticExecutionEngine:
         account_balance: Optional[float] = None,
         leverage: float = 1.0,
         vip_level: Optional[str] = None,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
     ) -> TradeExecution:
         """執行交易
 
@@ -185,23 +190,19 @@ class RealisticExecutionEngine:
         order_value = size * price
 
         # 1. 計算手續費
-        fee_cost = self.fee_calculator.calculate_trading_fee(
-            order_type,
-            order_value,
-            instrument_type,
-            vip_level
-        ) if self.config.enable_fees else FeeCost(base_fee=0, final_fee=0)
+        fee_cost = (
+            self.fee_calculator.calculate_trading_fee(
+                order_type, order_value, instrument_type, vip_level
+            )
+            if self.config.enable_fees
+            else FeeCost(base_fee=0, final_fee=0)
+        )
 
         # 2. 計算滑價
         slippage_result = None
         if self.config.enable_slippage:
             slippage_result = self.slippage_model.calculate_slippage(
-                size,
-                order_value,
-                avg_volume_24h,
-                volatility,
-                symbol_tier,
-                order_type
+                size, order_value, avg_volume_24h, volatility, symbol_tier, order_type
             )
 
         # 3. 風險檢查（如果提供了賬戶餘額）
@@ -213,7 +214,7 @@ class RealisticExecutionEngine:
                 entry_price=price,
                 current_price=price,
                 account_balance=account_balance,
-                leverage=leverage
+                leverage=leverage,
             )
 
             # 如果風險過高，拒絕執行
@@ -227,8 +228,8 @@ class RealisticExecutionEngine:
                     fee_cost=fee_cost,
                     slippage_result=slippage_result,
                     liquidation_result=liquidation_result,
-                    status='rejected',
-                    reason=f'High liquidation risk: {liquidation_result.risk_level.value}'
+                    status="rejected",
+                    reason=f"High liquidation risk: {liquidation_result.risk_level.value}",
                 )
 
         # 4. 創建執行結果
@@ -240,7 +241,7 @@ class RealisticExecutionEngine:
             timestamp=timestamp,
             fee_cost=fee_cost,
             slippage_result=slippage_result,
-            liquidation_result=liquidation_result
+            liquidation_result=liquidation_result,
         )
 
         # 5. 更新統計
@@ -258,7 +259,7 @@ class RealisticExecutionEngine:
         entry_time: datetime,
         exit_time: datetime,
         entry_price: float,
-        funding_rate_data: Optional = None
+        funding_rate_data: Optional = None,
     ) -> FundingResult:
         """計算持倉的 Funding 費用
 
@@ -275,19 +276,11 @@ class RealisticExecutionEngine:
         """
         if not self.config.enable_funding:
             return FundingResult(
-                total_funding_cost=0,
-                num_funding_events=0,
-                avg_funding_rate=0,
-                funding_events=[]
+                total_funding_cost=0, num_funding_events=0, avg_funding_rate=0, funding_events=[]
             )
 
         result = self.funding_model.calculate_funding_cost(
-            position_size,
-            position_side,
-            entry_time,
-            exit_time,
-            entry_price,
-            funding_rate_data
+            position_size, position_side, entry_time, exit_time, entry_price, funding_rate_data
         )
 
         self.total_funding_cost += result.total_funding_cost
@@ -300,18 +293,17 @@ class RealisticExecutionEngine:
             Dict: 統計信息
         """
         return {
-            'total_executions': self.total_executions,
-            'total_trading_cost': self.total_trading_cost,
-            'total_slippage_cost': self.total_slippage_cost,
-            'total_funding_cost': self.total_funding_cost,
-            'avg_cost_per_trade': (
-                self.total_trading_cost / self.total_executions
-                if self.total_executions > 0 else 0
+            "total_executions": self.total_executions,
+            "total_trading_cost": self.total_trading_cost,
+            "total_slippage_cost": self.total_slippage_cost,
+            "total_funding_cost": self.total_funding_cost,
+            "avg_cost_per_trade": (
+                self.total_trading_cost / self.total_executions if self.total_executions > 0 else 0
             ),
-            'fee_stats': self.fee_calculator.get_statistics(),
-            'slippage_stats': self.slippage_model.get_statistics(),
-            'funding_stats': self.funding_model.get_statistics(),
-            'liquidation_stats': self.liquidation_model.get_statistics()
+            "fee_stats": self.fee_calculator.get_statistics(),
+            "slippage_stats": self.slippage_model.get_statistics(),
+            "funding_stats": self.funding_model.get_statistics(),
+            "liquidation_stats": self.liquidation_model.get_statistics(),
         }
 
     def reset_statistics(self):
@@ -329,6 +321,7 @@ class RealisticExecutionEngine:
 
 # ===== 便捷函數 =====
 
+
 def create_default_engine() -> RealisticExecutionEngine:
     """創建默認配置的執行引擎
 
@@ -344,8 +337,5 @@ def create_conservative_engine() -> RealisticExecutionEngine:
     Returns:
         RealisticExecutionEngine: 執行引擎實例
     """
-    config = ExecutionConfig(
-        slippage_model_type=SlippageModelType.ADAPTIVE,
-        max_leverage=5
-    )
+    config = ExecutionConfig(slippage_model_type=SlippageModelType.ADAPTIVE, max_leverage=5)
     return RealisticExecutionEngine(config)

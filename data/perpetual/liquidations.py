@@ -17,11 +17,11 @@ Author: SuperDog Quant Team
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, Union, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from data.exchanges import BinanceConnector, OKXConnector
 
@@ -41,10 +41,7 @@ class LiquidationData:
     - 長短邊爆倉比例分析
     """
 
-    def __init__(
-        self,
-        storage_path: Optional[Path] = None
-    ):
+    def __init__(self, storage_path: Optional[Path] = None):
         """初始化爆倉數據處理器
 
         Args:
@@ -52,20 +49,17 @@ class LiquidationData:
         """
         # 設置存儲路徑
         if storage_path is None:
-            ssd_path = Path('/Volumes/權志龍的寶藏/SuperDogData/perpetual/liquidations')
+            ssd_path = Path("/Volumes/權志龍的寶藏/SuperDogData/perpetual/liquidations")
             if ssd_path.parent.parent.exists():
                 storage_path = ssd_path
             else:
-                storage_path = Path.cwd() / 'data_storage' / 'perpetual' / 'liquidations'
+                storage_path = Path.cwd() / "data_storage" / "perpetual" / "liquidations"
 
         self.storage_path = storage_path
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         # 交易所連接器
-        self.connectors = {
-            'binance': BinanceConnector(),
-            'okx': OKXConnector()
-        }
+        self.connectors = {"binance": BinanceConnector(), "okx": OKXConnector()}
 
         # 數據快取
         self._cache: Dict[str, pd.DataFrame] = {}
@@ -77,8 +71,8 @@ class LiquidationData:
         symbol: str,
         start_time: Optional[Union[str, datetime]] = None,
         end_time: Optional[Union[str, datetime]] = None,
-        exchange: str = 'binance',
-        use_cache: bool = True
+        exchange: str = "binance",
+        use_cache: bool = True,
     ) -> pd.DataFrame:
         """獲取爆倉數據
 
@@ -122,10 +116,10 @@ class LiquidationData:
         connector = self.connectors[exchange]
 
         try:
-            if exchange == 'binance':
+            if exchange == "binance":
                 # Binance 提供強制平倉訂單流
                 df = self._fetch_binance_liquidations(symbol, start_time, end_time)
-            elif exchange == 'okx':
+            elif exchange == "okx":
                 # OKX 提供爆倉數據聚合
                 df = connector.get_liquidations(symbol, start_time, end_time)
             else:
@@ -136,7 +130,7 @@ class LiquidationData:
                 return df
 
             # 添加 exchange 欄位
-            df['exchange'] = exchange
+            df["exchange"] = exchange
 
             # 快取數據
             if use_cache:
@@ -151,10 +145,7 @@ class LiquidationData:
             return pd.DataFrame()
 
     def _fetch_binance_liquidations(
-        self,
-        symbol: str,
-        start_time: datetime,
-        end_time: datetime
+        self, symbol: str, start_time: datetime, end_time: datetime
     ) -> pd.DataFrame:
         """獲取 Binance 爆倉數據
 
@@ -171,7 +162,7 @@ class LiquidationData:
         Returns:
             DataFrame with liquidation records
         """
-        connector = self.connectors['binance']
+        connector = self.connectors["binance"]
         endpoint = "/fapi/v1/forceOrders"
 
         all_data = []
@@ -179,10 +170,10 @@ class LiquidationData:
 
         while current_start < end_time:
             params = {
-                'symbol': symbol.upper(),
-                'startTime': int(current_start.timestamp() * 1000),
-                'endTime': int(end_time.timestamp() * 1000),
-                'limit': 1000
+                "symbol": symbol.upper(),
+                "startTime": int(current_start.timestamp() * 1000),
+                "endTime": int(end_time.timestamp() * 1000),
+                "limit": 1000,
             }
 
             try:
@@ -198,10 +189,11 @@ class LiquidationData:
                     break
 
                 # 更新下一次請求的開始時間
-                last_time = response[-1]['time']
+                last_time = response[-1]["time"]
                 current_start = datetime.fromtimestamp(last_time / 1000) + timedelta(milliseconds=1)
 
                 import time
+
                 time.sleep(0.1)
 
             except Exception as e:
@@ -215,25 +207,21 @@ class LiquidationData:
         df = pd.DataFrame(all_data)
 
         # 標準化欄位
-        df['timestamp'] = pd.to_datetime(df['time'], unit='ms')
-        df['symbol'] = symbol
-        df['side'] = df['side'].str.lower()  # BUY -> long, SELL -> short
-        df['side'] = df['side'].map({'buy': 'long', 'sell': 'short'})
-        df['size'] = df['origQty'].astype(float)
-        df['price'] = df['price'].astype(float)
-        df['value'] = df['size'] * df['price']
+        df["timestamp"] = pd.to_datetime(df["time"], unit="ms")
+        df["symbol"] = symbol
+        df["side"] = df["side"].str.lower()  # BUY -> long, SELL -> short
+        df["side"] = df["side"].map({"buy": "long", "sell": "short"})
+        df["size"] = df["origQty"].astype(float)
+        df["price"] = df["price"].astype(float)
+        df["value"] = df["size"] * df["price"]
 
         # 選擇需要的欄位
-        df = df[['timestamp', 'symbol', 'side', 'size', 'price', 'value']]
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        df = df[["timestamp", "symbol", "side", "size", "price", "value"]]
+        df = df.sort_values("timestamp").reset_index(drop=True)
 
         return df
 
-    def calculate_liquidation_density(
-        self,
-        df: pd.DataFrame,
-        window: str = '1H'
-    ) -> pd.DataFrame:
+    def calculate_liquidation_density(self, df: pd.DataFrame, window: str = "1H") -> pd.DataFrame:
         """計算爆倉密度
 
         在指定時間窗口內聚合爆倉數據
@@ -257,36 +245,33 @@ class LiquidationData:
             return pd.DataFrame()
 
         df = df.copy()
-        df = df.set_index('timestamp')
+        df = df.set_index("timestamp")
 
         # 按時間窗口聚合
-        agg_dict = {
-            'value': 'sum',
-            'size': 'count'
-        }
+        agg_dict = {"value": "sum", "size": "count"}
 
         # 總體聚合
         total = df.resample(window).agg(agg_dict)
-        total = total.rename(columns={'value': 'total_value', 'size': 'total_liquidations'})
+        total = total.rename(columns={"value": "total_value", "size": "total_liquidations"})
 
         # 多頭爆倉
-        long_df = df[df['side'] == 'long']
+        long_df = df[df["side"] == "long"]
         long_agg = long_df.resample(window).agg(agg_dict)
-        long_agg = long_agg.rename(columns={'value': 'long_value', 'size': 'long_liquidations'})
+        long_agg = long_agg.rename(columns={"value": "long_value", "size": "long_liquidations"})
 
         # 空頭爆倉
-        short_df = df[df['side'] == 'short']
+        short_df = df[df["side"] == "short"]
         short_agg = short_df.resample(window).agg(agg_dict)
-        short_agg = short_agg.rename(columns={'value': 'short_value', 'size': 'short_liquidations'})
+        short_agg = short_agg.rename(columns={"value": "short_value", "size": "short_liquidations"})
 
         # 合併
         result = pd.concat([total, long_agg, short_agg], axis=1)
         result = result.fillna(0)
 
         # 計算主導方向
-        result['dominant_side'] = 'neutral'
-        result.loc[result['long_value'] > result['short_value'] * 1.5, 'dominant_side'] = 'long'
-        result.loc[result['short_value'] > result['long_value'] * 1.5, 'dominant_side'] = 'short'
+        result["dominant_side"] = "neutral"
+        result.loc[result["long_value"] > result["short_value"] * 1.5, "dominant_side"] = "long"
+        result.loc[result["short_value"] > result["long_value"] * 1.5, "dominant_side"] = "short"
 
         result = result.reset_index()
 
@@ -294,11 +279,7 @@ class LiquidationData:
 
         return result
 
-    def calculate_panic_index(
-        self,
-        df: pd.DataFrame,
-        window: int = 24
-    ) -> Dict[str, Any]:
+    def calculate_panic_index(self, df: pd.DataFrame, window: int = 24) -> Dict[str, Any]:
         """計算市場恐慌指數
 
         基於爆倉密度和強度計算恐慌指數（0-100）
@@ -311,30 +292,22 @@ class LiquidationData:
             恐慌指數和分析結果
         """
         if df.empty or len(df) < window:
-            return {
-                'panic_index': 0,
-                'level': 'unknown',
-                'status': 'insufficient_data'
-            }
+            return {"panic_index": 0, "level": "unknown", "status": "insufficient_data"}
 
         # 計算密度
-        density_df = self.calculate_liquidation_density(df, window='1H')
+        density_df = self.calculate_liquidation_density(df, window="1H")
 
         if density_df.empty:
-            return {
-                'panic_index': 0,
-                'level': 'unknown',
-                'status': 'no_liquidations'
-            }
+            return {"panic_index": 0, "level": "unknown", "status": "no_liquidations"}
 
         # 取最近的數據
         recent = density_df.tail(window)
 
         # 計算指標
-        total_value = recent['total_value'].sum()
-        avg_value = recent['total_value'].mean()
-        max_value = recent['total_value'].max()
-        current_value = recent['total_value'].iloc[-1]
+        total_value = recent["total_value"].sum()
+        avg_value = recent["total_value"].mean()
+        max_value = recent["total_value"].max()
+        current_value = recent["total_value"].iloc[-1]
 
         # 恐慌指數計算
         # 基於當前爆倉量相對於平均值的倍數
@@ -348,31 +321,29 @@ class LiquidationData:
 
         # 恐慌等級
         if panic_index < 20:
-            level = 'calm'
+            level = "calm"
         elif panic_index < 40:
-            level = 'moderate'
+            level = "moderate"
         elif panic_index < 60:
-            level = 'elevated'
+            level = "elevated"
         elif panic_index < 80:
-            level = 'high'
+            level = "high"
         else:
-            level = 'extreme'
+            level = "extreme"
 
         return {
-            'panic_index': panic_index,
-            'level': level,
-            'total_liquidations_24h': total_value,
-            'current_liquidations': current_value,
-            'avg_liquidations': avg_value,
-            'max_liquidations': max_value,
-            'intensity_ratio': intensity_ratio,
-            'window_hours': window
+            "panic_index": panic_index,
+            "level": level,
+            "total_liquidations_24h": total_value,
+            "current_liquidations": current_value,
+            "avg_liquidations": avg_value,
+            "max_liquidations": max_value,
+            "intensity_ratio": intensity_ratio,
+            "window_hours": window,
         }
 
     def identify_liquidation_clusters(
-        self,
-        df: pd.DataFrame,
-        threshold: float = 1000000  # $1M USDT
+        self, df: pd.DataFrame, threshold: float = 1000000  # $1M USDT
     ) -> pd.DataFrame:
         """識別爆倉聚集區
 
@@ -391,34 +362,26 @@ class LiquidationData:
             return df
 
         # 計算密度
-        density_df = self.calculate_liquidation_density(df, window='1H')
+        density_df = self.calculate_liquidation_density(df, window="1H")
 
         # 標記聚集區
-        density_df['is_cluster'] = density_df['total_value'] > threshold
+        density_df["is_cluster"] = density_df["total_value"] > threshold
 
         # 聚集類型
-        density_df['cluster_type'] = 'none'
+        density_df["cluster_type"] = "none"
         density_df.loc[
-            (density_df['is_cluster']) & (density_df['dominant_side'] == 'long'),
-            'cluster_type'
-        ] = 'long_squeeze'
+            (density_df["is_cluster"]) & (density_df["dominant_side"] == "long"), "cluster_type"
+        ] = "long_squeeze"
         density_df.loc[
-            (density_df['is_cluster']) & (density_df['dominant_side'] == 'short'),
-            'cluster_type'
-        ] = 'short_squeeze'
+            (density_df["is_cluster"]) & (density_df["dominant_side"] == "short"), "cluster_type"
+        ] = "short_squeeze"
 
-        cluster_count = density_df['is_cluster'].sum()
+        cluster_count = density_df["is_cluster"].sum()
         logger.info(f"Identified {cluster_count} liquidation clusters")
 
         return density_df
 
-    def save(
-        self,
-        df: pd.DataFrame,
-        symbol: str,
-        exchange: str,
-        format: str = 'parquet'
-    ) -> Path:
+    def save(self, df: pd.DataFrame, symbol: str, exchange: str, format: str = "parquet") -> Path:
         """保存爆倉數據到存儲"""
         if df.empty:
             logger.warning("Empty DataFrame, skipping save")
@@ -427,14 +390,14 @@ class LiquidationData:
         exchange_dir = self.storage_path / exchange
         exchange_dir.mkdir(exist_ok=True)
 
-        start_date = df['timestamp'].min().strftime('%Y%m%d')
-        end_date = df['timestamp'].max().strftime('%Y%m%d')
+        start_date = df["timestamp"].min().strftime("%Y%m%d")
+        end_date = df["timestamp"].max().strftime("%Y%m%d")
         filename = f"{symbol}_liquidations_{start_date}_{end_date}.{format}"
         filepath = exchange_dir / filename
 
-        if format == 'parquet':
-            df.to_parquet(filepath, compression='snappy', index=False)
-        elif format == 'csv':
+        if format == "parquet":
+            df.to_parquet(filepath, compression="snappy", index=False)
+        elif format == "csv":
             df.to_csv(filepath, index=False)
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -448,7 +411,7 @@ class LiquidationData:
         symbol: str,
         exchange: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> pd.DataFrame:
         """從存儲載入爆倉數據"""
         exchange_dir = self.storage_path / exchange
@@ -470,12 +433,12 @@ class LiquidationData:
             dfs.append(df)
 
         df = pd.concat(dfs, ignore_index=True)
-        df = df.sort_values('timestamp').drop_duplicates('timestamp')
+        df = df.sort_values("timestamp").drop_duplicates("timestamp")
 
         if start_date:
-            df = df[df['timestamp'] >= pd.to_datetime(start_date)]
+            df = df[df["timestamp"] >= pd.to_datetime(start_date)]
         if end_date:
-            df = df[df['timestamp'] <= pd.to_datetime(end_date)]
+            df = df[df["timestamp"] <= pd.to_datetime(end_date)]
 
         logger.info(f"Loaded {len(df)} liquidation records for {symbol}")
 
@@ -487,7 +450,7 @@ def fetch_liquidations(
     symbol: str,
     start_time: Optional[Union[str, datetime]] = None,
     end_time: Optional[Union[str, datetime]] = None,
-    exchange: str = 'binance'
+    exchange: str = "binance",
 ) -> pd.DataFrame:
     """便捷函數：獲取爆倉數據
 
@@ -499,10 +462,7 @@ def fetch_liquidations(
     return liq.fetch(symbol, start_time, end_time, exchange)
 
 
-def calculate_panic_index(
-    symbol: str,
-    exchange: str = 'binance'
-) -> Dict[str, Any]:
+def calculate_panic_index(symbol: str, exchange: str = "binance") -> Dict[str, Any]:
     """便捷函數：計算市場恐慌指數
 
     Example:

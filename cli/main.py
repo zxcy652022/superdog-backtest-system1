@@ -21,28 +21,29 @@ Design Reference:
 - v0.5: PHASE_B_DELIVERY.md, V05_FINAL_SUMMARY.md
 """
 
-import click
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+import click
 
 # 添加項目根目錄到 Python 路徑 (v0.5 修復)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from execution_engine.portfolio_runner import RunConfig, run_portfolio, load_configs_from_yaml
-from reports.text_reporter import render_single, render_portfolio
-from data.storage import load_ohlcv
-from strategies.registry_v2 import get_registry
 from backtest.engine import run_backtest
 
 # v0.4 新增導入
 from cli.dynamic_params import (
     DynamicCLI,
     extract_strategy_params,
+    format_strategy_help,
     validate_and_convert_params,
-    format_strategy_help
 )
-from cli.parameter_validator import ParameterValidator, BacktestConfigValidator
+from cli.parameter_validator import BacktestConfigValidator, ParameterValidator
+from data.storage import load_ohlcv
+from execution_engine.portfolio_runner import RunConfig, load_configs_from_yaml, run_portfolio
+from reports.text_reporter import render_portfolio, render_single
+from strategies.registry_v2 import get_registry
 
 
 @click.group()
@@ -83,7 +84,9 @@ def cli():
 @click.option("--tp", "take_profit", type=float, help="止盈百分比 (例如: 0.05)")
 @click.option("-o", "--output", help="輸出報表到檔案")
 @click.option("-v", "--verbose", is_flag=True, help="顯示詳細日誌")
-def run_single(strategy, symbol, timeframe, cash, fee, leverage, stop_loss, take_profit, output, verbose):
+def run_single(
+    strategy, symbol, timeframe, cash, fee, leverage, stop_loss, take_profit, output, verbose
+):
     """
     執行單個策略回測
 
@@ -106,7 +109,7 @@ def run_single(strategy, symbol, timeframe, cash, fee, leverage, stop_loss, take
             fee_rate=fee,
             leverage=leverage,
             stop_loss_pct=stop_loss,
-            take_profit_pct=take_profit
+            take_profit_pct=take_profit,
         )
 
         # 4. 生成報表
@@ -118,7 +121,7 @@ def run_single(strategy, symbol, timeframe, cash, fee, leverage, stop_loss, take
             fee_rate=fee,
             leverage=leverage,
             stop_loss_pct=stop_loss,
-            take_profit_pct=take_profit
+            take_profit_pct=take_profit,
         )
         report = render_single(result, config=config)
 
@@ -190,7 +193,7 @@ def list_strategies_cmd(detailed):
                 # 檢查是否為 v2.0 策略
                 try:
                     strategy_instance = strategy_cls()
-                    if hasattr(strategy_instance, 'get_parameters'):
+                    if hasattr(strategy_instance, "get_parameters"):
                         # v2.0 策略
                         params = strategy_instance.get_parameters()
                         click.echo(f"   Description: {strategy_instance.description or 'N/A'}")
@@ -232,7 +235,7 @@ def strategy_info_cmd(strategy):
         try:
             strategy_instance = strategy_cls()
 
-            if hasattr(strategy_instance, 'get_parameters'):
+            if hasattr(strategy_instance, "get_parameters"):
                 # v2.0 策略 - 使用動態幫助格式化
                 help_text = format_strategy_help(strategy_instance)
                 click.echo(help_text)
@@ -276,6 +279,7 @@ def interactive_menu():
     """
     try:
         from cli.interactive import MainMenu
+
         menu = MainMenu()
         menu.run()
     except KeyboardInterrupt:
@@ -312,11 +316,7 @@ def verify_installation():
             click.echo("❌ 驗證腳本未找到")
             raise click.Abort()
 
-        result = subprocess.run(
-            [sys.executable, script],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([sys.executable, script], capture_output=True, text=True)
         click.echo(result.stdout)
         if result.returncode != 0:
             click.echo(result.stderr, err=True)
@@ -331,10 +331,13 @@ def verify_installation():
 
 
 @cli.command(name="demo")
-@click.option("--type", "demo_type",
-              type=click.Choice(['phase-b', 'kawamoku', 'all']),
-              default='phase-b',
-              help="示範類型")
+@click.option(
+    "--type",
+    "demo_type",
+    type=click.Choice(["phase-b", "kawamoku", "all"]),
+    default="phase-b",
+    help="示範類型",
+)
 def run_demo(demo_type):
     """
     運行 SuperDog v0.5 示範腳本
@@ -351,11 +354,11 @@ def run_demo(demo_type):
     import subprocess
 
     demos = {
-        'phase-b': 'examples/phase_b_quick_demo.py',
-        'kawamoku': 'examples/kawamoku_complete_v05.py'
+        "phase-b": "examples/phase_b_quick_demo.py",
+        "kawamoku": "examples/kawamoku_complete_v05.py",
     }
 
-    if demo_type == 'all':
+    if demo_type == "all":
         for name, script in demos.items():
             click.echo(f"\n{'='*60}")
             click.echo(f"運行 {name} 示範...")
@@ -374,10 +377,13 @@ def run_demo(demo_type):
 
 
 @cli.command(name="test")
-@click.option("--type", "test_type",
-              type=click.Choice(['integration', 'all']),
-              default='integration',
-              help="測試類型")
+@click.option(
+    "--type",
+    "test_type",
+    type=click.Choice(["integration", "all"]),
+    default="integration",
+    help="測試類型",
+)
 def run_tests(test_type):
     """
     運行 SuperDog v0.5 測試套件
@@ -391,19 +397,19 @@ def run_tests(test_type):
     """
     import subprocess
 
-    if test_type == 'integration':
-        script = 'tests/test_integration_v05.py'
+    if test_type == "integration":
+        script = "tests/test_integration_v05.py"
         click.echo("運行整合測試...\n")
         try:
             subprocess.run([sys.executable, script], check=True)
         except subprocess.CalledProcessError:
             click.echo("測試失敗", err=True)
             raise click.Abort()
-    elif test_type == 'all':
+    elif test_type == "all":
         click.echo("運行所有測試...\n")
         # 未來可以添加更多測試
         try:
-            subprocess.run([sys.executable, 'tests/test_integration_v05.py'], check=True)
+            subprocess.run([sys.executable, "tests/test_integration_v05.py"], check=True)
         except subprocess.CalledProcessError:
             click.echo("測試失敗", err=True)
             raise click.Abort()
@@ -411,7 +417,8 @@ def run_tests(test_type):
 
 # ===== Universe Management Commands (v0.6) =====
 
-@cli.group(name='universe')
+
+@cli.group(name="universe")
 def universe_group():
     """
     幣種宇宙管理命令 (v0.6 Phase 1)
@@ -426,21 +433,16 @@ def universe_group():
     pass
 
 
-@universe_group.command(name='build')
-@click.option('--exclude-stablecoins', is_flag=True, default=True,
-              help='排除穩定幣 (默認: True)')
-@click.option('--min-history-days', type=int, default=90,
-              help='最小上市天數 (默認: 90)')
-@click.option('--min-volume', type=float, default=1000000,
-              help='最小30日平均成交額 (默認: $1M)')
-@click.option('--parallel/--no-parallel', default=True,
-              help='是否並行計算 (默認: True)')
-@click.option('--max-workers', type=int, default=10,
-              help='並行線程數 (默認: 10)')
-@click.option('-v', '--verbose', is_flag=True,
-              help='顯示詳細日誌')
-def build_universe(exclude_stablecoins, min_history_days, min_volume,
-                  parallel, max_workers, verbose):
+@universe_group.command(name="build")
+@click.option("--exclude-stablecoins", is_flag=True, default=True, help="排除穩定幣 (默認: True)")
+@click.option("--min-history-days", type=int, default=90, help="最小上市天數 (默認: 90)")
+@click.option("--min-volume", type=float, default=1000000, help="最小30日平均成交額 (默認: $1M)")
+@click.option("--parallel/--no-parallel", default=True, help="是否並行計算 (默認: True)")
+@click.option("--max-workers", type=int, default=10, help="並行線程數 (默認: 10)")
+@click.option("-v", "--verbose", is_flag=True, help="顯示詳細日誌")
+def build_universe(
+    exclude_stablecoins, min_history_days, min_volume, parallel, max_workers, verbose
+):
     """
     構建幣種宇宙
 
@@ -451,12 +453,13 @@ def build_universe(exclude_stablecoins, min_history_days, min_volume,
         superdog universe build --min-history-days 180 --parallel
     """
     import logging
+
     from data.universe_manager import get_universe_manager
 
     # 設定日誌級別
     if verbose:
-        logging.getLogger('data.universe_manager').setLevel(logging.DEBUG)
-        logging.getLogger('data.universe_calculator').setLevel(logging.DEBUG)
+        logging.getLogger("data.universe_manager").setLevel(logging.DEBUG)
+        logging.getLogger("data.universe_calculator").setLevel(logging.DEBUG)
 
     try:
         click.echo("=" * 70)
@@ -480,7 +483,7 @@ def build_universe(exclude_stablecoins, min_history_days, min_volume,
             min_history_days=min_history_days,
             min_volume=min_volume,
             parallel=parallel,
-            max_workers=max_workers
+            max_workers=max_workers,
         )
 
         # 保存快照
@@ -508,17 +511,20 @@ def build_universe(exclude_stablecoins, min_history_days, min_volume,
         click.echo(f"錯誤: {e}", err=True)
         if verbose:
             import traceback
+
             traceback.print_exc()
         raise click.Abort()
 
 
-@universe_group.command(name='show')
-@click.argument('classification',
-                type=click.Choice(['large_cap', 'mid_cap', 'small_cap', 'micro_cap', 'all']))
-@click.option('--date', type=str, help='快照日期 (YYYY-MM-DD)，默認為最新')
-@click.option('--top', type=int, help='只顯示前N個（按成交額排序）')
-@click.option('--format', type=click.Choice(['table', 'list', 'json']), default='table',
-              help='輸出格式')
+@universe_group.command(name="show")
+@click.argument(
+    "classification", type=click.Choice(["large_cap", "mid_cap", "small_cap", "micro_cap", "all"])
+)
+@click.option("--date", type=str, help="快照日期 (YYYY-MM-DD)，默認為最新")
+@click.option("--top", type=int, help="只顯示前N個（按成交額排序）")
+@click.option(
+    "--format", type=click.Choice(["table", "list", "json"]), default="table", help="輸出格式"
+)
 def show_universe(classification, date, top, format):
     """
     顯示宇宙分類
@@ -530,9 +536,10 @@ def show_universe(classification, date, top, format):
         superdog universe show mid_cap --top 20
         superdog universe show all --format json
     """
-    from data.universe_manager import get_universe_manager
-    from datetime import datetime
     import json as json_module
+    from datetime import datetime
+
+    from data.universe_manager import get_universe_manager
 
     try:
         manager = get_universe_manager()
@@ -548,9 +555,9 @@ def show_universe(classification, date, top, format):
         universe = manager.load_universe(date)
 
         # 獲取指定分類的幣種
-        if classification == 'all':
+        if classification == "all":
             symbols_to_show = []
-            for cat in ['large_cap', 'mid_cap', 'small_cap', 'micro_cap']:
+            for cat in ["large_cap", "mid_cap", "small_cap", "micro_cap"]:
                 symbols_to_show.extend(universe.classification.get(cat, []))
         else:
             symbols_to_show = universe.classification.get(classification, [])
@@ -561,9 +568,7 @@ def show_universe(classification, date, top, format):
 
         # 按成交額排序
         sorted_symbols = sorted(
-            symbols_to_show,
-            key=lambda s: universe.symbols[s].volume_30d_usd,
-            reverse=True
+            symbols_to_show, key=lambda s: universe.symbols[s].volume_30d_usd, reverse=True
         )
 
         # 取前N個
@@ -577,9 +582,11 @@ def show_universe(classification, date, top, format):
         click.echo("=" * 100)
         click.echo()
 
-        if format == 'table':
+        if format == "table":
             # 表格格式
-            click.echo(f"{'#':<4} {'Symbol':<12} {'30d Volume':<15} {'History':<10} {'OI Trend':<10} {'Perpetual':<10}")
+            click.echo(
+                f"{'#':<4} {'Symbol':<12} {'30d Volume':<15} {'History':<10} {'OI Trend':<10} {'Perpetual':<10}"
+            )
             click.echo("-" * 100)
             for i, symbol in enumerate(sorted_symbols, 1):
                 meta = universe.symbols[symbol]
@@ -589,21 +596,18 @@ def show_universe(classification, date, top, format):
                     f"{'✓' if meta.has_perpetual else '✗':>9}"
                 )
 
-        elif format == 'list':
+        elif format == "list":
             # 列表格式
             for symbol in sorted_symbols:
                 click.echo(symbol)
 
-        elif format == 'json':
+        elif format == "json":
             # JSON格式
             output = {
-                'date': date,
-                'classification': classification,
-                'total': len(sorted_symbols),
-                'symbols': [
-                    universe.symbols[s].to_dict()
-                    for s in sorted_symbols
-                ]
+                "date": date,
+                "classification": classification,
+                "total": len(sorted_symbols),
+                "symbols": [universe.symbols[s].to_dict() for s in sorted_symbols],
             }
             click.echo(json_module.dumps(output, indent=2, ensure_ascii=False))
 
@@ -620,16 +624,18 @@ def show_universe(classification, date, top, format):
         raise click.Abort()
 
 
-@universe_group.command(name='export')
-@click.option('--type', 'universe_type',
-              type=click.Choice(['large_cap', 'mid_cap', 'small_cap', 'micro_cap']),
-              default='large_cap',
-              help='宇宙類型')
-@click.option('--top', type=int, help='只匯出前N個（按成交額排序）')
-@click.option('--format', type=click.Choice(['yaml', 'json']), default='yaml',
-              help='輸出格式')
-@click.option('--output', '-o', type=str, help='輸出文件路徑')
-@click.option('--date', type=str, help='快照日期 (YYYY-MM-DD)，默認為最新')
+@universe_group.command(name="export")
+@click.option(
+    "--type",
+    "universe_type",
+    type=click.Choice(["large_cap", "mid_cap", "small_cap", "micro_cap"]),
+    default="large_cap",
+    help="宇宙類型",
+)
+@click.option("--top", type=int, help="只匯出前N個（按成交額排序）")
+@click.option("--format", type=click.Choice(["yaml", "json"]), default="yaml", help="輸出格式")
+@click.option("--output", "-o", type=str, help="輸出文件路徑")
+@click.option("--date", type=str, help="快照日期 (YYYY-MM-DD)，默認為最新")
 def export_universe(universe_type, top, format, output, date):
     """
     匯出宇宙配置文件
@@ -659,11 +665,7 @@ def export_universe(universe_type, top, format, output, date):
         click.echo(f"正在匯出 {universe_type} 配置...")
 
         config_path = manager.export_config(
-            universe,
-            universe_type=universe_type,
-            top_n=top,
-            format=format,
-            filename=output
+            universe, universe_type=universe_type, top_n=top, format=format, filename=output
         )
 
         click.echo()
@@ -679,7 +681,7 @@ def export_universe(universe_type, top, format, output, date):
         raise click.Abort()
 
 
-@universe_group.command(name='list')
+@universe_group.command(name="list")
 def list_universes():
     """
     列出所有可用的宇宙快照
@@ -715,7 +717,8 @@ def list_universes():
 
 # ===== v0.6 Experiment Commands =====
 
-@cli.group(name='experiment')
+
+@cli.group(name="experiment")
 def experiment_group():
     """
     實驗管理命令組 (v0.6 Strategy Lab)
@@ -733,12 +736,12 @@ def experiment_group():
     pass
 
 
-@experiment_group.command(name='create')
-@click.option('--name', required=True, help='實驗名稱')
-@click.option('-s', '--strategy', required=True, help='策略名稱')
-@click.option('-m', '--symbols', required=True, help='幣種列表 (逗號分隔)')
-@click.option('-t', '--timeframe', required=True, help='時間週期 (例如: 1h)')
-@click.option('-o', '--output', help='輸出路徑 (默認: experiments/{name}.yaml)')
+@experiment_group.command(name="create")
+@click.option("--name", required=True, help="實驗名稱")
+@click.option("-s", "--strategy", required=True, help="策略名稱")
+@click.option("-m", "--symbols", required=True, help="幣種列表 (逗號分隔)")
+@click.option("-t", "--timeframe", required=True, help="時間週期 (例如: 1h)")
+@click.option("-o", "--output", help="輸出路徑 (默認: experiments/{name}.yaml)")
 def create_experiment(name, strategy, symbols, timeframe, output):
     """
     創建實驗配置文件
@@ -751,7 +754,7 @@ def create_experiment(name, strategy, symbols, timeframe, output):
         from execution_engine import create_experiment_config
 
         # 解析幣種列表
-        symbol_list = [s.strip() for s in symbols.split(',')]
+        symbol_list = [s.strip() for s in symbols.split(",")]
 
         click.echo()
         click.echo(f"創建實驗配置: {name}")
@@ -768,28 +771,22 @@ def create_experiment(name, strategy, symbols, timeframe, output):
                     break
 
                 param_type = click.prompt(
-                    "類型 (list/range)",
-                    type=click.Choice(['list', 'range']),
-                    default='list'
+                    "類型 (list/range)", type=click.Choice(["list", "range"]), default="list"
                 )
 
-                if param_type == 'list':
+                if param_type == "list":
                     values_str = click.prompt("值列表 (逗號分隔)")
                     # 嘗試轉換為數字
                     try:
-                        values = [float(v.strip()) for v in values_str.split(',')]
+                        values = [float(v.strip()) for v in values_str.split(",")]
                     except:
-                        values = [v.strip() for v in values_str.split(',')]
+                        values = [v.strip() for v in values_str.split(",")]
                     parameters[param_name] = values
                 else:
                     start = click.prompt("起始值", type=float)
                     stop = click.prompt("結束值", type=float)
                     step = click.prompt("步長", type=float)
-                    parameters[param_name] = {
-                        'start': start,
-                        'stop': stop,
-                        'step': step
-                    }
+                    parameters[param_name] = {"start": start, "stop": stop, "step": step}
 
             except click.Abort:
                 break
@@ -804,7 +801,7 @@ def create_experiment(name, strategy, symbols, timeframe, output):
             strategy=strategy,
             symbols=symbol_list,
             parameters=parameters,
-            timeframe=timeframe
+            timeframe=timeframe,
         )
 
         # 保存配置
@@ -825,11 +822,11 @@ def create_experiment(name, strategy, symbols, timeframe, output):
         raise click.Abort()
 
 
-@experiment_group.command(name='run')
-@click.option('-c', '--config', required=True, help='實驗配置文件路徑')
-@click.option('-w', '--workers', default=4, help='並行工作數 (默認: 4)')
-@click.option('--no-retry', is_flag=True, help='失敗時不重試')
-@click.option('--fail-fast', is_flag=True, help='遇到錯誤立即停止')
+@experiment_group.command(name="run")
+@click.option("-c", "--config", required=True, help="實驗配置文件路徑")
+@click.option("-w", "--workers", default=4, help="並行工作數 (默認: 4)")
+@click.option("--no-retry", is_flag=True, help="失敗時不重試")
+@click.option("--fail-fast", is_flag=True, help="遇到錯誤立即停止")
 def run_experiment_cmd(config, workers, no_retry, fail_fast):
     """
     執行實驗
@@ -838,9 +835,9 @@ def run_experiment_cmd(config, workers, no_retry, fail_fast):
         superdog experiment run --config experiments/sma_test.yaml --workers 8
     """
     try:
-        from execution_engine import load_experiment_config, ExperimentRunner
         from backtest.engine import run_backtest
         from data.pipeline import get_pipeline
+        from execution_engine import ExperimentRunner, load_experiment_config
 
         # 加載配置
         click.echo()
@@ -869,7 +866,7 @@ def run_experiment_cmd(config, workers, no_retry, fail_fast):
                 symbol,
                 timeframe,
                 start_date=cfg.start_date,
-                end_date=cfg.end_date
+                end_date=cfg.end_date,
             )
 
             if not result.success:
@@ -878,30 +875,28 @@ def run_experiment_cmd(config, workers, no_retry, fail_fast):
             # 運行回測
             backtest_result = run_backtest(
                 strategy_cls,
-                result.data['ohlcv'],
+                result.data["ohlcv"],
                 initial_cash=cfg.initial_cash,
                 fee_rate=cfg.fee_rate,
                 leverage=cfg.leverage,
                 stop_loss_pct=cfg.stop_loss_pct,
                 take_profit_pct=cfg.take_profit_pct,
-                params=params
+                params=params,
             )
 
             # 提取指標
             return {
-                'total_return': backtest_result.total_return,
-                'max_drawdown': backtest_result.max_drawdown,
-                'sharpe_ratio': backtest_result.sharpe_ratio,
-                'num_trades': backtest_result.num_trades,
-                'win_rate': backtest_result.win_rate,
-                'profit_factor': backtest_result.profit_factor,
+                "total_return": backtest_result.total_return,
+                "max_drawdown": backtest_result.max_drawdown,
+                "sharpe_ratio": backtest_result.sharpe_ratio,
+                "num_trades": backtest_result.num_trades,
+                "win_rate": backtest_result.win_rate,
+                "profit_factor": backtest_result.profit_factor,
             }
 
         # 執行實驗
         runner = ExperimentRunner(
-            max_workers=workers,
-            retry_failed=not no_retry,
-            fail_fast=fail_fast
+            max_workers=workers, retry_failed=not no_retry, fail_fast=fail_fast
         )
 
         result = runner.run_experiment(exp_config, backtest_func)
@@ -935,17 +930,20 @@ def run_experiment_cmd(config, workers, no_retry, fail_fast):
     except Exception as e:
         click.echo(f"錯誤: {e}", err=True)
         import traceback
-        if click.get_current_context().obj and click.get_current_context().obj.get('verbose'):
+
+        if click.get_current_context().obj and click.get_current_context().obj.get("verbose"):
             traceback.print_exc()
         raise click.Abort()
 
 
-@experiment_group.command(name='optimize')
-@click.option('-c', '--config', required=True, help='實驗配置文件路徑')
-@click.option('-m', '--mode', type=click.Choice(['grid', 'random', 'bayesian']), default='grid', help='優化模式')
-@click.option('--metric', default='sharpe_ratio', help='優化指標')
-@click.option('-w', '--workers', default=4, help='並行工作數')
-@click.option('--early-stopping', is_flag=True, help='啟用早停')
+@experiment_group.command(name="optimize")
+@click.option("-c", "--config", required=True, help="實驗配置文件路徑")
+@click.option(
+    "-m", "--mode", type=click.Choice(["grid", "random", "bayesian"]), default="grid", help="優化模式"
+)
+@click.option("--metric", default="sharpe_ratio", help="優化指標")
+@click.option("-w", "--workers", default=4, help="並行工作數")
+@click.option("--early-stopping", is_flag=True, help="啟用早停")
 def optimize_experiment(config, mode, metric, workers, early_stopping):
     """
     參數優化
@@ -955,14 +953,14 @@ def optimize_experiment(config, mode, metric, workers, early_stopping):
             --mode bayesian --metric sharpe_ratio --early-stopping
     """
     try:
-        from execution_engine import (
-            load_experiment_config,
-            ParameterOptimizer,
-            OptimizationConfig,
-            OptimizationMode
-        )
         from backtest.engine import run_backtest
         from data.pipeline import get_pipeline
+        from execution_engine import (
+            OptimizationConfig,
+            OptimizationMode,
+            ParameterOptimizer,
+            load_experiment_config,
+        )
         from strategies.registry import get_strategy
 
         # 加載配置
@@ -982,28 +980,32 @@ def optimize_experiment(config, mode, metric, workers, early_stopping):
             strategy_instance = strategy_cls()
 
             result = pipeline.load_strategy_data(
-                strategy_instance, symbol, timeframe,
-                start_date=cfg.start_date, end_date=cfg.end_date
+                strategy_instance,
+                symbol,
+                timeframe,
+                start_date=cfg.start_date,
+                end_date=cfg.end_date,
             )
 
             if not result.success:
                 raise ValueError(f"數據載入失敗: {result.error}")
 
             backtest_result = run_backtest(
-                strategy_cls, result.data['ohlcv'],
+                strategy_cls,
+                result.data["ohlcv"],
                 initial_cash=cfg.initial_cash,
                 fee_rate=cfg.fee_rate,
                 leverage=cfg.leverage,
-                params=params
+                params=params,
             )
 
             return {
-                'total_return': backtest_result.total_return,
-                'sharpe_ratio': backtest_result.sharpe_ratio,
-                'max_drawdown': backtest_result.max_drawdown,
-                'num_trades': backtest_result.num_trades,
-                'win_rate': backtest_result.win_rate,
-                'profit_factor': backtest_result.profit_factor,
+                "total_return": backtest_result.total_return,
+                "sharpe_ratio": backtest_result.sharpe_ratio,
+                "max_drawdown": backtest_result.max_drawdown,
+                "num_trades": backtest_result.num_trades,
+                "win_rate": backtest_result.win_rate,
+                "profit_factor": backtest_result.profit_factor,
             }
 
         # 配置優化器
@@ -1012,7 +1014,7 @@ def optimize_experiment(config, mode, metric, workers, early_stopping):
             metric=metric,
             maximize=True,
             early_stopping=early_stopping,
-            max_workers=workers
+            max_workers=workers,
         )
 
         optimizer = ParameterOptimizer(exp_config, backtest_func, opt_config)
@@ -1047,7 +1049,7 @@ def optimize_experiment(config, mode, metric, workers, early_stopping):
         raise click.Abort()
 
 
-@experiment_group.command(name='list')
+@experiment_group.command(name="list")
 def list_experiments():
     """
     列出所有實驗
@@ -1056,8 +1058,8 @@ def list_experiments():
         superdog experiment list
     """
     try:
-        from pathlib import Path
         import json
+        from pathlib import Path
 
         results_dir = Path("data/experiments/results")
 
@@ -1072,13 +1074,15 @@ def list_experiments():
                 if summary_file.exists():
                     with open(summary_file) as f:
                         data = json.load(f)
-                        experiments.append({
-                            'id': exp_dir.name,
-                            'name': data['config']['name'],
-                            'completed': data.get('completed_runs', 0),
-                            'total': data.get('total_runs', 0),
-                            'date': data.get('started_at', '')[:10]
-                        })
+                        experiments.append(
+                            {
+                                "id": exp_dir.name,
+                                "name": data["config"]["name"],
+                                "completed": data.get("completed_runs", 0),
+                                "total": data.get("total_runs", 0),
+                                "date": data.get("started_at", "")[:10],
+                            }
+                        )
 
         if not experiments:
             click.echo("沒有找到實驗結果")
@@ -1088,7 +1092,7 @@ def list_experiments():
         click.echo(f"{'ID':<40} {'名稱':<20} {'完成/總數':<12} {'日期':<12}")
         click.echo("-" * 90)
 
-        for exp in sorted(experiments, key=lambda x: x['date'], reverse=True):
+        for exp in sorted(experiments, key=lambda x: x["date"], reverse=True):
             click.echo(
                 f"{exp['id']:<40} {exp['name']:<20} "
                 f"{exp['completed']}/{exp['total']:<10} {exp['date']:<12}"
@@ -1103,11 +1107,13 @@ def list_experiments():
         raise click.Abort()
 
 
-@experiment_group.command(name='analyze')
-@click.option('--id', 'experiment_id', required=True, help='實驗ID')
-@click.option('-o', '--output', help='輸出報告路徑')
-@click.option('--format', type=click.Choice(['markdown', 'json', 'html']), default='markdown', help='報告格式')
-@click.option('--top', default=10, help='Top N 結果數量')
+@experiment_group.command(name="analyze")
+@click.option("--id", "experiment_id", required=True, help="實驗ID")
+@click.option("-o", "--output", help="輸出報告路徑")
+@click.option(
+    "--format", type=click.Choice(["markdown", "json", "html"]), default="markdown", help="報告格式"
+)
+@click.option("--top", default=10, help="Top N 結果數量")
 def analyze_experiment(experiment_id, output, format, top):
     """
     分析實驗結果

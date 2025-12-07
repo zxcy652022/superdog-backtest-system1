@@ -14,13 +14,14 @@ Version: v0.6 Phase 2
 Design Reference: docs/specs/v0.6/superdog_v06_strategy_lab_spec.md
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Tuple
-from pathlib import Path
 import json
-import pandas as pd
-import numpy as np
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 from .experiments import ExperimentResult, ExperimentRun, ExperimentStatus
 
@@ -28,6 +29,7 @@ from .experiments import ExperimentResult, ExperimentRun, ExperimentStatus
 @dataclass
 class AnalysisReport:
     """分析報告"""
+
     experiment_id: str
     experiment_name: str
 
@@ -56,18 +58,18 @@ class AnalysisReport:
     def to_dict(self) -> Dict:
         """轉換為字典"""
         return {
-            'experiment_id': self.experiment_id,
-            'experiment_name': self.experiment_name,
-            'total_runs': self.total_runs,
-            'completed_runs': self.completed_runs,
-            'failed_runs': self.failed_runs,
-            'best_run': self.best_run.to_dict() if self.best_run else None,
-            'best_parameters': self.best_parameters,
-            'top_runs': [r.to_dict() for r in self.top_runs],
-            'statistics': self.statistics,
-            'parameter_importance': self.parameter_importance,
-            'parameter_correlations': self.parameter_correlations,
-            'generated_at': self.generated_at
+            "experiment_id": self.experiment_id,
+            "experiment_name": self.experiment_name,
+            "total_runs": self.total_runs,
+            "completed_runs": self.completed_runs,
+            "failed_runs": self.failed_runs,
+            "best_run": self.best_run.to_dict() if self.best_run else None,
+            "best_parameters": self.best_parameters,
+            "top_runs": [r.to_dict() for r in self.top_runs],
+            "statistics": self.statistics,
+            "parameter_importance": self.parameter_importance,
+            "parameter_correlations": self.parameter_correlations,
+            "generated_at": self.generated_at,
         }
 
 
@@ -102,34 +104,30 @@ class ResultAnalyzer:
         for run in self.result.runs:
             if run.status == ExperimentStatus.COMPLETED:
                 row = {
-                    'run_id': run.run_id,
-                    'symbol': run.symbol,
-                    'status': run.status.value,
-                    'total_return': run.total_return,
-                    'max_drawdown': run.max_drawdown,
-                    'sharpe_ratio': run.sharpe_ratio,
-                    'num_trades': run.num_trades,
-                    'win_rate': run.win_rate,
-                    'profit_factor': run.profit_factor,
+                    "run_id": run.run_id,
+                    "symbol": run.symbol,
+                    "status": run.status.value,
+                    "total_return": run.total_return,
+                    "max_drawdown": run.max_drawdown,
+                    "sharpe_ratio": run.sharpe_ratio,
+                    "num_trades": run.num_trades,
+                    "win_rate": run.win_rate,
+                    "profit_factor": run.profit_factor,
                 }
 
                 # 添加參數
                 for k, v in run.parameters.items():
-                    row[f'param_{k}'] = v
+                    row[f"param_{k}"] = v
 
                 # 添加額外指標
                 for k, v in run.metrics.items():
-                    row[f'metric_{k}'] = v
+                    row[f"metric_{k}"] = v
 
                 data.append(row)
 
         return pd.DataFrame(data)
 
-    def generate_report(
-        self,
-        top_n: int = 10,
-        metric: str = "sharpe_ratio"
-    ) -> AnalysisReport:
+    def generate_report(self, top_n: int = 10, metric: str = "sharpe_ratio") -> AnalysisReport:
         """生成分析報告
 
         Args:
@@ -169,17 +167,14 @@ class ResultAnalyzer:
             statistics=statistics,
             parameter_importance=param_importance,
             parameter_correlations=param_correlations,
-            generated_at=datetime.now().isoformat()
+            generated_at=datetime.now().isoformat(),
         )
 
         print(f"✅ 報告生成完成")
         return report
 
     def get_top_runs(
-        self,
-        top_n: int = 10,
-        metric: str = "sharpe_ratio",
-        ascending: bool = False
+        self, top_n: int = 10, metric: str = "sharpe_ratio", ascending: bool = False
     ) -> List[ExperimentRun]:
         """獲取 Top N 結果
 
@@ -196,16 +191,13 @@ class ResultAnalyzer:
         # 按指標排序
         sorted_runs = sorted(
             completed,
-            key=lambda r: getattr(r, metric, None) or r.metrics.get(metric, float('-inf')),
-            reverse=not ascending
+            key=lambda r: getattr(r, metric, None) or r.metrics.get(metric, float("-inf")),
+            reverse=not ascending,
         )
 
         return sorted_runs[:top_n]
 
-    def analyze_parameter_importance(
-        self,
-        metric: str = "sharpe_ratio"
-    ) -> Dict[str, float]:
+    def analyze_parameter_importance(self, metric: str = "sharpe_ratio") -> Dict[str, float]:
         """分析參數重要性
 
         使用方差分析評估每個參數的影響
@@ -220,34 +212,31 @@ class ResultAnalyzer:
             return {}
 
         # 獲取參數列
-        param_cols = [c for c in self.df.columns if c.startswith('param_')]
+        param_cols = [c for c in self.df.columns if c.startswith("param_")]
 
         importance = {}
         total_variance = self.df[metric].var()
 
         if total_variance == 0:
-            return {col.replace('param_', ''): 0.0 for col in param_cols}
+            return {col.replace("param_", ""): 0.0 for col in param_cols}
 
         for col in param_cols:
             # 計算分組內方差
             try:
                 grouped_var = self.df.groupby(col)[metric].var().mean()
                 # 方差比例（越大說明該參數影響越大）
-                importance[col.replace('param_', '')] = 1 - (grouped_var / total_variance)
+                importance[col.replace("param_", "")] = 1 - (grouped_var / total_variance)
             except:
-                importance[col.replace('param_', '')] = 0.0
+                importance[col.replace("param_", "")] = 0.0
 
         # 歸一化
         total = sum(importance.values())
         if total > 0:
-            importance = {k: v/total for k, v in importance.items()}
+            importance = {k: v / total for k, v in importance.items()}
 
         return importance
 
-    def analyze_parameter_correlations(
-        self,
-        metric: str = "sharpe_ratio"
-    ) -> Dict[str, float]:
+    def analyze_parameter_correlations(self, metric: str = "sharpe_ratio") -> Dict[str, float]:
         """分析參數與結果的相關性
 
         Args:
@@ -259,23 +248,21 @@ class ResultAnalyzer:
         if self.df.empty:
             return {}
 
-        param_cols = [c for c in self.df.columns if c.startswith('param_')]
+        param_cols = [c for c in self.df.columns if c.startswith("param_")]
 
         correlations = {}
         for col in param_cols:
             try:
                 # 計算 Pearson 相關係數
                 corr = self.df[col].corr(self.df[metric])
-                correlations[col.replace('param_', '')] = corr if not np.isnan(corr) else 0.0
+                correlations[col.replace("param_", "")] = corr if not np.isnan(corr) else 0.0
             except:
-                correlations[col.replace('param_', '')] = 0.0
+                correlations[col.replace("param_", "")] = 0.0
 
         return correlations
 
     def get_metric_distribution(
-        self,
-        metric: str = "sharpe_ratio",
-        bins: int = 20
+        self, metric: str = "sharpe_ratio", bins: int = 20
     ) -> Tuple[np.ndarray, np.ndarray]:
         """獲取指標分布
 
@@ -292,11 +279,7 @@ class ResultAnalyzer:
         values = self.df[metric].dropna()
         return np.histogram(values, bins=bins)
 
-    def get_parameter_impact(
-        self,
-        parameter: str,
-        metric: str = "sharpe_ratio"
-    ) -> pd.DataFrame:
+    def get_parameter_impact(self, parameter: str, metric: str = "sharpe_ratio") -> pd.DataFrame:
         """獲取單個參數的影響分析
 
         Args:
@@ -309,23 +292,18 @@ class ResultAnalyzer:
         if self.df.empty:
             return pd.DataFrame()
 
-        param_col = f'param_{parameter}'
+        param_col = f"param_{parameter}"
         if param_col not in self.df.columns:
             return pd.DataFrame()
 
         # 分組統計
-        grouped = self.df.groupby(param_col)[metric].agg(['mean', 'std', 'count'])
+        grouped = self.df.groupby(param_col)[metric].agg(["mean", "std", "count"])
         grouped = grouped.reset_index()
-        grouped.columns = ['parameter_value', 'mean', 'std', 'count']
+        grouped.columns = ["parameter_value", "mean", "std", "count"]
 
         return grouped
 
-    def save_report(
-        self,
-        report: AnalysisReport,
-        output_path: str,
-        format: str = "markdown"
-    ):
+    def save_report(self, report: AnalysisReport, output_path: str, format: str = "markdown"):
         """保存報告
 
         Args:
@@ -337,17 +315,17 @@ class ResultAnalyzer:
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         if format == "json":
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(report.to_dict(), f, indent=2, ensure_ascii=False)
 
         elif format == "markdown":
             md_content = self._generate_markdown(report)
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 f.write(md_content)
 
         elif format == "html":
             html_content = self._generate_html(report)
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 f.write(html_content)
 
         else:
@@ -380,32 +358,37 @@ class ResultAnalyzer:
             f"- **成功率:** {report.completed_runs/report.total_runs*100:.1f}%",
             "",
             "## 🏆 最佳結果",
-            ""
+            "",
         ]
 
         if report.best_run:
-            lines.extend([
-                f"- **Symbol:** {report.best_run.symbol}",
-                f"- **Total Return:** {report.best_run.total_return:.2%}" if report.best_run.total_return else "",
-                f"- **Sharpe Ratio:** {report.best_run.sharpe_ratio:.2f}" if report.best_run.sharpe_ratio else "",
-                f"- **Max Drawdown:** {report.best_run.max_drawdown:.2%}" if report.best_run.max_drawdown else "",
-                f"- **Win Rate:** {report.best_run.win_rate:.2%}" if report.best_run.win_rate else "",
-                "",
-                "### 最佳參數",
-                "",
-                "```json",
-                json.dumps(report.best_parameters, indent=2, ensure_ascii=False),
-                "```",
-                ""
-            ])
+            lines.extend(
+                [
+                    f"- **Symbol:** {report.best_run.symbol}",
+                    f"- **Total Return:** {report.best_run.total_return:.2%}"
+                    if report.best_run.total_return
+                    else "",
+                    f"- **Sharpe Ratio:** {report.best_run.sharpe_ratio:.2f}"
+                    if report.best_run.sharpe_ratio
+                    else "",
+                    f"- **Max Drawdown:** {report.best_run.max_drawdown:.2%}"
+                    if report.best_run.max_drawdown
+                    else "",
+                    f"- **Win Rate:** {report.best_run.win_rate:.2%}"
+                    if report.best_run.win_rate
+                    else "",
+                    "",
+                    "### 最佳參數",
+                    "",
+                    "```json",
+                    json.dumps(report.best_parameters, indent=2, ensure_ascii=False),
+                    "```",
+                    "",
+                ]
+            )
 
         # 統計指標
-        lines.extend([
-            "## 📈 統計指標",
-            "",
-            "| 指標 | 值 |",
-            "|------|-----|"
-        ])
+        lines.extend(["## 📈 統計指標", "", "| 指標 | 值 |", "|------|-----|"])
 
         for key, value in report.statistics.items():
             if isinstance(value, float):
@@ -416,12 +399,14 @@ class ResultAnalyzer:
         lines.append("")
 
         # Top 10
-        lines.extend([
-            f"## 🔝 Top {len(report.top_runs)} 結果",
-            "",
-            "| Rank | Symbol | Total Return | Sharpe | Max DD | Win Rate |",
-            "|------|--------|-------------|--------|--------|----------|"
-        ])
+        lines.extend(
+            [
+                f"## 🔝 Top {len(report.top_runs)} 結果",
+                "",
+                "| Rank | Symbol | Total Return | Sharpe | Max DD | Win Rate |",
+                "|------|--------|-------------|--------|--------|----------|",
+            ]
+        )
 
         for i, run in enumerate(report.top_runs, 1):
             lines.append(
@@ -436,17 +421,10 @@ class ResultAnalyzer:
 
         # 參數重要性
         if report.parameter_importance:
-            lines.extend([
-                "## 🎯 參數重要性",
-                "",
-                "| 參數 | 重要性 |",
-                "|------|--------|"
-            ])
+            lines.extend(["## 🎯 參數重要性", "", "| 參數 | 重要性 |", "|------|--------|"])
 
             sorted_params = sorted(
-                report.parameter_importance.items(),
-                key=lambda x: x[1],
-                reverse=True
+                report.parameter_importance.items(), key=lambda x: x[1], reverse=True
             )
 
             for param, importance in sorted_params:
@@ -456,25 +434,16 @@ class ResultAnalyzer:
 
         # 參數相關性
         if report.parameter_correlations:
-            lines.extend([
-                "## 🔗 參數相關性",
-                "",
-                "| 參數 | 相關係數 |",
-                "|------|----------|"
-            ])
+            lines.extend(["## 🔗 參數相關性", "", "| 參數 | 相關係數 |", "|------|----------|"])
 
             for param, corr in report.parameter_correlations.items():
                 lines.append(f"| {param} | {corr:.4f} |")
 
             lines.append("")
 
-        lines.extend([
-            "---",
-            "",
-            f"*報告由 SuperDog v0.6 Strategy Lab 生成*"
-        ])
+        lines.extend(["---", "", f"*報告由 SuperDog v0.6 Strategy Lab 生成*"])
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _generate_html(self, report: AnalysisReport) -> str:
         """生成 HTML 報告
@@ -552,7 +521,8 @@ class ResultAnalyzer:
         """格式化 Top 運行為 HTML 表格"""
         rows = []
         for i, run in enumerate(runs, 1):
-            rows.append(f"""
+            rows.append(
+                f"""
             <tr>
                 <td>{i}</td>
                 <td>{run.symbol}</td>
@@ -561,7 +531,8 @@ class ResultAnalyzer:
                 <td>{run.max_drawdown:.2%}</td>
                 <td>{run.win_rate:.2%}</td>
             </tr>
-            """)
+            """
+            )
 
         return f"""
         <table>
@@ -580,10 +551,9 @@ class ResultAnalyzer:
 
 # ===== 便捷函數 =====
 
+
 def analyze_result(
-    result: ExperimentResult,
-    output_path: Optional[str] = None,
-    format: str = "markdown"
+    result: ExperimentResult, output_path: Optional[str] = None, format: str = "markdown"
 ) -> AnalysisReport:
     """分析實驗結果的便捷函數
 

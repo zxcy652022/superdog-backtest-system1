@@ -15,35 +15,38 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class StrategyCategory(Enum):
     """策略分類"""
-    TREND_FOLLOWING = "trend_following"      # 趨勢跟隨
-    MEAN_REVERSION = "mean_reversion"        # 均值回歸
-    MOMENTUM = "momentum"                     # 動量策略
-    ARBITRAGE = "arbitrage"                   # 套利策略
-    MULTI_FACTOR = "multi_factor"             # 多因子策略
-    MACHINE_LEARNING = "machine_learning"     # 機器學習
-    OTHER = "other"                           # 其他
+
+    TREND_FOLLOWING = "trend_following"  # 趨勢跟隨
+    MEAN_REVERSION = "mean_reversion"  # 均值回歸
+    MOMENTUM = "momentum"  # 動量策略
+    ARBITRAGE = "arbitrage"  # 套利策略
+    MULTI_FACTOR = "multi_factor"  # 多因子策略
+    MACHINE_LEARNING = "machine_learning"  # 機器學習
+    OTHER = "other"  # 其他
 
 
 class StrategyComplexity(Enum):
     """策略複雜度"""
-    SIMPLE = "simple"       # 簡單策略（1-3 個參數）
-    MODERATE = "moderate"   # 中等策略（4-8 個參數）
-    COMPLEX = "complex"     # 複雜策略（9+ 個參數）
+
+    SIMPLE = "simple"  # 簡單策略（1-3 個參數）
+    MODERATE = "moderate"  # 中等策略（4-8 個參數）
+    COMPLEX = "complex"  # 複雜策略（9+ 個參數）
 
 
 class StrategyStatus(Enum):
     """策略狀態"""
-    DEVELOPMENT = "development"   # 開發中
-    TESTING = "testing"           # 測試中
-    STABLE = "stable"             # 穩定版
-    DEPRECATED = "deprecated"     # 已棄用
+
+    DEVELOPMENT = "development"  # 開發中
+    TESTING = "testing"  # 測試中
+    STABLE = "stable"  # 穩定版
+    DEPRECATED = "deprecated"  # 已棄用
 
 
 @dataclass
@@ -80,6 +83,7 @@ class StrategyMetadata:
         ...     tags=["sma", "crossover", "beginner"]
         ... )
     """
+
     name: str
     version: str
     author: str
@@ -110,26 +114,26 @@ class StrategyMetadata:
             'SimpleSMA'
         """
         return {
-            'name': self.name,
-            'version': self.version,
-            'author': self.author,
-            'description': self.description,
-            'category': self.category.value,
-            'complexity': self.complexity.value,
-            'status': self.status.value,
-            'tags': self.tags,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'min_capital': self.min_capital,
-            'recommended_timeframes': self.recommended_timeframes,
-            'recommended_symbols': self.recommended_symbols,
-            'performance_metrics': self.performance_metrics,
-            'documentation_url': self.documentation_url,
-            'example_config': self.example_config
+            "name": self.name,
+            "version": self.version,
+            "author": self.author,
+            "description": self.description,
+            "category": self.category.value,
+            "complexity": self.complexity.value,
+            "status": self.status.value,
+            "tags": self.tags,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "min_capital": self.min_capital,
+            "recommended_timeframes": self.recommended_timeframes,
+            "recommended_symbols": self.recommended_symbols,
+            "performance_metrics": self.performance_metrics,
+            "documentation_url": self.documentation_url,
+            "example_config": self.example_config,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'StrategyMetadata':
+    def from_dict(cls, data: Dict[str, Any]) -> "StrategyMetadata":
         """從字典創建元數據實例
 
         Args:
@@ -143,21 +147,21 @@ class StrategyMetadata:
             >>> metadata = StrategyMetadata.from_dict(data)
         """
         # 轉換枚舉值
-        if 'category' in data and isinstance(data['category'], str):
-            data['category'] = StrategyCategory(data['category'])
+        if "category" in data and isinstance(data["category"], str):
+            data["category"] = StrategyCategory(data["category"])
 
-        if 'complexity' in data and isinstance(data['complexity'], str):
-            data['complexity'] = StrategyComplexity(data['complexity'])
+        if "complexity" in data and isinstance(data["complexity"], str):
+            data["complexity"] = StrategyComplexity(data["complexity"])
 
-        if 'status' in data and isinstance(data['status'], str):
-            data['status'] = StrategyStatus(data['status'])
+        if "status" in data and isinstance(data["status"], str):
+            data["status"] = StrategyStatus(data["status"])
 
         # 轉換日期時間
-        if 'created_at' in data and isinstance(data['created_at'], str):
-            data['created_at'] = datetime.fromisoformat(data['created_at'])
+        if "created_at" in data and isinstance(data["created_at"], str):
+            data["created_at"] = datetime.fromisoformat(data["created_at"])
 
-        if 'updated_at' in data and isinstance(data['updated_at'], str):
-            data['updated_at'] = datetime.fromisoformat(data['updated_at'])
+        if "updated_at" in data and isinstance(data["updated_at"], str):
+            data["updated_at"] = datetime.fromisoformat(data["updated_at"])
 
         return cls(**data)
 
@@ -196,7 +200,7 @@ class StrategyMetadata:
         complexity_descriptions = {
             StrategyComplexity.SIMPLE: "簡單 (1-3 個參數)",
             StrategyComplexity.MODERATE: "中等 (4-8 個參數)",
-            StrategyComplexity.COMPLEX: "複雜 (9+ 個參數)"
+            StrategyComplexity.COMPLEX: "複雜 (9+ 個參數)",
         }
         return complexity_descriptions.get(self.complexity, "未知")
 
@@ -329,10 +333,7 @@ class MetadataManager:
             >>> manager = MetadataManager()
             >>> trend_strategies = manager.get_by_category(StrategyCategory.TREND_FOLLOWING)
         """
-        return [
-            metadata for metadata in self._metadata.values()
-            if metadata.category == category
-        ]
+        return [metadata for metadata in self._metadata.values() if metadata.category == category]
 
     def get_by_status(self, status: StrategyStatus) -> List[StrategyMetadata]:
         """按狀態獲取策略
@@ -347,10 +348,7 @@ class MetadataManager:
             >>> manager = MetadataManager()
             >>> stable_strategies = manager.get_by_status(StrategyStatus.STABLE)
         """
-        return [
-            metadata for metadata in self._metadata.values()
-            if metadata.status == status
-        ]
+        return [metadata for metadata in self._metadata.values() if metadata.status == status]
 
     def get_by_tag(self, tag: str) -> List[StrategyMetadata]:
         """按標籤獲取策略
@@ -365,10 +363,7 @@ class MetadataManager:
             >>> manager = MetadataManager()
             >>> beginner_strategies = manager.get_by_tag("beginner")
         """
-        return [
-            metadata for metadata in self._metadata.values()
-            if tag in metadata.tags
-        ]
+        return [metadata for metadata in self._metadata.values() if tag in metadata.tags]
 
     def get_production_ready(self) -> List[StrategyMetadata]:
         """獲取所有生產就緒的策略

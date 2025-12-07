@@ -13,9 +13,11 @@ Version: v0.4
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md §CLI 動態參數系統
 """
 
+from typing import Any, Callable, Dict, Optional
+
 import click
-from typing import Dict, Any, Callable, Optional
-from strategies.api_v2 import BaseStrategy, ParameterType, ParameterSpec
+
+from strategies.api_v2 import BaseStrategy, ParameterSpec, ParameterType
 
 
 class DynamicCLI:
@@ -85,7 +87,7 @@ class DynamicCLI:
                 option_name,
                 is_flag=True,
                 default=param_spec.default_value,
-                help=self._format_help_text(param_spec, param_name)
+                help=self._format_help_text(param_spec, param_name),
             )
         else:
             # 其他類型參數
@@ -96,7 +98,7 @@ class DynamicCLI:
                 type=python_type,
                 default=param_spec.default_value,
                 help=self._format_help_text(param_spec, param_name),
-                show_default=True
+                show_default=True,
             )
 
     def _get_python_type(self, param_type: ParameterType) -> type:
@@ -115,7 +117,7 @@ class DynamicCLI:
             ParameterType.INT: int,
             ParameterType.FLOAT: float,
             ParameterType.STR: str,
-            ParameterType.BOOL: bool
+            ParameterType.BOOL: bool,
         }
 
         if param_type not in type_mapping:
@@ -272,15 +274,15 @@ def extract_strategy_params(all_kwargs: Dict[str, Any], strategy: BaseStrategy) 
 
     # 提取策略參數
     strategy_params = {
-        key: value
-        for key, value in all_kwargs.items()
-        if key in strategy_param_names
+        key: value for key, value in all_kwargs.items() if key in strategy_param_names
     }
 
     return strategy_params
 
 
-def validate_and_convert_params(raw_params: Dict[str, Any], strategy: BaseStrategy) -> Dict[str, Any]:
+def validate_and_convert_params(
+    raw_params: Dict[str, Any], strategy: BaseStrategy
+) -> Dict[str, Any]:
     """驗證並轉換策略參數
 
     使用策略的 validate_parameters 方法進行驗證和轉換
@@ -307,8 +309,7 @@ def validate_and_convert_params(raw_params: Dict[str, Any], strategy: BaseStrate
         return validated_params
     except (ValueError, TypeError) as e:
         raise click.BadParameter(
-            f"Parameter validation failed: {e}\n"
-            f"Please check parameter values and ranges."
+            f"Parameter validation failed: {e}\n" f"Please check parameter values and ranges."
         )
 
 
@@ -345,7 +346,7 @@ def format_strategy_help(strategy: BaseStrategy) -> str:
     help_lines.append(f"Strategy: {metadata['name']}")
     help_lines.append(f"Version: {metadata['version']}")
     help_lines.append(f"Author: {metadata['author']}")
-    if metadata['description']:
+    if metadata["description"]:
         help_lines.append(f"Description: {metadata['description']}")
 
     help_lines.append("")

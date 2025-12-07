@@ -13,13 +13,13 @@ Version: v0.4
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
-import sys
 import importlib
-from typing import List, Dict, Optional, Tuple
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from strategies.api_v2 import BaseStrategy, DataSource, DataRequirement
+from strategies.api_v2 import BaseStrategy, DataRequirement, DataSource
 
 
 @dataclass
@@ -41,6 +41,7 @@ class DependencyCheckResult:
         ...     suggestions=["Install funding rate data provider"]
         ... )
     """
+
     is_satisfied: bool = True
     missing_data_sources: List[DataSource] = field(default_factory=list)
     missing_packages: List[str] = field(default_factory=list)
@@ -218,7 +219,7 @@ class DependencyChecker:
                     result.missing_data_sources.append(req.source)
                     result.add_error(
                         f"Required data source '{req.source.value}' is not available",
-                        self._get_data_source_suggestion(req.source)
+                        self._get_data_source_suggestion(req.source),
                     )
                 else:
                     # 可選的數據源缺失 - 警告
@@ -227,7 +228,9 @@ class DependencyChecker:
                         f"Strategy will run with reduced functionality."
                     )
 
-    def _check_parameter_compatibility(self, strategy: BaseStrategy, result: DependencyCheckResult) -> None:
+    def _check_parameter_compatibility(
+        self, strategy: BaseStrategy, result: DependencyCheckResult
+    ) -> None:
         """檢查參數相容性
 
         Args:
@@ -242,9 +245,9 @@ class DependencyChecker:
         params = strategy.get_parameters()
 
         # 檢查常見的參數相容性問題
-        if 'short_window' in params and 'long_window' in params:
-            short_default = params['short_window'].default_value
-            long_default = params['long_window'].default_value
+        if "short_window" in params and "long_window" in params:
+            short_default = params["short_window"].default_value
+            long_default = params["long_window"].default_value
 
             if short_default >= long_default:
                 result.add_warning(
@@ -265,9 +268,7 @@ class DependencyChecker:
             try:
                 param_spec.validate(param_spec.default_value)
             except (ValueError, TypeError) as e:
-                result.add_error(
-                    f"Parameter '{param_name}' has invalid default value: {e}"
-                )
+                result.add_error(f"Parameter '{param_name}' has invalid default value: {e}")
 
     def _check_python_packages(self, strategy: BaseStrategy, result: DependencyCheckResult) -> None:
         """檢查 Python 包相依性
@@ -281,14 +282,14 @@ class DependencyChecker:
             可以通過策略的 docstring 或特殊屬性聲明相依性
         """
         # 獲取策略的相依性聲明（如果有）
-        required_packages = getattr(strategy, 'required_packages', [])
+        required_packages = getattr(strategy, "required_packages", [])
 
         for package_name in required_packages:
             if not self._is_package_installed(package_name):
                 result.missing_packages.append(package_name)
                 result.add_error(
                     f"Required Python package '{package_name}' is not installed",
-                    f"Install it with: pip install {package_name}"
+                    f"Install it with: pip install {package_name}",
                 )
 
     def _is_package_installed(self, package_name: str) -> bool:
@@ -324,16 +325,13 @@ class DependencyChecker:
                 "or wait for v0.5 release."
             ),
             DataSource.OPEN_INTEREST: (
-                "Open interest data is not yet supported in v0.4. "
-                "It will be available in v0.5."
+                "Open interest data is not yet supported in v0.4. " "It will be available in v0.5."
             ),
             DataSource.BASIS: (
-                "Basis data is not yet supported in v0.4. "
-                "It will be available in v0.5."
+                "Basis data is not yet supported in v0.4. " "It will be available in v0.5."
             ),
             DataSource.VOLUME_PROFILE: (
-                "Volume profile data is not yet supported in v0.4. "
-                "It will be available in v0.5."
+                "Volume profile data is not yet supported in v0.4. " "It will be available in v0.5."
             ),
         }
 
@@ -367,12 +365,12 @@ class DependencyChecker:
         # 檢查數據量（可選）
         try:
             import pandas as pd
+
             data = pd.read_csv(data_file)
 
             if len(data) < min_periods:
                 return False, (
-                    f"Insufficient data: {len(data)} bars available, "
-                    f"but {min_periods} required"
+                    f"Insufficient data: {len(data)} bars available, " f"but {min_periods} required"
                 )
 
             return True, None

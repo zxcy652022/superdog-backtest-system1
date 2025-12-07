@@ -8,12 +8,13 @@ API 文檔: https://binance-docs.github.io/apidocs/futures/en/
 Version: v0.5
 """
 
-import time
-import requests
-import pandas as pd
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
 import logging
+import time
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+import requests
 
 from .base_connector import ExchangeConnector
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class BinanceAPIError(Exception):
     """Binance API 錯誤"""
+
     pass
 
 
@@ -47,15 +49,12 @@ class BinanceConnector(ExchangeConnector):
             api_key: API 密鑰（可選，公開數據不需要）
             secret_key: API 密鑰（可選）
         """
-        super().__init__(name='binance')
+        super().__init__(name="binance")
         self.base_url = "https://fapi.binance.com"  # Futures API
         self.api_key = api_key
         self.secret_key = secret_key
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'SuperDog/0.5',
-            'Accept': 'application/json'
-        })
+        self.session.headers.update({"User-Agent": "SuperDog/0.5", "Accept": "application/json"})
 
         # API 限流控制
         self.request_count = 0
@@ -64,11 +63,7 @@ class BinanceConnector(ExchangeConnector):
         self.max_requests_per_interval = 1200  # Binance 限制
 
     def get_funding_rate(
-        self,
-        symbol: str,
-        start_time: datetime,
-        end_time: datetime,
-        limit: int = 1000
+        self, symbol: str, start_time: datetime, end_time: datetime, limit: int = 1000
     ) -> pd.DataFrame:
         """獲取 Binance 資金費率歷史數據
 
@@ -100,10 +95,10 @@ class BinanceConnector(ExchangeConnector):
 
         while current_start < end_time:
             params = {
-                'symbol': symbol,
-                'startTime': int(current_start.timestamp() * 1000),
-                'endTime': int(end_time.timestamp() * 1000),
-                'limit': min(limit, 1000)
+                "symbol": symbol,
+                "startTime": int(current_start.timestamp() * 1000),
+                "endTime": int(end_time.timestamp() * 1000),
+                "limit": min(limit, 1000),
             }
 
             try:
@@ -119,7 +114,7 @@ class BinanceConnector(ExchangeConnector):
                     break
 
                 # 更新 current_start 為最後一條記錄的時間 + 1ms
-                last_time = response[-1]['fundingTime']
+                last_time = response[-1]["fundingTime"]
                 current_start = datetime.fromtimestamp(last_time / 1000) + timedelta(milliseconds=1)
 
                 # 避免過於頻繁的請求
@@ -136,14 +131,14 @@ class BinanceConnector(ExchangeConnector):
         df = pd.DataFrame(all_data)
 
         # 標準化欄位
-        df['timestamp'] = pd.to_datetime(df['fundingTime'], unit='ms')
-        df['funding_rate'] = df['fundingRate'].astype(float)
-        df['mark_price'] = df.get('markPrice', pd.Series([None] * len(df))).astype(float)
-        df['symbol'] = symbol
+        df["timestamp"] = pd.to_datetime(df["fundingTime"], unit="ms")
+        df["funding_rate"] = df["fundingRate"].astype(float)
+        df["mark_price"] = df.get("markPrice", pd.Series([None] * len(df))).astype(float)
+        df["symbol"] = symbol
 
         # 選擇需要的欄位
-        df = df[['timestamp', 'symbol', 'funding_rate', 'mark_price']]
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        df = df[["timestamp", "symbol", "funding_rate", "mark_price"]]
+        df = df.sort_values("timestamp").reset_index(drop=True)
 
         logger.info(f"Fetched {len(df)} funding rate records for {symbol}")
 
@@ -152,10 +147,10 @@ class BinanceConnector(ExchangeConnector):
     def get_open_interest(
         self,
         symbol: str,
-        interval: str = '5m',
+        interval: str = "5m",
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        limit: int = 500
+        limit: int = 500,
     ) -> pd.DataFrame:
         """獲取 Binance 持倉量歷史數據
 
@@ -188,17 +183,13 @@ class BinanceConnector(ExchangeConnector):
         current_start = start_time
 
         while current_start < end_time:
-            params = {
-                'symbol': symbol,
-                'period': interval,
-                'limit': min(limit, 500)
-            }
+            params = {"symbol": symbol, "period": interval, "limit": min(limit, 500)}
 
             # 添加時間參數（注意：這個 API 只支持 startTime 和 endTime，不支持分頁）
             if start_time:
-                params['startTime'] = int(current_start.timestamp() * 1000)
+                params["startTime"] = int(current_start.timestamp() * 1000)
             if end_time:
-                params['endTime'] = int(end_time.timestamp() * 1000)
+                params["endTime"] = int(end_time.timestamp() * 1000)
 
             try:
                 response = self._make_request(endpoint, params)
@@ -212,7 +203,7 @@ class BinanceConnector(ExchangeConnector):
                     break
 
                 # 更新 current_start
-                last_time = response[-1]['timestamp']
+                last_time = response[-1]["timestamp"]
                 current_start = datetime.fromtimestamp(last_time / 1000) + timedelta(milliseconds=1)
 
                 time.sleep(0.1)
@@ -228,24 +219,21 @@ class BinanceConnector(ExchangeConnector):
         df = pd.DataFrame(all_data)
 
         # 標準化欄位
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        df['open_interest'] = df['sumOpenInterest'].astype(float)
-        df['open_interest_value'] = df['sumOpenInterestValue'].astype(float)
-        df['symbol'] = symbol
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["open_interest"] = df["sumOpenInterest"].astype(float)
+        df["open_interest_value"] = df["sumOpenInterestValue"].astype(float)
+        df["symbol"] = symbol
 
         # 選擇需要的欄位
-        df = df[['timestamp', 'symbol', 'open_interest', 'open_interest_value']]
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        df = df[["timestamp", "symbol", "open_interest", "open_interest_value"]]
+        df = df.sort_values("timestamp").reset_index(drop=True)
 
         logger.info(f"Fetched {len(df)} open interest records for {symbol}")
 
         return df
 
     def get_long_short_ratio(
-        self,
-        symbol: str,
-        interval: str = '5m',
-        limit: int = 500
+        self, symbol: str, interval: str = "5m", limit: int = 500
     ) -> pd.DataFrame:
         """獲取 Binance 多空持倉比數據
 
@@ -264,11 +252,7 @@ class BinanceConnector(ExchangeConnector):
         symbol = self._validate_symbol(symbol)
 
         endpoint = "/futures/data/globalLongShortAccountRatio"
-        params = {
-            'symbol': symbol,
-            'period': interval,
-            'limit': min(limit, 500)
-        }
+        params = {"symbol": symbol, "period": interval, "limit": min(limit, 500)}
 
         try:
             response = self._make_request(endpoint, params)
@@ -280,23 +264,28 @@ class BinanceConnector(ExchangeConnector):
             df = pd.DataFrame(response)
 
             # 標準化欄位
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            df['long_account_ratio'] = df['longAccount'].astype(float)
-            df['short_account_ratio'] = df['shortAccount'].astype(float)
-            df['symbol'] = symbol
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df["long_account_ratio"] = df["longAccount"].astype(float)
+            df["short_account_ratio"] = df["shortAccount"].astype(float)
+            df["symbol"] = symbol
 
             # 計算持倉比例
-            total = df['long_account_ratio'] + df['short_account_ratio']
-            df['long_position_ratio'] = df['long_account_ratio'] / total
-            df['short_position_ratio'] = df['short_account_ratio'] / total
+            total = df["long_account_ratio"] + df["short_account_ratio"]
+            df["long_position_ratio"] = df["long_account_ratio"] / total
+            df["short_position_ratio"] = df["short_account_ratio"] / total
 
             # 選擇需要的欄位
-            df = df[[
-                'timestamp', 'symbol',
-                'long_account_ratio', 'short_account_ratio',
-                'long_position_ratio', 'short_position_ratio'
-            ]]
-            df = df.sort_values('timestamp').reset_index(drop=True)
+            df = df[
+                [
+                    "timestamp",
+                    "symbol",
+                    "long_account_ratio",
+                    "short_account_ratio",
+                    "long_position_ratio",
+                    "short_position_ratio",
+                ]
+            ]
+            df = df.sort_values("timestamp").reset_index(drop=True)
 
             logger.info(f"Fetched {len(df)} long/short ratio records for {symbol}")
 
@@ -321,20 +310,20 @@ class BinanceConnector(ExchangeConnector):
         symbol = self._validate_symbol(symbol)
 
         endpoint = "/fapi/v1/premiumIndex"
-        params = {'symbol': symbol}
+        params = {"symbol": symbol}
 
         try:
             response = self._make_request(endpoint, params)
 
             return {
-                'symbol': symbol,
-                'mark_price': float(response.get('markPrice', 0)),
-                'index_price': float(response.get('indexPrice', 0)),
-                'funding_rate': float(response.get('lastFundingRate', 0)),
-                'next_funding_time': datetime.fromtimestamp(
-                    int(response.get('nextFundingTime', 0)) / 1000
+                "symbol": symbol,
+                "mark_price": float(response.get("markPrice", 0)),
+                "index_price": float(response.get("indexPrice", 0)),
+                "funding_rate": float(response.get("lastFundingRate", 0)),
+                "next_funding_time": datetime.fromtimestamp(
+                    int(response.get("nextFundingTime", 0)) / 1000
                 ),
-                'timestamp': datetime.now()
+                "timestamp": datetime.now(),
             }
 
         except BinanceAPIError as e:
@@ -342,10 +331,7 @@ class BinanceConnector(ExchangeConnector):
             return {}
 
     def _make_request(
-        self,
-        endpoint: str,
-        params: Optional[Dict] = None,
-        method: str = 'GET'
+        self, endpoint: str, params: Optional[Dict] = None, method: str = "GET"
     ) -> Any:
         """發送 API 請求
 
@@ -366,7 +352,7 @@ class BinanceConnector(ExchangeConnector):
         url = self.base_url + endpoint
 
         try:
-            if method == 'GET':
+            if method == "GET":
                 response = self.session.get(url, params=params, timeout=30)
             else:
                 response = self.session.post(url, params=params, timeout=30)
@@ -379,8 +365,10 @@ class BinanceConnector(ExchangeConnector):
             data = response.json()
 
             # 檢查 Binance API 錯誤
-            if isinstance(data, dict) and 'code' in data:
-                raise BinanceAPIError(f"API Error {data['code']}: {data.get('msg', 'Unknown error')}")
+            if isinstance(data, dict) and "code" in data:
+                raise BinanceAPIError(
+                    f"API Error {data['code']}: {data.get('msg', 'Unknown error')}"
+                )
 
             return data
 

@@ -16,4 +16,4 @@ Version: v0.5 Phase C
 
 from .main_menu import MainMenu
 
-__all__ = ['MainMenu']
+__all__ = ["MainMenu"]

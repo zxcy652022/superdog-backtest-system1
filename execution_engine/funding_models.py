@@ -14,10 +14,11 @@ Design Reference: docs/specs/v0.6/superdog_v06_execution_model_spec.md
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Dict
 from datetime import datetime, timedelta
-import pandas as pd
+from typing import Dict, List, Optional
+
 import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -37,8 +38,8 @@ class FundingConfig:
     enable_negative_funding: bool = True
 
     # 費率上下限
-    max_funding_rate: float = 0.0075    # 0.75%
-    min_funding_rate: float = -0.0075   # -0.75%
+    max_funding_rate: float = 0.0075  # 0.75%
+    min_funding_rate: float = -0.0075  # -0.75%
 
     def __post_init__(self):
         """初始化默認 Funding 時間"""
@@ -50,20 +51,22 @@ class FundingConfig:
 @dataclass
 class FundingEvent:
     """單次 Funding 事件記錄"""
-    timestamp: datetime            # 結算時間
-    funding_rate: float           # 費率
-    position_value: float         # 持倉價值
-    position_side: str            # 持倉方向 ('long'/'short')
-    funding_cost: float           # 費用（正=支付，負=收取）
-    mark_price: float             # 標記價格
+
+    timestamp: datetime  # 結算時間
+    funding_rate: float  # 費率
+    position_value: float  # 持倉價值
+    position_side: str  # 持倉方向 ('long'/'short')
+    funding_cost: float  # 費用（正=支付，負=收取）
+    mark_price: float  # 標記價格
 
 
 @dataclass
 class FundingResult:
     """Funding 費用計算結果"""
-    total_funding_cost: float      # 總費用
-    num_funding_events: int        # Funding 次數
-    avg_funding_rate: float        # 平均費率
+
+    total_funding_cost: float  # 總費用
+    num_funding_events: int  # Funding 次數
+    avg_funding_rate: float  # 平均費率
     funding_events: List[FundingEvent]  # 詳細事件列表
 
 
@@ -107,7 +110,7 @@ class FundingModel:
         exit_time: datetime,
         entry_price: float,
         funding_rate_data: Optional[pd.DataFrame] = None,
-        use_simulated_rates: bool = False
+        use_simulated_rates: bool = False,
     ) -> FundingResult:
         """計算持倉期間的總 Funding 費用
 
@@ -144,9 +147,7 @@ class FundingModel:
             if use_simulated_rates or funding_rate_data is None:
                 funding_rate = self._simulate_funding_rate()
             else:
-                funding_rate = self._get_funding_rate_at_time(
-                    funding_rate_data, funding_time
-                )
+                funding_rate = self._get_funding_rate_at_time(funding_rate_data, funding_time)
 
             # 計算標記價格（簡化：使用入場價格）
             mark_price = entry_price
@@ -157,7 +158,7 @@ class FundingModel:
             # 計算 Funding 費用
             # Long: 支付正費率，收取負費率
             # Short: 收取正費率，支付負費率
-            direction_multiplier = 1 if position_side == 'long' else -1
+            direction_multiplier = 1 if position_side == "long" else -1
             funding_cost = position_value * funding_rate * direction_multiplier
 
             # 記錄事件
@@ -167,7 +168,7 @@ class FundingModel:
                 position_value=position_value,
                 position_side=position_side,
                 funding_cost=funding_cost,
-                mark_price=mark_price
+                mark_price=mark_price,
             )
             funding_events.append(event)
             total_cost += funding_cost
@@ -180,22 +181,17 @@ class FundingModel:
             self.funding_event_count += 1
 
         # 計算平均費率
-        avg_rate = (
-            np.mean([e.funding_rate for e in funding_events])
-            if funding_events else 0.0
-        )
+        avg_rate = np.mean([e.funding_rate for e in funding_events]) if funding_events else 0.0
 
         return FundingResult(
             total_funding_cost=total_cost,
             num_funding_events=len(funding_events),
             avg_funding_rate=avg_rate,
-            funding_events=funding_events
+            funding_events=funding_events,
         )
 
     def _get_funding_times_in_range(
-        self,
-        start_time: datetime,
-        end_time: datetime
+        self, start_time: datetime, end_time: datetime
     ) -> List[datetime]:
         """獲取時間範圍內的所有 Funding 時間點
 
@@ -238,15 +234,12 @@ class FundingModel:
 
         # 如果當天沒有了，返回明天第一個
         next_day = current_date + timedelta(days=1)
-        return datetime.combine(
-            next_day,
-            datetime.min.time()
-        ).replace(hour=self.config.funding_times_utc[0])
+        return datetime.combine(next_day, datetime.min.time()).replace(
+            hour=self.config.funding_times_utc[0]
+        )
 
     def _get_funding_rate_at_time(
-        self,
-        funding_rate_data: pd.DataFrame,
-        timestamp: datetime
+        self, funding_rate_data: pd.DataFrame, timestamp: datetime
     ) -> float:
         """從歷史數據獲取指定時間的 Funding Rate
 
@@ -258,23 +251,23 @@ class FundingModel:
             float: Funding Rate
         """
         # 確保有 'timestamp' 和 'funding_rate' 列
-        if 'timestamp' not in funding_rate_data.columns:
+        if "timestamp" not in funding_rate_data.columns:
             # 嘗試使用索引
             if isinstance(funding_rate_data.index, pd.DatetimeIndex):
                 funding_rate_data = funding_rate_data.copy()
-                funding_rate_data['timestamp'] = funding_rate_data.index
+                funding_rate_data["timestamp"] = funding_rate_data.index
 
         # 找到最接近的時間點
-        if 'timestamp' in funding_rate_data.columns:
-            funding_rate_data['time_diff'] = abs(
-                pd.to_datetime(funding_rate_data['timestamp']) - pd.Timestamp(timestamp)
+        if "timestamp" in funding_rate_data.columns:
+            funding_rate_data["time_diff"] = abs(
+                pd.to_datetime(funding_rate_data["timestamp"]) - pd.Timestamp(timestamp)
             )
-            closest_idx = funding_rate_data['time_diff'].idxmin()
+            closest_idx = funding_rate_data["time_diff"].idxmin()
 
-            if 'funding_rate' in funding_rate_data.columns:
-                rate = funding_rate_data.loc[closest_idx, 'funding_rate']
-            elif 'fundingRate' in funding_rate_data.columns:
-                rate = funding_rate_data.loc[closest_idx, 'fundingRate']
+            if "funding_rate" in funding_rate_data.columns:
+                rate = funding_rate_data.loc[closest_idx, "funding_rate"]
+            elif "fundingRate" in funding_rate_data.columns:
+                rate = funding_rate_data.loc[closest_idx, "fundingRate"]
             else:
                 rate = 0.0001  # 默認費率
 
@@ -304,10 +297,7 @@ class FundingModel:
         return np.clip(rate, self.config.min_funding_rate, self.config.max_funding_rate)
 
     def calculate_annual_funding_cost(
-        self,
-        avg_funding_rate: float,
-        position_value: float,
-        position_side: str
+        self, avg_funding_rate: float, position_value: float, position_side: str
     ) -> float:
         """計算年化 Funding 成本
 
@@ -333,7 +323,7 @@ class FundingModel:
         fundings_per_year = (365 * 24) / self.config.funding_interval_hours
 
         # 計算年化成本
-        direction_multiplier = 1 if position_side == 'long' else -1
+        direction_multiplier = 1 if position_side == "long" else -1
         annual_cost = position_value * avg_funding_rate * fundings_per_year * direction_multiplier
 
         return annual_cost
@@ -343,7 +333,7 @@ class FundingModel:
         avg_position_value: float,
         avg_holding_hours: float,
         position_side_distribution: Dict[str, float],
-        avg_funding_rate: float = 0.0001
+        avg_funding_rate: float = 0.0001,
     ) -> Dict[str, float]:
         """估算策略的 Funding 成本
 
@@ -360,8 +350,8 @@ class FundingModel:
         avg_funding_events = avg_holding_hours / self.config.funding_interval_hours
 
         # Long 和 Short 的費用
-        long_ratio = position_side_distribution.get('long', 0.5)
-        short_ratio = position_side_distribution.get('short', 0.5)
+        long_ratio = position_side_distribution.get("long", 0.5)
+        short_ratio = position_side_distribution.get("short", 0.5)
 
         long_cost = avg_position_value * avg_funding_rate * avg_funding_events * long_ratio
         short_cost = -avg_position_value * avg_funding_rate * avg_funding_events * short_ratio
@@ -369,14 +359,16 @@ class FundingModel:
         total_cost = long_cost + short_cost
 
         return {
-            'avg_position_value': avg_position_value,
-            'avg_holding_hours': avg_holding_hours,
-            'avg_funding_events': avg_funding_events,
-            'long_funding_cost': long_cost,
-            'short_funding_cost': short_cost,
-            'net_funding_cost': total_cost,
-            'funding_cost_per_trade': total_cost,
-            'annual_funding_cost': total_cost * (365 * 24 / avg_holding_hours) if avg_holding_hours > 0 else 0
+            "avg_position_value": avg_position_value,
+            "avg_holding_hours": avg_holding_hours,
+            "avg_funding_events": avg_funding_events,
+            "long_funding_cost": long_cost,
+            "short_funding_cost": short_cost,
+            "net_funding_cost": total_cost,
+            "funding_cost_per_trade": total_cost,
+            "annual_funding_cost": total_cost * (365 * 24 / avg_holding_hours)
+            if avg_holding_hours > 0
+            else 0,
         }
 
     def get_statistics(self) -> Dict[str, float]:
@@ -386,14 +378,15 @@ class FundingModel:
             Dict: 統計信息
         """
         return {
-            'total_funding_paid': self.total_funding_paid,
-            'total_funding_received': self.total_funding_received,
-            'net_funding_cost': self.total_funding_paid - self.total_funding_received,
-            'funding_event_count': self.funding_event_count,
-            'avg_funding_paid': (
+            "total_funding_paid": self.total_funding_paid,
+            "total_funding_received": self.total_funding_received,
+            "net_funding_cost": self.total_funding_paid - self.total_funding_received,
+            "funding_event_count": self.funding_event_count,
+            "avg_funding_paid": (
                 self.total_funding_paid / self.funding_event_count
-                if self.funding_event_count > 0 else 0
-            )
+                if self.funding_event_count > 0
+                else 0
+            ),
         }
 
     def reset_statistics(self):
@@ -405,12 +398,13 @@ class FundingModel:
 
 # ===== 便捷函數 =====
 
+
 def calculate_simple_funding_cost(
     position_value: float,
     holding_hours: float,
     funding_rate: float = 0.0001,
     funding_interval: int = 8,
-    position_side: str = 'long'
+    position_side: str = "long",
 ) -> float:
     """簡化的 Funding 成本計算
 
@@ -430,7 +424,7 @@ def calculate_simple_funding_cost(
         3.0  # 10000 * 0.0001 * (24/8)
     """
     num_fundings = holding_hours / funding_interval
-    direction = 1 if position_side == 'long' else -1
+    direction = 1 if position_side == "long" else -1
     return position_value * funding_rate * num_fundings * direction
 
 
@@ -441,9 +435,9 @@ def get_typical_funding_rates() -> Dict[str, float]:
         Dict: 不同市場狀況的典型費率
     """
     return {
-        'bull_market': 0.0002,      # 牛市: 多頭支付較高
-        'bear_market': -0.0001,     # 熊市: 空頭支付
-        'neutral': 0.0001,          # 中性: 略微正向
-        'high_volatility': 0.0003,  # 高波動: 費率較高
-        'extreme': 0.005,           # 極端情況: 接近上限
+        "bull_market": 0.0002,  # 牛市: 多頭支付較高
+        "bear_market": -0.0001,  # 熊市: 空頭支付
+        "neutral": 0.0001,  # 中性: 略微正向
+        "high_volatility": 0.0003,  # 高波動: 費率較高
+        "extreme": 0.005,  # 極端情況: 接近上限
     }

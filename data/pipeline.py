@@ -15,20 +15,20 @@ Version: v0.5 (upgraded from v0.4)
 Design Reference: docs/specs/planned/v0.5_perpetual_data_ecosystem_spec.md
 """
 
-import pandas as pd
-from typing import Dict, List, Optional, Tuple
-from pathlib import Path
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from strategies.api_v2 import BaseStrategy, DataSource, DataRequirement
-from data.timeframe_manager import TimeframeManager, Timeframe
-from data.symbol_manager import SymbolManager
-from data_config import config
+import pandas as pd
 
 # v0.5: Import perpetual data modules
 from data.perpetual import FundingRateData, OpenInterestData
 from data.quality import DataQualityController
+from data.symbol_manager import SymbolManager
+from data.timeframe_manager import Timeframe, TimeframeManager
+from data_config import config
+from strategies.api_v2 import BaseStrategy, DataRequirement, DataSource
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ class DataLoadResult:
         ...     metadata={'rows': 1000, 'start': '2023-01-01'}
         ... )
     """
+
     success: bool
     data: Optional[Dict[str, pd.DataFrame]] = None
     error: Optional[str] = None
@@ -106,6 +107,7 @@ class DataPipeline:
 
         # v0.5 Phase B: 初始化新增數據處理器
         from data.perpetual import BasisData, LiquidationData, LongShortRatioData
+
         self.basis_data = BasisData()
         self.liquidation_data = LiquidationData()
         self.long_short_ratio_data = LongShortRatioData()
@@ -124,7 +126,7 @@ class DataPipeline:
         symbol: str,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> DataLoadResult:
         """載入策略所需的所有數據
 
@@ -171,56 +173,50 @@ class DataPipeline:
             try:
                 if req.source == DataSource.OHLCV:
                     # 載入 OHLCV 數據
-                    data = self._load_ohlcv(
-                        symbol, timeframe, req.timeframes, start_date, end_date
-                    )
+                    data = self._load_ohlcv(symbol, timeframe, req.timeframes, start_date, end_date)
 
                     if data is not None:
-                        loaded_data['ohlcv'] = data
+                        loaded_data["ohlcv"] = data
                     elif req.required:
                         result.success = False
                         result.error = f"Required OHLCV data not found for {symbol}"
                         return result
                     else:
-                        result.warnings.append(
-                            f"Optional OHLCV data not found for {symbol}"
-                        )
+                        result.warnings.append(f"Optional OHLCV data not found for {symbol}")
 
                 elif req.source == DataSource.FUNDING_RATE:
                     # v0.5 Phase A: 載入資金費率數據
-                    data = self._load_funding_rate(
-                        symbol, timeframe, start_date, end_date
-                    )
+                    data = self._load_funding_rate(symbol, timeframe, start_date, end_date)
 
                     if data is not None:
                         # 數據品質檢查
                         quality_result = self.quality_controller.check_funding_rate(data)
                         if not quality_result.passed:
-                            logger.warning(f"Funding rate quality check failed: {quality_result.get_summary()}")
+                            logger.warning(
+                                f"Funding rate quality check failed: {quality_result.get_summary()}"
+                            )
 
-                        loaded_data['funding_rate'] = data
+                        loaded_data["funding_rate"] = data
                     elif req.required:
                         result.success = False
                         result.error = f"Required funding rate data not found for {symbol}"
                         return result
                     else:
-                        result.warnings.append(
-                            f"Optional funding rate data not found for {symbol}"
-                        )
+                        result.warnings.append(f"Optional funding rate data not found for {symbol}")
 
                 elif req.source == DataSource.OPEN_INTEREST:
                     # v0.5 Phase A: 載入持倉量數據
-                    data = self._load_open_interest(
-                        symbol, timeframe, start_date, end_date
-                    )
+                    data = self._load_open_interest(symbol, timeframe, start_date, end_date)
 
                     if data is not None:
                         # 數據品質檢查
                         quality_result = self.quality_controller.check_open_interest(data)
                         if not quality_result.passed:
-                            logger.warning(f"Open interest quality check failed: {quality_result.get_summary()}")
+                            logger.warning(
+                                f"Open interest quality check failed: {quality_result.get_summary()}"
+                            )
 
-                        loaded_data['open_interest'] = data
+                        loaded_data["open_interest"] = data
                     elif req.required:
                         result.success = False
                         result.error = f"Required open interest data not found for {symbol}"
@@ -232,46 +228,36 @@ class DataPipeline:
 
                 elif req.source == DataSource.BASIS:
                     # v0.5 Phase B: 載入期現基差數據
-                    data = self._load_basis(
-                        symbol, timeframe, start_date, end_date
-                    )
+                    data = self._load_basis(symbol, timeframe, start_date, end_date)
 
                     if data is not None:
-                        loaded_data['basis'] = data
+                        loaded_data["basis"] = data
                     elif req.required:
                         result.success = False
                         result.error = f"Required basis data not found for {symbol}"
                         return result
                     else:
-                        result.warnings.append(
-                            f"Optional basis data not found for {symbol}"
-                        )
+                        result.warnings.append(f"Optional basis data not found for {symbol}")
 
                 elif req.source == DataSource.LIQUIDATIONS:
                     # v0.5 Phase B: 載入爆倉數據
-                    data = self._load_liquidations(
-                        symbol, timeframe, start_date, end_date
-                    )
+                    data = self._load_liquidations(symbol, timeframe, start_date, end_date)
 
                     if data is not None:
-                        loaded_data['liquidations'] = data
+                        loaded_data["liquidations"] = data
                     elif req.required:
                         result.success = False
                         result.error = f"Required liquidations data not found for {symbol}"
                         return result
                     else:
-                        result.warnings.append(
-                            f"Optional liquidations data not found for {symbol}"
-                        )
+                        result.warnings.append(f"Optional liquidations data not found for {symbol}")
 
                 elif req.source == DataSource.LONG_SHORT_RATIO:
                     # v0.5 Phase B: 載入多空持倉比數據
-                    data = self._load_long_short_ratio(
-                        symbol, timeframe, start_date, end_date
-                    )
+                    data = self._load_long_short_ratio(symbol, timeframe, start_date, end_date)
 
                     if data is not None:
-                        loaded_data['long_short_ratio'] = data
+                        loaded_data["long_short_ratio"] = data
                     elif req.required:
                         result.success = False
                         result.error = f"Required long/short ratio data not found for {symbol}"
@@ -308,14 +294,14 @@ class DataPipeline:
             return result
 
         # 6. 添加元數據
-        if 'ohlcv' in loaded_data:
-            df = loaded_data['ohlcv']
+        if "ohlcv" in loaded_data:
+            df = loaded_data["ohlcv"]
             result.metadata = {
-                'rows': len(df),
-                'start_date': df.index[0].strftime('%Y-%m-%d') if len(df) > 0 else None,
-                'end_date': df.index[-1].strftime('%Y-%m-%d') if len(df) > 0 else None,
-                'symbol': symbol,
-                'timeframe': timeframe
+                "rows": len(df),
+                "start_date": df.index[0].strftime("%Y-%m-%d") if len(df) > 0 else None,
+                "end_date": df.index[-1].strftime("%Y-%m-%d") if len(df) > 0 else None,
+                "symbol": symbol,
+                "timeframe": timeframe,
             }
 
         result.data = loaded_data
@@ -333,7 +319,7 @@ class DataPipeline:
         timeframe: str,
         required_timeframes: Optional[List[str]] = None,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """載入 OHLCV 數據
 
@@ -374,9 +360,7 @@ class DataPipeline:
 
         return df
 
-    def _load_ohlcv_from_file(
-        self, symbol: str, timeframe: str
-    ) -> Optional[pd.DataFrame]:
+    def _load_ohlcv_from_file(self, symbol: str, timeframe: str) -> Optional[pd.DataFrame]:
         """從文件載入 OHLCV 數據
 
         Args:
@@ -403,7 +387,7 @@ class DataPipeline:
             df = pd.read_csv(file_path, index_col=0, parse_dates=True)
 
             # 確保列名正確
-            expected_columns = ['open', 'high', 'low', 'close', 'volume']
+            expected_columns = ["open", "high", "low", "close", "volume"]
             df.columns = df.columns.str.lower()
 
             if not all(col in df.columns for col in expected_columns):
@@ -445,7 +429,7 @@ class DataPipeline:
         symbol: str,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """載入資金費率數據
 
@@ -460,18 +444,16 @@ class DataPipeline:
         """
         try:
             # 優先從存儲載入
-            df = self.funding_rate_data.load(symbol, 'binance', start_date, end_date)
+            df = self.funding_rate_data.load(symbol, "binance", start_date, end_date)
 
             # 如果存儲中沒有，嘗試從 API 獲取
             if df.empty and start_date and end_date:
                 logger.info(f"Fetching funding rate data from API for {symbol}")
-                df = self.funding_rate_data.fetch(
-                    symbol, start_date, end_date, exchange='binance'
-                )
+                df = self.funding_rate_data.fetch(symbol, start_date, end_date, exchange="binance")
 
                 # 保存到存儲
                 if not df.empty:
-                    self.funding_rate_data.save(df, symbol, 'binance')
+                    self.funding_rate_data.save(df, symbol, "binance")
 
             return df if not df.empty else None
 
@@ -484,7 +466,7 @@ class DataPipeline:
         symbol: str,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """載入持倉量數據
 
@@ -499,18 +481,18 @@ class DataPipeline:
         """
         try:
             # 優先從存儲載入
-            df = self.open_interest_data.load(symbol, 'binance', timeframe, start_date, end_date)
+            df = self.open_interest_data.load(symbol, "binance", timeframe, start_date, end_date)
 
             # 如果存儲中沒有，嘗試從 API 獲取
             if df.empty and start_date and end_date:
                 logger.info(f"Fetching open interest data from API for {symbol}")
                 df = self.open_interest_data.fetch(
-                    symbol, start_date, end_date, interval=timeframe, exchange='binance'
+                    symbol, start_date, end_date, interval=timeframe, exchange="binance"
                 )
 
                 # 保存到存儲
                 if not df.empty:
-                    self.open_interest_data.save(df, symbol, 'binance', interval=timeframe)
+                    self.open_interest_data.save(df, symbol, "binance", interval=timeframe)
 
             return df if not df.empty else None
 
@@ -523,7 +505,7 @@ class DataPipeline:
         symbol: str,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """載入期現基差數據 (v0.5 Phase B)
 
@@ -538,18 +520,18 @@ class DataPipeline:
         """
         try:
             # 優先從存儲載入
-            df = self.basis_data.load(symbol, 'binance', start_date, end_date)
+            df = self.basis_data.load(symbol, "binance", start_date, end_date)
 
             # 如果存儲中沒有，嘗試從 API 計算
             if df.empty and start_date and end_date:
                 logger.info(f"Calculating basis data from API for {symbol}")
                 df = self.basis_data.fetch_and_calculate(
-                    symbol, start_date, end_date, interval=timeframe, exchange='binance'
+                    symbol, start_date, end_date, interval=timeframe, exchange="binance"
                 )
 
                 # 保存到存儲
                 if not df.empty:
-                    self.basis_data.save(df, symbol, 'binance')
+                    self.basis_data.save(df, symbol, "binance")
 
             return df if not df.empty else None
 
@@ -562,7 +544,7 @@ class DataPipeline:
         symbol: str,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """載入爆倉數據 (v0.5 Phase B)
 
@@ -577,18 +559,16 @@ class DataPipeline:
         """
         try:
             # 優先從存儲載入
-            df = self.liquidation_data.load(symbol, 'binance', start_date, end_date)
+            df = self.liquidation_data.load(symbol, "binance", start_date, end_date)
 
             # 如果存儲中沒有，嘗試從 API 獲取
             if df.empty and start_date and end_date:
                 logger.info(f"Fetching liquidation data from API for {symbol}")
-                df = self.liquidation_data.fetch(
-                    symbol, start_date, end_date, exchange='binance'
-                )
+                df = self.liquidation_data.fetch(symbol, start_date, end_date, exchange="binance")
 
                 # 保存到存儲
                 if not df.empty:
-                    self.liquidation_data.save(df, symbol, 'binance')
+                    self.liquidation_data.save(df, symbol, "binance")
 
             return df if not df.empty else None
 
@@ -601,7 +581,7 @@ class DataPipeline:
         symbol: str,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """載入多空持倉比數據 (v0.5 Phase B)
 
@@ -616,18 +596,18 @@ class DataPipeline:
         """
         try:
             # 優先從存儲載入
-            df = self.long_short_ratio_data.load(symbol, 'binance', start_date, end_date)
+            df = self.long_short_ratio_data.load(symbol, "binance", start_date, end_date)
 
             # 如果存儲中沒有，嘗試從 API 獲取
             if df.empty and start_date and end_date:
                 logger.info(f"Fetching long/short ratio data from API for {symbol}")
                 df = self.long_short_ratio_data.fetch(
-                    symbol, start_date, end_date, interval=timeframe, exchange='binance'
+                    symbol, start_date, end_date, interval=timeframe, exchange="binance"
                 )
 
                 # 保存到存儲
                 if not df.empty:
-                    self.long_short_ratio_data.save(df, symbol, 'binance')
+                    self.long_short_ratio_data.save(df, symbol, "binance")
 
             return df if not df.empty else None
 
@@ -641,7 +621,7 @@ class DataPipeline:
         symbols: List[str],
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> Dict[str, DataLoadResult]:
         """載入多個交易對的數據
 
@@ -673,9 +653,7 @@ class DataPipeline:
 
         # 統計
         successful = sum(1 for r in results.values() if r.success)
-        logger.info(
-            f"Loaded data for {successful}/{len(symbols)} symbols successfully"
-        )
+        logger.info(f"Loaded data for {successful}/{len(symbols)} symbols successfully")
 
         return results
 
@@ -700,22 +678,15 @@ class DataPipeline:
             >>> stats = pipeline.get_cache_stats()
             >>> print(f"Cached items: {stats['count']}")
         """
-        total_memory = sum(
-            df.memory_usage(deep=True).sum()
-            for df in self._cache.values()
-        )
+        total_memory = sum(df.memory_usage(deep=True).sum() for df in self._cache.values())
 
         return {
-            'count': len(self._cache),
-            'keys': list(self._cache.keys()),
-            'memory_mb': total_memory / 1024 / 1024
+            "count": len(self._cache),
+            "keys": list(self._cache.keys()),
+            "memory_mb": total_memory / 1024 / 1024,
         }
 
-    def preload_data(
-        self,
-        symbols: List[str],
-        timeframes: List[str]
-    ) -> Tuple[int, int]:
+    def preload_data(self, symbols: List[str], timeframes: List[str]) -> Tuple[int, int]:
         """預載入數據到快取
 
         Args:
@@ -774,7 +745,7 @@ def load_strategy_data(
     symbol: str,
     timeframe: str,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
 ) -> DataLoadResult:
     """載入策略數據的便捷函數
 
@@ -795,6 +766,4 @@ def load_strategy_data(
         >>> if result.success:
         ...     data = result.data
     """
-    return get_pipeline().load_strategy_data(
-        strategy, symbol, timeframe, start_date, end_date
-    )
+    return get_pipeline().load_strategy_data(strategy, symbol, timeframe, start_date, end_date)

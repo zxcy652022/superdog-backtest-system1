@@ -9,6 +9,7 @@ Simple SMA Strategy v0.1
 """
 
 import pandas as pd
+
 from backtest.engine import BaseStrategy
 
 
@@ -28,7 +29,7 @@ class SimpleSMAStrategy(BaseStrategy):
         self.sma_period = sma_period
 
         # 預先計算 SMA
-        self.sma = self.data['close'].rolling(window=self.sma_period).mean()
+        self.sma = self.data["close"].rolling(window=self.sma_period).mean()
 
     def on_bar(self, i: int, row: pd.Series):
         """
@@ -42,7 +43,7 @@ class SimpleSMAStrategy(BaseStrategy):
         if i < self.sma_period - 1:
             return
 
-        current_price = row['close']
+        current_price = row["close"]
         current_time = row.name  # DataFrame 的 index
         current_sma = self.sma.iloc[i]
 

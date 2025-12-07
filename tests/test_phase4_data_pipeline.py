@@ -11,23 +11,25 @@ Version: v0.4
 """
 
 import unittest
-import pandas as pd
-import numpy as np
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from data.pipeline import DataLoadResult, DataPipeline, get_pipeline, load_strategy_data
+from data.storage import OHLCVStorage
+from data.symbol_manager import (
+    QuoteAsset,
+    SymbolInfo,
+    SymbolManager,
+    get_symbol_manager,
+    get_top_symbols,
+    validate_symbol,
+)
 
 # 測試目標模組
-from data.timeframe_manager import (
-    Timeframe, TimeframeManager, get_timeframe_manager
-)
-from data.symbol_manager import (
-    SymbolManager, SymbolInfo, QuoteAsset, get_symbol_manager,
-    validate_symbol, get_top_symbols
-)
-from data.pipeline import (
-    DataPipeline, DataLoadResult, get_pipeline, load_strategy_data
-)
-from data.storage import OHLCVStorage
+from data.timeframe_manager import Timeframe, TimeframeManager, get_timeframe_manager
 
 # 測試策略
 from strategies.simple_sma_v2 import SimpleSMAStrategyV2
@@ -81,18 +83,9 @@ class TestTimeframeManager(unittest.TestCase):
 
     def test_to_timedelta(self):
         """測試轉換為 timedelta"""
-        self.assertEqual(
-            self.manager.get_timedelta("1m"),
-            timedelta(minutes=1)
-        )
-        self.assertEqual(
-            self.manager.get_timedelta("1h"),
-            timedelta(hours=1)
-        )
-        self.assertEqual(
-            self.manager.get_timedelta("1d"),
-            timedelta(days=1)
-        )
+        self.assertEqual(self.manager.get_timedelta("1m"), timedelta(minutes=1))
+        self.assertEqual(self.manager.get_timedelta("1h"), timedelta(hours=1))
+        self.assertEqual(self.manager.get_timedelta("1d"), timedelta(days=1))
 
     def test_compare_timeframes(self):
         """測試時間週期比較"""
@@ -104,25 +97,28 @@ class TestTimeframeManager(unittest.TestCase):
     def test_resample_ohlcv(self):
         """測試 OHLCV 重採樣"""
         # 創建測試數據（1分鐘數據）
-        dates = pd.date_range(start='2023-01-01', periods=60, freq='1min')
-        df = pd.DataFrame({
-            'open': np.random.randn(60).cumsum() + 100,
-            'high': np.random.randn(60).cumsum() + 102,
-            'low': np.random.randn(60).cumsum() + 98,
-            'close': np.random.randn(60).cumsum() + 100,
-            'volume': np.random.randint(1000, 10000, 60)
-        }, index=dates)
+        dates = pd.date_range(start="2023-01-01", periods=60, freq="1min")
+        df = pd.DataFrame(
+            {
+                "open": np.random.randn(60).cumsum() + 100,
+                "high": np.random.randn(60).cumsum() + 102,
+                "low": np.random.randn(60).cumsum() + 98,
+                "close": np.random.randn(60).cumsum() + 100,
+                "volume": np.random.randint(1000, 10000, 60),
+            },
+            index=dates,
+        )
 
         # 重採樣為 5 分鐘
         resampled = self.manager.resample_ohlcv(df, "1m", "5m")
 
         # 驗證結果
         self.assertEqual(len(resampled), 12)  # 60 / 5 = 12
-        self.assertIn('open', resampled.columns)
-        self.assertIn('high', resampled.columns)
-        self.assertIn('low', resampled.columns)
-        self.assertIn('close', resampled.columns)
-        self.assertIn('volume', resampled.columns)
+        self.assertIn("open", resampled.columns)
+        self.assertIn("high", resampled.columns)
+        self.assertIn("low", resampled.columns)
+        self.assertIn("close", resampled.columns)
+        self.assertIn("volume", resampled.columns)
 
     def test_get_compatible_timeframes(self):
         """測試獲取兼容的時間週期"""
@@ -236,7 +232,7 @@ class TestSymbolManager(unittest.TestCase):
             base_asset="CUSTOM",
             quote_asset="USDT",
             price_precision=4,
-            quantity_precision=2
+            quantity_precision=2,
         )
 
         self.manager.register_symbol(custom_info)
@@ -266,16 +262,12 @@ class TestDataPipeline(unittest.TestCase):
     def test_validate_inputs(self):
         """測試輸入驗證"""
         # 無效的交易對
-        result = self.pipeline.load_strategy_data(
-            self.strategy, "INVALID", "1h"
-        )
+        result = self.pipeline.load_strategy_data(self.strategy, "INVALID", "1h")
         self.assertFalse(result.success)
         self.assertIn("Invalid symbol", result.error)
 
         # 無效的時間週期
-        result = self.pipeline.load_strategy_data(
-            self.strategy, "BTCUSDT", "invalid"
-        )
+        result = self.pipeline.load_strategy_data(self.strategy, "BTCUSDT", "invalid")
         self.assertFalse(result.success)
         self.assertIn("Invalid timeframe", result.error)
 
@@ -286,7 +278,7 @@ class TestDataPipeline(unittest.TestCase):
 
         # 獲取快取統計
         stats = self.pipeline.get_cache_stats()
-        self.assertEqual(stats['count'], 0)
+        self.assertEqual(stats["count"], 0)
 
     def test_convenience_function(self):
         """測試便捷函數"""
@@ -317,9 +309,9 @@ class TestOHLCVStorage(unittest.TestCase):
 
         # 如果有數據，驗證格式
         for item in available:
-            self.assertIn('symbol', item)
-            self.assertIn('timeframe', item)
-            self.assertIn('file_path', item)
+            self.assertIn("symbol", item)
+            self.assertIn("timeframe", item)
+            self.assertIn("file_path", item)
 
 
 class TestDataLoadResult(unittest.TestCase):
@@ -336,23 +328,16 @@ class TestDataLoadResult(unittest.TestCase):
 
     def test_with_data(self):
         """測試帶數據的結果"""
-        df = pd.DataFrame({'close': [100, 101, 102]})
-        result = DataLoadResult(
-            success=True,
-            data={'ohlcv': df},
-            metadata={'rows': 3}
-        )
+        df = pd.DataFrame({"close": [100, 101, 102]})
+        result = DataLoadResult(success=True, data={"ohlcv": df}, metadata={"rows": 3})
 
         self.assertTrue(result.success)
-        self.assertIn('ohlcv', result.data)
-        self.assertEqual(result.metadata['rows'], 3)
+        self.assertIn("ohlcv", result.data)
+        self.assertEqual(result.metadata["rows"], 3)
 
     def test_with_error(self):
         """測試帶錯誤的結果"""
-        result = DataLoadResult(
-            success=False,
-            error="File not found"
-        )
+        result = DataLoadResult(success=False, error="File not found")
 
         self.assertFalse(result.success)
         self.assertEqual(result.error, "File not found")
@@ -378,28 +363,16 @@ class TestIntegration(unittest.TestCase):
         pipeline = get_pipeline()
 
         # Pipeline 應該有 TimeframeManager 和 SymbolManager
-        self.assertIsInstance(
-            pipeline.timeframe_manager,
-            TimeframeManager
-        )
-        self.assertIsInstance(
-            pipeline.symbol_manager,
-            SymbolManager
-        )
+        self.assertIsInstance(pipeline.timeframe_manager, TimeframeManager)
+        self.assertIsInstance(pipeline.symbol_manager, SymbolManager)
 
     def test_storage_uses_managers(self):
         """測試 OHLCVStorage 使用管理器"""
         storage = OHLCVStorage()
 
         # Storage 應該有 TimeframeManager 和 SymbolManager
-        self.assertIsInstance(
-            storage.timeframe_manager,
-            TimeframeManager
-        )
-        self.assertIsInstance(
-            storage.symbol_manager,
-            SymbolManager
-        )
+        self.assertIsInstance(storage.timeframe_manager, TimeframeManager)
+        self.assertIsInstance(storage.symbol_manager, SymbolManager)
 
 
 def run_tests():
@@ -424,7 +397,8 @@ def run_tests():
     return result.wasSuccessful()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     success = run_tests()
     sys.exit(0 if success else 1)

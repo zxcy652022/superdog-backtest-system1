@@ -13,12 +13,13 @@ Features:
 Version: v0.5
 """
 
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any, Union
-from pathlib import Path
 import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import numpy as np
+import pandas as pd
 
 from data.exchanges.base_connector import ExchangeConnector
 from data.exchanges.binance_connector import BinanceConnector
@@ -44,13 +45,13 @@ class FundingRateData:
         Args:
             storage_path: 數據存儲路徑（默認使用 SSD）
         """
-        self.storage_path = storage_path or Path("/Volumes/權志龍的寶藏/SuperDogData/perpetual/funding_rate")
+        self.storage_path = storage_path or Path(
+            "/Volumes/權志龍的寶藏/SuperDogData/perpetual/funding_rate"
+        )
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         # 初始化交易所連接器
-        self.connectors: Dict[str, ExchangeConnector] = {
-            'binance': BinanceConnector()
-        }
+        self.connectors: Dict[str, ExchangeConnector] = {"binance": BinanceConnector()}
 
         # 數據快取
         self._cache: Dict[str, pd.DataFrame] = {}
@@ -60,8 +61,8 @@ class FundingRateData:
         symbol: str,
         start_time: Union[str, datetime],
         end_time: Union[str, datetime],
-        exchange: str = 'binance',
-        use_cache: bool = True
+        exchange: str = "binance",
+        use_cache: bool = True,
     ) -> pd.DataFrame:
         """獲取資金費率數據
 
@@ -105,27 +106,22 @@ class FundingRateData:
         connector = self.connectors[exchange]
 
         try:
-            df = connector.get_funding_rate(
-                symbol=symbol,
-                start_time=start_time,
-                end_time=end_time
-            )
+            df = connector.get_funding_rate(symbol=symbol, start_time=start_time, end_time=end_time)
 
             if df.empty:
                 logger.warning(f"No funding rate data found for {symbol} on {exchange}")
                 return pd.DataFrame()
 
             # 添加交易所標籤
-            df['exchange'] = exchange
+            df["exchange"] = exchange
 
             # 計算年化費率（資金費率每8小時結算一次，年化 = rate * 3 * 365）
-            df['annual_rate'] = df['funding_rate'] * 3 * 365
+            df["annual_rate"] = df["funding_rate"] * 3 * 365
 
             # 重新排序欄位
-            df = df[[
-                'timestamp', 'symbol', 'exchange',
-                'funding_rate', 'annual_rate', 'mark_price'
-            ]]
+            df = df[
+                ["timestamp", "symbol", "exchange", "funding_rate", "annual_rate", "mark_price"]
+            ]
 
             # 快取數據
             if use_cache:
@@ -144,7 +140,7 @@ class FundingRateData:
         symbol: str,
         start_time: Union[str, datetime],
         end_time: Union[str, datetime],
-        exchanges: Optional[List[str]] = None
+        exchanges: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """從多個交易所獲取資金費率數據並合併
 
@@ -176,16 +172,14 @@ class FundingRateData:
 
         # 合併所有數據
         combined = pd.concat(all_data, ignore_index=True)
-        combined = combined.sort_values(['timestamp', 'exchange']).reset_index(drop=True)
+        combined = combined.sort_values(["timestamp", "exchange"]).reset_index(drop=True)
 
         logger.info(f"Fetched {len(combined)} total records from {len(all_data)} exchanges")
 
         return combined
 
     def calculate_statistics(
-        self,
-        df: pd.DataFrame,
-        window: Optional[int] = None
+        self, df: pd.DataFrame, window: Optional[int] = None
     ) -> Dict[str, Any]:
         """計算資金費率統計指標
 
@@ -208,32 +202,28 @@ class FundingRateData:
         if df.empty:
             return {}
 
-        rates = df['funding_rate']
+        rates = df["funding_rate"]
 
         stats = {
-            'mean': rates.mean(),
-            'median': rates.median(),
-            'std': rates.std(),
-            'min': rates.min(),
-            'max': rates.max(),
-            'positive_ratio': (rates > 0).sum() / len(rates),
-            'negative_ratio': (rates < 0).sum() / len(rates),
-            'extreme_count': (rates.abs() > 0.001).sum(),  # |rate| > 0.1%
-            'avg_annual_rate': df['annual_rate'].mean()
+            "mean": rates.mean(),
+            "median": rates.median(),
+            "std": rates.std(),
+            "min": rates.min(),
+            "max": rates.max(),
+            "positive_ratio": (rates > 0).sum() / len(rates),
+            "negative_ratio": (rates < 0).sum() / len(rates),
+            "extreme_count": (rates.abs() > 0.001).sum(),  # |rate| > 0.1%
+            "avg_annual_rate": df["annual_rate"].mean(),
         }
 
         # 如果指定窗口，計算滾動統計
         if window is not None:
-            stats['rolling_mean'] = rates.rolling(window).mean()
-            stats['rolling_std'] = rates.rolling(window).std()
+            stats["rolling_mean"] = rates.rolling(window).mean()
+            stats["rolling_std"] = rates.rolling(window).std()
 
         return stats
 
-    def detect_anomalies(
-        self,
-        df: pd.DataFrame,
-        threshold: float = 0.005  # 0.5%
-    ) -> pd.DataFrame:
+    def detect_anomalies(self, df: pd.DataFrame, threshold: float = 0.005) -> pd.DataFrame:  # 0.5%
         """檢測資金費率異常值
 
         Args:
@@ -248,24 +238,20 @@ class FundingRateData:
         df = df.copy()
 
         # 標記異常值
-        df['is_anomaly'] = df['funding_rate'].abs() > threshold
+        df["is_anomaly"] = df["funding_rate"].abs() > threshold
 
         # 分類異常類型
-        df['anomaly_type'] = 'normal'
-        df.loc[df['funding_rate'] > threshold, 'anomaly_type'] = 'extreme_positive'
-        df.loc[df['funding_rate'] < -threshold, 'anomaly_type'] = 'extreme_negative'
+        df["anomaly_type"] = "normal"
+        df.loc[df["funding_rate"] > threshold, "anomaly_type"] = "extreme_positive"
+        df.loc[df["funding_rate"] < -threshold, "anomaly_type"] = "extreme_negative"
 
-        anomaly_count = df['is_anomaly'].sum()
+        anomaly_count = df["is_anomaly"].sum()
         if anomaly_count > 0:
             logger.warning(f"Detected {anomaly_count} anomalies in funding rate data")
 
         return df
 
-    def resample(
-        self,
-        df: pd.DataFrame,
-        freq: str = 'D'
-    ) -> pd.DataFrame:
+    def resample(self, df: pd.DataFrame, freq: str = "D") -> pd.DataFrame:
         """重採樣資金費率數據
 
         Args:
@@ -279,24 +265,19 @@ class FundingRateData:
             return df
 
         # 設置時間索引
-        df = df.set_index('timestamp')
+        df = df.set_index("timestamp")
 
         # 重採樣（使用平均值）
-        resampled = df.groupby(['symbol', 'exchange']).resample(freq).agg({
-            'funding_rate': 'mean',
-            'annual_rate': 'mean',
-            'mark_price': 'mean'
-        }).reset_index()
+        resampled = (
+            df.groupby(["symbol", "exchange"])
+            .resample(freq)
+            .agg({"funding_rate": "mean", "annual_rate": "mean", "mark_price": "mean"})
+            .reset_index()
+        )
 
         return resampled
 
-    def save(
-        self,
-        df: pd.DataFrame,
-        symbol: str,
-        exchange: str,
-        format: str = 'parquet'
-    ) -> Path:
+    def save(self, df: pd.DataFrame, symbol: str, exchange: str, format: str = "parquet") -> Path:
         """保存資金費率數據到存儲
 
         Args:
@@ -314,8 +295,8 @@ class FundingRateData:
 
         # 生成文件名（包含時間範圍）
         if not df.empty:
-            start_date = df['timestamp'].min().strftime('%Y%m%d')
-            end_date = df['timestamp'].max().strftime('%Y%m%d')
+            start_date = df["timestamp"].min().strftime("%Y%m%d")
+            end_date = df["timestamp"].max().strftime("%Y%m%d")
             filename = f"{symbol}_funding_rate_{start_date}_{end_date}.{format}"
         else:
             filename = f"{symbol}_funding_rate.{format}"
@@ -323,9 +304,9 @@ class FundingRateData:
         file_path = exchange_dir / filename
 
         # 保存數據
-        if format == 'parquet':
-            df.to_parquet(file_path, index=False, compression='snappy')
-        elif format == 'csv':
+        if format == "parquet":
+            df.to_parquet(file_path, index=False, compression="snappy")
+        elif format == "csv":
             df.to_csv(file_path, index=False)
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -339,7 +320,7 @@ class FundingRateData:
         symbol: str,
         exchange: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
     ) -> pd.DataFrame:
         """從存儲加載資金費率數據
 
@@ -382,26 +363,22 @@ class FundingRateData:
             all_data.append(df)
 
         combined = pd.concat(all_data, ignore_index=True)
-        combined = combined.sort_values('timestamp').reset_index(drop=True)
+        combined = combined.sort_values("timestamp").reset_index(drop=True)
 
         # 如果指定了日期範圍，過濾數據
         if start_date or end_date:
             if start_date:
                 start_dt = pd.to_datetime(start_date)
-                combined = combined[combined['timestamp'] >= start_dt]
+                combined = combined[combined["timestamp"] >= start_dt]
             if end_date:
                 end_dt = pd.to_datetime(end_date)
-                combined = combined[combined['timestamp'] <= end_dt]
+                combined = combined[combined["timestamp"] <= end_dt]
 
         logger.info(f"Loaded {len(combined)} funding rate records from storage")
 
         return combined
 
-    def get_latest(
-        self,
-        symbol: str,
-        exchange: str = 'binance'
-    ) -> Dict[str, Any]:
+    def get_latest(self, symbol: str, exchange: str = "binance") -> Dict[str, Any]:
         """獲取最新的資金費率
 
         Args:
@@ -419,13 +396,13 @@ class FundingRateData:
         mark_data = connector.get_mark_price(symbol)
 
         result = {
-            'symbol': symbol,
-            'exchange': exchange,
-            'funding_rate': mark_data.get('funding_rate', 0),
-            'annual_rate': mark_data.get('funding_rate', 0) * 3 * 365,
-            'mark_price': mark_data.get('mark_price', 0),
-            'next_funding_time': mark_data.get('next_funding_time'),
-            'timestamp': mark_data.get('timestamp', datetime.now())
+            "symbol": symbol,
+            "exchange": exchange,
+            "funding_rate": mark_data.get("funding_rate", 0),
+            "annual_rate": mark_data.get("funding_rate", 0) * 3 * 365,
+            "mark_price": mark_data.get("mark_price", 0),
+            "next_funding_time": mark_data.get("next_funding_time"),
+            "timestamp": mark_data.get("timestamp", datetime.now()),
         }
 
         return result
@@ -440,9 +417,9 @@ class FundingRateData:
         total_rows = sum(len(df) for df in self._cache.values())
 
         return {
-            'cached_items': len(self._cache),
-            'total_rows': total_rows,
-            'cache_keys': list(self._cache.keys())
+            "cached_items": len(self._cache),
+            "total_rows": total_rows,
+            "cache_keys": list(self._cache.keys()),
         }
 
 
@@ -451,7 +428,7 @@ def fetch_funding_rate(
     symbol: str,
     start_time: Union[str, datetime],
     end_time: Union[str, datetime],
-    exchange: str = 'binance'
+    exchange: str = "binance",
 ) -> pd.DataFrame:
     """便捷函數：獲取資金費率數據
 
@@ -462,10 +439,7 @@ def fetch_funding_rate(
     return fr.fetch(symbol, start_time, end_time, exchange)
 
 
-def get_latest_funding_rate(
-    symbol: str,
-    exchange: str = 'binance'
-) -> Dict[str, Any]:
+def get_latest_funding_rate(symbol: str, exchange: str = "binance") -> Dict[str, Any]:
     """便捷函數：獲取最新資金費率
 
     Example:

@@ -12,19 +12,21 @@ Version: v0.4
 """
 
 import time
-import unittest
-import pandas as pd
-import numpy as np
-from pathlib import Path
 import tracemalloc
+import unittest
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from data.pipeline import DataPipeline
+from data.storage import OHLCVStorage
+from data.symbol_manager import get_top_symbols
+from data.timeframe_manager import TimeframeManager
+from strategies.kawamoku_demo import KawamokuStrategy
 
 # v0.4 Components
 from strategies.simple_sma_v2 import SimpleSMAStrategyV2
-from strategies.kawamoku_demo import KawamokuStrategy
-from data.pipeline import DataPipeline
-from data.storage import OHLCVStorage
-from data.timeframe_manager import TimeframeManager
-from data.symbol_manager import get_top_symbols
 
 
 class PerformanceBenchmark(unittest.TestCase):
@@ -34,25 +36,28 @@ class PerformanceBenchmark(unittest.TestCase):
     def setUpClass(cls):
         """設置測試數據"""
         # 創建大型測試數據集
-        cls.small_data = cls._create_ohlcv_data(1000)   # 1K bars
+        cls.small_data = cls._create_ohlcv_data(1000)  # 1K bars
         cls.medium_data = cls._create_ohlcv_data(10000)  # 10K bars
-        cls.large_data = cls._create_ohlcv_data(100000) # 100K bars
+        cls.large_data = cls._create_ohlcv_data(100000)  # 100K bars
 
     @staticmethod
     def _create_ohlcv_data(size: int) -> pd.DataFrame:
         """創建測試 OHLCV 數據"""
-        dates = pd.date_range(start='2020-01-01', periods=size, freq='1h')
-        data = pd.DataFrame({
-            'open': np.random.randn(size).cumsum() + 50000,
-            'high': np.random.randn(size).cumsum() + 50100,
-            'low': np.random.randn(size).cumsum() + 49900,
-            'close': np.random.randn(size).cumsum() + 50000,
-            'volume': np.random.randint(1000, 10000, size)
-        }, index=dates)
+        dates = pd.date_range(start="2020-01-01", periods=size, freq="1h")
+        data = pd.DataFrame(
+            {
+                "open": np.random.randn(size).cumsum() + 50000,
+                "high": np.random.randn(size).cumsum() + 50100,
+                "low": np.random.randn(size).cumsum() + 49900,
+                "close": np.random.randn(size).cumsum() + 50000,
+                "volume": np.random.randint(1000, 10000, size),
+            },
+            index=dates,
+        )
 
         # 確保 high >= low
-        data['high'] = data[['open', 'close']].max(axis=1) + 100
-        data['low'] = data[['open', 'close']].min(axis=1) - 100
+        data["high"] = data[["open", "close"]].max(axis=1) + 100
+        data["low"] = data[["open", "close"]].min(axis=1) - 100
 
         return data
 
@@ -82,9 +87,9 @@ class PerformanceBenchmark(unittest.TestCase):
         for name, data in [
             ("Small (1K)", self.small_data),
             ("Medium (10K)", self.medium_data),
-            ("Large (100K)", self.large_data)
+            ("Large (100K)", self.large_data),
         ]:
-            data_dict = {'ohlcv': data}
+            data_dict = {"ohlcv": data}
 
             start_time = time.time()
             signals = strategy.compute_signals(data_dict, params)
@@ -97,25 +102,29 @@ class PerformanceBenchmark(unittest.TestCase):
 
         print(f"\nSimpleSMA 策略計算性能:")
         for name, elapsed in results.items():
-            bars_per_sec = len(self.small_data if "Small" in name else
-                               self.medium_data if "Medium" in name else
-                               self.large_data) / elapsed
+            bars_per_sec = (
+                len(
+                    self.small_data
+                    if "Small" in name
+                    else self.medium_data
+                    if "Medium" in name
+                    else self.large_data
+                )
+                / elapsed
+            )
             print(f"  {name}: {elapsed*1000:.2f}ms ({bars_per_sec:.0f} bars/sec)")
 
         # 性能要求：至少 1000 bars/sec
         self.assertGreater(
-            len(self.small_data) / results["Small (1K)"],
-            1000,
-            "SimpleSMA 應該至少達到 1000 bars/sec"
+            len(self.small_data) / results["Small (1K)"], 1000, "SimpleSMA 應該至少達到 1000 bars/sec"
         )
 
     def test_kawamoku_performance(self):
         """測試 Kawamoku 策略性能"""
         strategy = KawamokuStrategy()
-        params = {param: spec.default_value
-                  for param, spec in strategy.get_parameters().items()}
+        params = {param: spec.default_value for param, spec in strategy.get_parameters().items()}
 
-        data_dict = {'ohlcv': self.medium_data}
+        data_dict = {"ohlcv": self.medium_data}
 
         start_time = time.time()
         signals = strategy.compute_signals(data_dict, params)
@@ -136,7 +145,7 @@ class PerformanceBenchmark(unittest.TestCase):
 
         strategy = SimpleSMAStrategyV2()
         params = {"short_window": 10, "long_window": 20}
-        data_dict = {'ohlcv': self.large_data}
+        data_dict = {"ohlcv": self.large_data}
 
         # 計算前的記憶體
         tracemalloc.reset_peak()
@@ -165,7 +174,7 @@ class PerformanceBenchmark(unittest.TestCase):
 
         # 模擬 10 個交易對
         symbols = get_top_symbols(10)
-        data_dict = {'ohlcv': self.medium_data}
+        data_dict = {"ohlcv": self.medium_data}
 
         start_time = time.time()
 
@@ -208,13 +217,13 @@ class PerformanceBenchmark(unittest.TestCase):
         """測試數據驗證性能"""
         # 測試數據清理性能（dropna, etc）
         bad_data = self.medium_data.copy()
-        bad_data.loc[bad_data.index[100:200], 'close'] = np.nan
+        bad_data.loc[bad_data.index[100:200], "close"] = np.nan
 
         start_time = time.time()
         # 模擬數據驗證過程
         validated = bad_data.dropna()
         # 驗證價格邏輯
-        invalid_mask = (validated['high'] < validated['low'])
+        invalid_mask = validated["high"] < validated["low"]
         validated = validated[~invalid_mask]
         elapsed = time.time() - start_time
 
@@ -240,19 +249,22 @@ class PerformanceRegressionTest(unittest.TestCase):
         strategy = SimpleSMAStrategyV2()
         params = {"short_window": 10, "long_window": 20}
 
-        dates = pd.date_range(start='2023-01-01', periods=10000, freq='1h')
-        data = pd.DataFrame({
-            'open': np.random.randn(10000).cumsum() + 50000,
-            'high': np.random.randn(10000).cumsum() + 50100,
-            'low': np.random.randn(10000).cumsum() + 49900,
-            'close': np.random.randn(10000).cumsum() + 50000,
-            'volume': np.random.randint(1000, 10000, 10000)
-        }, index=dates)
+        dates = pd.date_range(start="2023-01-01", periods=10000, freq="1h")
+        data = pd.DataFrame(
+            {
+                "open": np.random.randn(10000).cumsum() + 50000,
+                "high": np.random.randn(10000).cumsum() + 50100,
+                "low": np.random.randn(10000).cumsum() + 49900,
+                "close": np.random.randn(10000).cumsum() + 50000,
+                "volume": np.random.randint(1000, 10000, 10000),
+            },
+            index=dates,
+        )
 
-        data['high'] = data[['open', 'close']].max(axis=1) + 100
-        data['low'] = data[['open', 'close']].min(axis=1) - 100
+        data["high"] = data[["open", "close"]].max(axis=1) + 100
+        data["low"] = data[["open", "close"]].min(axis=1) - 100
 
-        data_dict = {'ohlcv': data}
+        data_dict = {"ohlcv": data}
 
         start_time = time.time()
         signals = strategy.compute_signals(data_dict, params)
@@ -273,9 +285,7 @@ class PerformanceRegressionTest(unittest.TestCase):
 
         # v0.4 不應該比 v0.3 慢
         self.assertGreaterEqual(
-            current_bars_per_sec,
-            baseline_bars_per_sec * 0.8,  # 允許 20% 的容差
-            "v0.4 性能不應該顯著低於 v0.3"
+            current_bars_per_sec, baseline_bars_per_sec * 0.8, "v0.4 性能不應該顯著低於 v0.3"  # 允許 20% 的容差
         )
 
 
@@ -306,7 +316,8 @@ def run_benchmarks():
     return result.wasSuccessful()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     success = run_benchmarks()
     sys.exit(0 if success else 1)

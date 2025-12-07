@@ -10,22 +10,23 @@ Version: v0.5 Phase B
 Author: SuperDog Quant Team
 """
 
-import time
 import logging
+import time
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-import requests
 import pandas as pd
+import requests
 
-from .base_connector import ExchangeConnector, ExchangeAPIError
+from .base_connector import ExchangeAPIError, ExchangeConnector
 
 logger = logging.getLogger(__name__)
 
 
 class OKXAPIError(ExchangeAPIError):
     """OKX API 專用錯誤類別"""
+
     pass
 
 
@@ -50,7 +51,7 @@ class OKXConnector(ExchangeConnector):
         api_key: Optional[str] = None,
         secret_key: Optional[str] = None,
         passphrase: Optional[str] = None,
-        is_demo: bool = False
+        is_demo: bool = False,
     ):
         """初始化 OKX 連接器
 
@@ -60,12 +61,12 @@ class OKXConnector(ExchangeConnector):
             passphrase: API口令（公開端點可選）
             is_demo: 是否使用模擬交易
         """
-        self.name = 'okx'
+        self.name = "okx"
 
         if is_demo:
-            self.base_url = 'https://www.okx.com'  # Demo也用同一URL
+            self.base_url = "https://www.okx.com"  # Demo也用同一URL
         else:
-            self.base_url = 'https://www.okx.com'
+            self.base_url = "https://www.okx.com"
 
         self.api_key = api_key
         self.secret_key = secret_key
@@ -73,10 +74,9 @@ class OKXConnector(ExchangeConnector):
 
         # 創建會話
         self.session = requests.Session()
-        self.session.headers.update({
-            'Content-Type': 'application/json',
-            'User-Agent': 'SuperDog-Quant-v0.5'
-        })
+        self.session.headers.update(
+            {"Content-Type": "application/json", "User-Agent": "SuperDog-Quant-v0.5"}
+        )
 
         # Rate limiting設置
         self.rate_limit = 20  # requests per 2 seconds
@@ -90,10 +90,7 @@ class OKXConnector(ExchangeConnector):
         now = time.time()
 
         # 清理舊的請求記錄
-        self.request_times = [
-            t for t in self.request_times
-            if now - t < self.rate_limit_window
-        ]
+        self.request_times = [t for t in self.request_times if now - t < self.rate_limit_window]
 
         # 如果達到限制，等待
         if len(self.request_times) >= self.rate_limit * 0.9:  # 90%閾值
@@ -106,10 +103,7 @@ class OKXConnector(ExchangeConnector):
         self.request_times.append(now)
 
     def _make_request(
-        self,
-        endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        method: str = 'GET'
+        self, endpoint: str, params: Optional[Dict[str, Any]] = None, method: str = "GET"
     ) -> Dict[str, Any]:
         """執行API請求
 
@@ -129,7 +123,7 @@ class OKXConnector(ExchangeConnector):
         url = f"{self.base_url}{endpoint}"
 
         try:
-            if method == 'GET':
+            if method == "GET":
                 response = self.session.get(url, params=params, timeout=30)
             else:
                 response = self.session.post(url, json=params, timeout=30)
@@ -138,12 +132,10 @@ class OKXConnector(ExchangeConnector):
             data = response.json()
 
             # OKX API 響應格式: {"code": "0", "msg": "", "data": [...]}
-            if data.get('code') != '0':
-                raise OKXAPIError(
-                    f"OKX API error: {data.get('msg', 'Unknown error')}"
-                )
+            if data.get("code") != "0":
+                raise OKXAPIError(f"OKX API error: {data.get('msg', 'Unknown error')}")
 
-            return data.get('data', [])
+            return data.get("data", [])
 
         except requests.exceptions.RequestException as e:
             raise OKXAPIError(f"Request failed: {e}")
@@ -156,9 +148,9 @@ class OKXConnector(ExchangeConnector):
         OKX格式: BTC-USDT-SWAP (永續合約)
         """
         # 從 BTCUSDT 轉換為 BTC-USDT-SWAP
-        if '-' not in symbol:
+        if "-" not in symbol:
             # 假設格式為 BTCUSDT
-            if symbol.endswith('USDT'):
+            if symbol.endswith("USDT"):
                 base = symbol[:-4]
                 symbol = f"{base}-USDT-SWAP"
             else:
@@ -172,17 +164,13 @@ class OKXConnector(ExchangeConnector):
 
         BTC-USDT-SWAP -> BTCUSDT
         """
-        parts = okx_symbol.split('-')
+        parts = okx_symbol.split("-")
         if len(parts) >= 2:
             return f"{parts[0]}{parts[1]}"
         return okx_symbol
 
     def get_funding_rate(
-        self,
-        symbol: str,
-        start_time: datetime,
-        end_time: datetime,
-        limit: int = 100
+        self, symbol: str, start_time: datetime, end_time: datetime, limit: int = 100
     ) -> pd.DataFrame:
         """獲取 OKX 資金費率歷史數據
 
@@ -209,9 +197,9 @@ class OKXConnector(ExchangeConnector):
 
         while current_end > start_time:
             params = {
-                'instId': okx_symbol,
-                'before': int(current_end.timestamp() * 1000),
-                'limit': min(limit, 100)
+                "instId": okx_symbol,
+                "before": int(current_end.timestamp() * 1000),
+                "limit": min(limit, 100),
             }
 
             try:
@@ -223,7 +211,7 @@ class OKXConnector(ExchangeConnector):
                 all_data.extend(data_list)
 
                 # OKX 返回倒序數據，最後一條是最早的
-                last_time = int(data_list[-1]['fundingTime'])
+                last_time = int(data_list[-1]["fundingTime"])
                 current_end = datetime.fromtimestamp(last_time / 1000) - timedelta(milliseconds=1)
 
                 if current_end <= start_time:
@@ -242,17 +230,17 @@ class OKXConnector(ExchangeConnector):
         df = pd.DataFrame(all_data)
 
         # 標準化欄位
-        df['timestamp'] = pd.to_datetime(df['fundingTime'], unit='ms')
-        df['funding_rate'] = df['fundingRate'].astype(float)
-        df['mark_price'] = df.get('markPx', pd.Series([None] * len(df))).astype(float)
-        df['symbol'] = standard_symbol
+        df["timestamp"] = pd.to_datetime(df["fundingTime"], unit="ms")
+        df["funding_rate"] = df["fundingRate"].astype(float)
+        df["mark_price"] = df.get("markPx", pd.Series([None] * len(df))).astype(float)
+        df["symbol"] = standard_symbol
 
         # 篩選時間範圍
-        df = df[(df['timestamp'] >= start_time) & (df['timestamp'] <= end_time)]
+        df = df[(df["timestamp"] >= start_time) & (df["timestamp"] <= end_time)]
 
         # 選擇需要的欄位
-        df = df[['timestamp', 'symbol', 'funding_rate', 'mark_price']]
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        df = df[["timestamp", "symbol", "funding_rate", "mark_price"]]
+        df = df.sort_values("timestamp").reset_index(drop=True)
 
         logger.info(f"Fetched {len(df)} funding rate records for {symbol} from OKX")
 
@@ -261,10 +249,10 @@ class OKXConnector(ExchangeConnector):
     def get_open_interest(
         self,
         symbol: str,
-        interval: str = '5m',
+        interval: str = "5m",
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> pd.DataFrame:
         """獲取 OKX 持倉量歷史數據
 
@@ -292,24 +280,24 @@ class OKXConnector(ExchangeConnector):
 
         # OKX 間隔格式映射
         interval_map = {
-            '5m': '5m',
-            '15m': '5m',  # OKX 沒有15m，使用5m
-            '30m': '5m',
-            '1h': '1H',
-            '4h': '1H',
-            '1d': '1D'
+            "5m": "5m",
+            "15m": "5m",  # OKX 沒有15m，使用5m
+            "30m": "5m",
+            "1h": "1H",
+            "4h": "1H",
+            "1d": "1D",
         }
 
-        okx_interval = interval_map.get(interval, '5m')
+        okx_interval = interval_map.get(interval, "5m")
 
         endpoint = "/api/v5/rubik/stat/contracts/open-interest-history"
 
         params = {
-            'instId': okx_symbol,
-            'period': okx_interval,
-            'begin': str(int(start_time.timestamp() * 1000)),
-            'end': str(int(end_time.timestamp() * 1000)),
-            'limit': min(limit, 100)
+            "instId": okx_symbol,
+            "period": okx_interval,
+            "begin": str(int(start_time.timestamp() * 1000)),
+            "end": str(int(end_time.timestamp() * 1000)),
+            "limit": min(limit, 100),
         }
 
         try:
@@ -322,14 +310,14 @@ class OKXConnector(ExchangeConnector):
             df = pd.DataFrame(data_list)
 
             # 標準化欄位
-            df['timestamp'] = pd.to_datetime(df['ts'], unit='ms')
-            df['open_interest'] = df['oi'].astype(float)
-            df['open_interest_value'] = df['oiVol'].astype(float)
-            df['symbol'] = standard_symbol
+            df["timestamp"] = pd.to_datetime(df["ts"], unit="ms")
+            df["open_interest"] = df["oi"].astype(float)
+            df["open_interest_value"] = df["oiVol"].astype(float)
+            df["symbol"] = standard_symbol
 
             # 選擇需要的欄位
-            df = df[['timestamp', 'symbol', 'open_interest', 'open_interest_value']]
-            df = df.sort_values('timestamp').reset_index(drop=True)
+            df = df[["timestamp", "symbol", "open_interest", "open_interest_value"]]
+            df = df.sort_values("timestamp").reset_index(drop=True)
 
             logger.info(f"Fetched {len(df)} open interest records for {symbol} from OKX")
 
@@ -340,10 +328,7 @@ class OKXConnector(ExchangeConnector):
             return pd.DataFrame()
 
     def get_long_short_ratio(
-        self,
-        symbol: str,
-        interval: str = '5m',
-        limit: int = 100
+        self, symbol: str, interval: str = "5m", limit: int = 100
     ) -> pd.DataFrame:
         """獲取 OKX 多空持倉比數據
 
@@ -362,24 +347,13 @@ class OKXConnector(ExchangeConnector):
         standard_symbol = self._okx_to_standard_symbol(okx_symbol)
 
         # OKX 間隔格式
-        interval_map = {
-            '5m': '5m',
-            '15m': '5m',
-            '30m': '5m',
-            '1h': '1H',
-            '4h': '1H',
-            '1d': '1D'
-        }
+        interval_map = {"5m": "5m", "15m": "5m", "30m": "5m", "1h": "1H", "4h": "1H", "1d": "1D"}
 
-        okx_interval = interval_map.get(interval, '5m')
+        okx_interval = interval_map.get(interval, "5m")
 
         endpoint = "/api/v5/rubik/stat/contracts/long-short-account-ratio"
 
-        params = {
-            'instId': okx_symbol,
-            'period': okx_interval,
-            'limit': min(limit, 100)
-        }
+        params = {"instId": okx_symbol, "period": okx_interval, "limit": min(limit, 100)}
 
         try:
             data_list = self._make_request(endpoint, params)
@@ -391,14 +365,14 @@ class OKXConnector(ExchangeConnector):
             df = pd.DataFrame(data_list)
 
             # 標準化欄位
-            df['timestamp'] = pd.to_datetime(df['ts'], unit='ms')
-            df['long_ratio'] = df['longRatio'].astype(float)
-            df['short_ratio'] = df['shortRatio'].astype(float)
-            df['symbol'] = standard_symbol
+            df["timestamp"] = pd.to_datetime(df["ts"], unit="ms")
+            df["long_ratio"] = df["longRatio"].astype(float)
+            df["short_ratio"] = df["shortRatio"].astype(float)
+            df["symbol"] = standard_symbol
 
             # 選擇需要的欄位
-            df = df[['timestamp', 'symbol', 'long_ratio', 'short_ratio']]
-            df = df.sort_values('timestamp').reset_index(drop=True)
+            df = df[["timestamp", "symbol", "long_ratio", "short_ratio"]]
+            df = df.sort_values("timestamp").reset_index(drop=True)
 
             logger.info(f"Fetched {len(df)} long/short ratio records for {symbol} from OKX")
 
@@ -423,10 +397,7 @@ class OKXConnector(ExchangeConnector):
 
         endpoint = "/api/v5/public/mark-price"
 
-        params = {
-            'instType': 'SWAP',
-            'instId': okx_symbol
-        }
+        params = {"instType": "SWAP", "instId": okx_symbol}
 
         try:
             data_list = self._make_request(endpoint, params)
@@ -434,7 +405,7 @@ class OKXConnector(ExchangeConnector):
             if not data_list:
                 return None
 
-            mark_price = float(data_list[0].get('markPx', 0))
+            mark_price = float(data_list[0].get("markPx", 0))
 
             logger.info(f"Fetched mark price for {symbol} from OKX: {mark_price}")
 
@@ -445,11 +416,7 @@ class OKXConnector(ExchangeConnector):
             return None
 
     def get_liquidations(
-        self,
-        symbol: str,
-        start_time: datetime,
-        end_time: datetime,
-        limit: int = 100
+        self, symbol: str, start_time: datetime, end_time: datetime, limit: int = 100
     ) -> pd.DataFrame:
         """獲取 OKX 爆倉數據
 
@@ -477,14 +444,14 @@ class OKXConnector(ExchangeConnector):
 
         while current_date <= end_date:
             # OKX 使用日期字符串格式: YYYYMMDD
-            date_str = current_date.strftime('%Y%m%d')
+            date_str = current_date.strftime("%Y%m%d")
 
             params = {
-                'instId': okx_symbol,
-                'ccy': 'USDT',
-                'period': '1D',
-                'begin': date_str,
-                'limit': min(limit, 100)
+                "instId": okx_symbol,
+                "ccy": "USDT",
+                "period": "1D",
+                "begin": date_str,
+                "limit": min(limit, 100),
             }
 
             try:
@@ -507,14 +474,14 @@ class OKXConnector(ExchangeConnector):
         df = pd.DataFrame(all_data)
 
         # 標準化欄位
-        df['timestamp'] = pd.to_datetime(df['ts'], unit='ms')
-        df['long_liquidation'] = df.get('buyVol', 0).astype(float)
-        df['short_liquidation'] = df.get('sellVol', 0).astype(float)
-        df['symbol'] = standard_symbol
+        df["timestamp"] = pd.to_datetime(df["ts"], unit="ms")
+        df["long_liquidation"] = df.get("buyVol", 0).astype(float)
+        df["short_liquidation"] = df.get("sellVol", 0).astype(float)
+        df["symbol"] = standard_symbol
 
         # 選擇需要的欄位
-        df = df[['timestamp', 'symbol', 'long_liquidation', 'short_liquidation']]
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        df = df[["timestamp", "symbol", "long_liquidation", "short_liquidation"]]
+        df = df.sort_values("timestamp").reset_index(drop=True)
 
         logger.info(f"Fetched {len(df)} liquidation records for {symbol} from OKX")
 

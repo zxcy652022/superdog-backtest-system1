@@ -15,13 +15,13 @@ Version: v2.0
 Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md §3
 """
 
-import os
-import sys
 import importlib
 import inspect
-from pathlib import Path
-from typing import Dict, List, Type, Optional, Union
+import os
+import sys
 import warnings
+from pathlib import Path
+from typing import Dict, List, Optional, Type, Union
 
 # v0.3 策略基類
 from backtest.engine import BaseStrategy as V03BaseStrategy
@@ -29,6 +29,7 @@ from backtest.engine import BaseStrategy as V03BaseStrategy
 # v2.0 策略基類
 try:
     from strategies.api_v2 import BaseStrategy as V2BaseStrategy
+
     HAS_V2_API = True
 except ImportError:
     V2BaseStrategy = None
@@ -36,8 +37,9 @@ except ImportError:
 
 # 元數據和相依性檢查
 try:
-    from strategies.metadata import StrategyMetadata, MetadataManager, get_metadata_manager
     from strategies.dependency_checker import DependencyChecker, check_strategy_dependencies
+    from strategies.metadata import MetadataManager, StrategyMetadata, get_metadata_manager
+
     HAS_METADATA = True
 except ImportError:
     HAS_METADATA = False
@@ -63,7 +65,7 @@ class StrategyInfo:
         strategy_class: type,
         strategy_type: str,
         module_path: str,
-        metadata: Optional['StrategyMetadata'] = None
+        metadata: Optional["StrategyMetadata"] = None,
     ):
         """初始化策略信息
 
@@ -99,7 +101,7 @@ class StrategyInfo:
             return self._cached_instance
 
         # 創建新實例
-        if self.strategy_type == 'v2.0':
+        if self.strategy_type == "v2.0":
             instance = self.strategy_class()
             if use_cache:
                 self._cached_instance = instance
@@ -169,9 +171,15 @@ class StrategyRegistryV2:
             if strategy_file.name.startswith("_"):
                 continue
 
-            if strategy_file.name in ["registry.py", "registry_v2.py", "base.py",
-                                       "metadata.py", "dependency_checker.py",
-                                       "compatibility.py", "indicators.py"]:
+            if strategy_file.name in [
+                "registry.py",
+                "registry_v2.py",
+                "base.py",
+                "metadata.py",
+                "dependency_checker.py",
+                "compatibility.py",
+                "indicators.py",
+            ]:
                 continue
 
             module_name = strategy_file.stem
@@ -220,26 +228,26 @@ class StrategyRegistryV2:
         for name, obj in inspect.getmembers(module, inspect.isclass):
             # 檢查是否為策略類別
             is_v2_strategy = (
-                HAS_V2_API and
-                V2BaseStrategy and
-                issubclass(obj, V2BaseStrategy) and
-                obj != V2BaseStrategy
+                HAS_V2_API
+                and V2BaseStrategy
+                and issubclass(obj, V2BaseStrategy)
+                and obj != V2BaseStrategy
             )
 
             is_v03_strategy = (
-                issubclass(obj, V03BaseStrategy) and
-                obj != V03BaseStrategy and
-                not is_v2_strategy  # 避免重複
+                issubclass(obj, V03BaseStrategy)
+                and obj != V03BaseStrategy
+                and not is_v2_strategy  # 避免重複
             )
 
             if is_v2_strategy or is_v03_strategy:
-                strategy_type = 'v2.0' if is_v2_strategy else 'v0.3'
+                strategy_type = "v2.0" if is_v2_strategy else "v0.3"
 
                 # 生成策略名稱（小寫，去掉 Strategy 後綴）
                 strategy_name = name.lower()
-                if strategy_name.endswith('strategy'):
+                if strategy_name.endswith("strategy"):
                     strategy_name = strategy_name[:-8]  # 移除 'strategy'
-                if strategy_name.endswith('strategyv2'):
+                if strategy_name.endswith("strategyv2"):
                     strategy_name = strategy_name[:-10]  # 移除 'strategyv2'
 
                 # 創建策略信息
@@ -247,7 +255,7 @@ class StrategyRegistryV2:
                     name=strategy_name,
                     strategy_class=obj,
                     strategy_type=strategy_type,
-                    module_path=module_path
+                    module_path=module_path,
                 )
 
                 # 嘗試獲取元數據（v2.0 策略）
@@ -269,10 +277,7 @@ class StrategyRegistryV2:
         return count
 
     def register_strategy(
-        self,
-        name: str,
-        strategy_class: type,
-        metadata: Optional['StrategyMetadata'] = None
+        self, name: str, strategy_class: type, metadata: Optional["StrategyMetadata"] = None
     ) -> None:
         """手動註冊策略
 
@@ -298,18 +303,17 @@ class StrategyRegistryV2:
 
         if not (is_v2 or is_v03):
             raise TypeError(
-                f"{strategy_class.__name__} must inherit from BaseStrategy "
-                f"(v0.3 or v2.0)"
+                f"{strategy_class.__name__} must inherit from BaseStrategy " f"(v0.3 or v2.0)"
             )
 
-        strategy_type = 'v2.0' if is_v2 else 'v0.3'
+        strategy_type = "v2.0" if is_v2 else "v0.3"
 
         strategy_info = StrategyInfo(
             name=name,
             strategy_class=strategy_class,
             strategy_type=strategy_type,
             module_path="manually_registered",
-            metadata=metadata
+            metadata=metadata,
         )
 
         self._strategies[name] = strategy_info
@@ -336,10 +340,7 @@ class StrategyRegistryV2:
         """
         if name not in self._strategies:
             available = ", ".join(sorted(self._strategies.keys()))
-            raise KeyError(
-                f"Strategy '{name}' not found. "
-                f"Available strategies: {available}"
-            )
+            raise KeyError(f"Strategy '{name}' not found. " f"Available strategies: {available}")
 
         return self._strategies[name].strategy_class
 
@@ -382,14 +383,13 @@ class StrategyRegistryV2:
         """
         if filter_type:
             filtered = [
-                name for name, info in self._strategies.items()
-                if info.strategy_type == filter_type
+                name for name, info in self._strategies.items() if info.strategy_type == filter_type
             ]
             return sorted(filtered)
 
         return sorted(self._strategies.keys())
 
-    def check_dependencies(self, strategy_name: str) -> Optional['DependencyCheckResult']:
+    def check_dependencies(self, strategy_name: str) -> Optional["DependencyCheckResult"]:
         """檢查策略的相依性
 
         Args:
@@ -409,7 +409,7 @@ class StrategyRegistryV2:
 
         strategy_info = self.get_strategy_info(strategy_name)
 
-        if strategy_info.strategy_type != 'v2.0':
+        if strategy_info.strategy_type != "v2.0":
             return None  # v0.3 策略不支援相依性檢查
 
         # 獲取策略實例
@@ -435,7 +435,8 @@ class StrategyRegistryV2:
             >>> v2_strategies = registry.get_strategies_by_type('v2.0')
         """
         return {
-            name: info for name, info in self._strategies.items()
+            name: info
+            for name, info in self._strategies.items()
             if info.strategy_type == strategy_type
         }
 
@@ -451,14 +452,14 @@ class StrategyRegistryV2:
             >>> print(summary)
             {'total': 3, 'v0.3': 1, 'v2.0': 2}
         """
-        v03_count = len(self.list_strategies(filter_type='v0.3'))
-        v2_count = len(self.list_strategies(filter_type='v2.0'))
+        v03_count = len(self.list_strategies(filter_type="v0.3"))
+        v2_count = len(self.list_strategies(filter_type="v2.0"))
 
         return {
-            'total': len(self._strategies),
-            'v0.3': v03_count,
-            'v2.0': v2_count,
-            'strategies': list(self._strategies.keys())
+            "total": len(self._strategies),
+            "v0.3": v03_count,
+            "v2.0": v2_count,
+            "strategies": list(self._strategies.keys()),
         }
 
     def clear_cache(self, strategy_name: Optional[str] = None) -> None:

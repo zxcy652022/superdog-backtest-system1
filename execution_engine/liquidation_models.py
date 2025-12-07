@@ -14,16 +14,17 @@ Design Reference: docs/specs/v0.6/superdog_v06_execution_model_spec.md
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional
 from enum import Enum
+from typing import Dict, Optional
 
 
 class RiskLevel(Enum):
     """風險等級"""
-    SAFE = "safe"           # 安全
-    LOW = "low"            # 低風險
-    MEDIUM = "medium"      # 中等風險
-    HIGH = "high"          # 高風險
+
+    SAFE = "safe"  # 安全
+    LOW = "low"  # 低風險
+    MEDIUM = "medium"  # 中等風險
+    HIGH = "high"  # 高風險
     CRITICAL = "critical"  # 極危險
     LIQUIDATED = "liquidated"  # 已強平
 
@@ -53,16 +54,16 @@ class MarginConfig:
             # Binance USDT永續合約槓桿檔位
             self.leverage_tiers = {
                 # leverage: {maintenance_margin_rate, max_notional}
-                125: {'mmr': 0.004, 'max_notional': 50000},      # 0.4%
-                100: {'mmr': 0.005, 'max_notional': 250000},     # 0.5%
-                50:  {'mmr': 0.01, 'max_notional': 1000000},     # 1%
-                20:  {'mmr': 0.025, 'max_notional': 5000000},    # 2.5%
-                10:  {'mmr': 0.05, 'max_notional': 20000000},    # 5%
-                5:   {'mmr': 0.10, 'max_notional': 50000000},    # 10%
-                4:   {'mmr': 0.125, 'max_notional': 100000000},  # 12.5%
-                3:   {'mmr': 0.15, 'max_notional': 200000000},   # 15%
-                2:   {'mmr': 0.25, 'max_notional': 300000000},   # 25%
-                1:   {'mmr': 0.5, 'max_notional': 500000000},    # 50%
+                125: {"mmr": 0.004, "max_notional": 50000},  # 0.4%
+                100: {"mmr": 0.005, "max_notional": 250000},  # 0.5%
+                50: {"mmr": 0.01, "max_notional": 1000000},  # 1%
+                20: {"mmr": 0.025, "max_notional": 5000000},  # 2.5%
+                10: {"mmr": 0.05, "max_notional": 20000000},  # 5%
+                5: {"mmr": 0.10, "max_notional": 50000000},  # 10%
+                4: {"mmr": 0.125, "max_notional": 100000000},  # 12.5%
+                3: {"mmr": 0.15, "max_notional": 200000000},  # 15%
+                2: {"mmr": 0.25, "max_notional": 300000000},  # 25%
+                1: {"mmr": 0.5, "max_notional": 500000000},  # 50%
             }
 
     def get_maintenance_margin_rate(self, leverage: float, notional_value: float) -> float:
@@ -79,8 +80,8 @@ class MarginConfig:
         for lev in sorted(self.leverage_tiers.keys(), reverse=True):
             if leverage >= lev:
                 tier = self.leverage_tiers[lev]
-                if notional_value <= tier['max_notional']:
-                    return tier['mmr']
+                if notional_value <= tier["max_notional"]:
+                    return tier["mmr"]
 
         # 默認使用配置的維持保證金率
         return self.maintenance_margin_rate
@@ -89,14 +90,15 @@ class MarginConfig:
 @dataclass
 class LiquidationResult:
     """強平風險評估結果"""
-    risk_level: RiskLevel          # 風險等級
-    margin_ratio: float            # 保證金比率
-    liquidation_price: float       # 強平價格
-    distance_to_liquidation: float # 距離強平的價格距離（%）
-    is_liquidated: bool            # 是否已強平
-    unrealized_pnl: float          # 未實現盈虧
-    available_margin: float        # 可用保證金
-    required_margin: float         # 所需保證金
+
+    risk_level: RiskLevel  # 風險等級
+    margin_ratio: float  # 保證金比率
+    liquidation_price: float  # 強平價格
+    distance_to_liquidation: float  # 距離強平的價格距離（%）
+    is_liquidated: bool  # 是否已強平
+    unrealized_pnl: float  # 未實現盈虧
+    available_margin: float  # 可用保證金
+    required_margin: float  # 所需保證金
 
 
 class LiquidationModel:
@@ -137,7 +139,7 @@ class LiquidationModel:
         entry_price: float,
         leverage: float,
         account_balance: float,
-        maintenance_margin_rate: Optional[float] = None
+        maintenance_margin_rate: Optional[float] = None,
     ) -> float:
         """計算強平價格
 
@@ -175,7 +177,7 @@ class LiquidationModel:
         initial_margin = (position_size * entry_price) / leverage
 
         # 強平價格公式
-        if position_side == 'long':
+        if position_side == "long":
             # Long 強平價格
             # liquidation_price = entry_price * (1 - (account_balance - maintenance_margin) / position_value)
             # 簡化公式：
@@ -198,7 +200,7 @@ class LiquidationModel:
         current_price: float,
         account_balance: float,
         leverage: float,
-        maintenance_margin_rate: Optional[float] = None
+        maintenance_margin_rate: Optional[float] = None,
     ) -> LiquidationResult:
         """檢查強平風險
 
@@ -226,7 +228,7 @@ class LiquidationModel:
             ... )
         """
         # 計算未實現盈虧
-        if position_side == 'long':
+        if position_side == "long":
             unrealized_pnl = (current_price - entry_price) * position_size
         else:  # short
             unrealized_pnl = (entry_price - current_price) * position_size
@@ -251,12 +253,16 @@ class LiquidationModel:
 
         # 計算強平價格
         liquidation_price = self.calculate_liquidation_price(
-            position_size, position_side, entry_price,
-            leverage, account_balance, maintenance_margin_rate
+            position_size,
+            position_side,
+            entry_price,
+            leverage,
+            account_balance,
+            maintenance_margin_rate,
         )
 
         # 計算距離強平的距離
-        if position_side == 'long':
+        if position_side == "long":
             distance_pct = (current_price - liquidation_price) / current_price
         else:
             distance_pct = (liquidation_price - current_price) / current_price
@@ -280,14 +286,10 @@ class LiquidationModel:
             is_liquidated=is_liquidated,
             unrealized_pnl=unrealized_pnl,
             available_margin=available_margin,
-            required_margin=required_margin
+            required_margin=required_margin,
         )
 
-    def _assess_risk_level(
-        self,
-        margin_ratio: float,
-        maintenance_margin_rate: float
-    ) -> RiskLevel:
+    def _assess_risk_level(self, margin_ratio: float, maintenance_margin_rate: float) -> RiskLevel:
         """評估風險等級
 
         Args:
@@ -311,11 +313,7 @@ class LiquidationModel:
             return RiskLevel.SAFE
 
     def calculate_max_position_size(
-        self,
-        account_balance: float,
-        entry_price: float,
-        leverage: float,
-        risk_pct: float = 0.02
+        self, account_balance: float, entry_price: float, leverage: float, risk_pct: float = 0.02
     ) -> Dict[str, float]:
         """計算最大安全倉位
 
@@ -341,11 +339,11 @@ class LiquidationModel:
         recommended_position_size = (max_risk_capital * leverage) / entry_price
 
         return {
-            'max_position_size': max_position_size,
-            'recommended_position_size': recommended_position_size,
-            'max_notional': max_notional,
-            'max_risk_capital': max_risk_capital,
-            'leverage': leverage
+            "max_position_size": max_position_size,
+            "recommended_position_size": recommended_position_size,
+            "max_notional": max_notional,
+            "max_risk_capital": max_risk_capital,
+            "leverage": leverage,
         }
 
     def simulate_price_movement(
@@ -355,7 +353,7 @@ class LiquidationModel:
         entry_price: float,
         account_balance: float,
         leverage: float,
-        price_change_pct: float
+        price_change_pct: float,
     ) -> LiquidationResult:
         """模擬價格變動後的風險狀態
 
@@ -374,14 +372,10 @@ class LiquidationModel:
         new_price = entry_price * (1 + price_change_pct)
 
         return self.check_liquidation_risk(
-            position_size, position_side, entry_price,
-            new_price, account_balance, leverage
+            position_size, position_side, entry_price, new_price, account_balance, leverage
         )
 
-    def get_safe_leverage(
-        self,
-        max_expected_drawdown: float
-    ) -> float:
+    def get_safe_leverage(self, max_expected_drawdown: float) -> float:
         """根據預期最大回撤推薦安全槓桿
 
         Args:
@@ -410,12 +404,13 @@ class LiquidationModel:
             Dict: 統計信息
         """
         return {
-            'liquidation_count': self.liquidation_count,
-            'total_liquidation_loss': self.total_liquidation_loss,
-            'avg_liquidation_loss': (
+            "liquidation_count": self.liquidation_count,
+            "total_liquidation_loss": self.total_liquidation_loss,
+            "avg_liquidation_loss": (
                 self.total_liquidation_loss / self.liquidation_count
-                if self.liquidation_count > 0 else 0
-            )
+                if self.liquidation_count > 0
+                else 0
+            ),
         }
 
     def reset_statistics(self):
@@ -426,11 +421,9 @@ class LiquidationModel:
 
 # ===== 便捷函數 =====
 
+
 def calculate_simple_liquidation_price(
-    entry_price: float,
-    leverage: float,
-    position_side: str,
-    maintenance_margin_rate: float = 0.05
+    entry_price: float, leverage: float, position_side: str, maintenance_margin_rate: float = 0.05
 ) -> float:
     """簡化的強平價格計算
 
@@ -449,10 +442,10 @@ def calculate_simple_liquidation_price(
         47500.0
     """
     # 簡化公式（假設全倉模式）
-    if position_side == 'long':
-        return entry_price * (1 - 1/leverage + maintenance_margin_rate)
+    if position_side == "long":
+        return entry_price * (1 - 1 / leverage + maintenance_margin_rate)
     else:  # short
-        return entry_price * (1 + 1/leverage - maintenance_margin_rate)
+        return entry_price * (1 + 1 / leverage - maintenance_margin_rate)
 
 
 def get_leverage_recommendations() -> Dict[str, Dict]:
@@ -462,24 +455,20 @@ def get_leverage_recommendations() -> Dict[str, Dict]:
         Dict: 槓桿建議
     """
     return {
-        'conservative': {
-            'max_leverage': 3,
-            'recommended_leverage': 2,
-            'description': '保守型：適合新手，低風險'
+        "conservative": {
+            "max_leverage": 3,
+            "recommended_leverage": 2,
+            "description": "保守型：適合新手，低風險",
         },
-        'moderate': {
-            'max_leverage': 5,
-            'recommended_leverage': 3,
-            'description': '穩健型：平衡風險與收益'
+        "moderate": {"max_leverage": 5, "recommended_leverage": 3, "description": "穩健型：平衡風險與收益"},
+        "aggressive": {
+            "max_leverage": 10,
+            "recommended_leverage": 5,
+            "description": "進取型：追求高收益，承受高風險",
         },
-        'aggressive': {
-            'max_leverage': 10,
-            'recommended_leverage': 5,
-            'description': '進取型：追求高收益，承受高風險'
+        "professional": {
+            "max_leverage": 20,
+            "recommended_leverage": 10,
+            "description": "專業型：經驗豐富的交易者",
         },
-        'professional': {
-            'max_leverage': 20,
-            'recommended_leverage': 10,
-            'description': '專業型：經驗豐富的交易者'
-        }
     }

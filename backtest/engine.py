@@ -16,18 +16,21 @@ v0.5 新增：
 Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §3
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Type, Optional, Literal
-import pandas as pd
 import inspect
-from backtest.broker import SimulatedBroker, Trade, DirectionType
+from dataclasses import dataclass
+from typing import Dict, List, Literal, Optional, Type
+
+import pandas as pd
+
+from backtest.broker import DirectionType, SimulatedBroker, Trade
 from backtest.metrics import compute_basic_metrics
-from backtest.position_sizer import BasePositionSizer, AllInSizer
+from backtest.position_sizer import AllInSizer, BasePositionSizer
 
 
 @dataclass
 class BacktestResult:
     """Backtest result"""
+
     equity_curve: pd.Series
     trades: List[Trade]
     metrics: Dict[str, float]
@@ -68,8 +71,8 @@ def _is_v05_strategy(strategy_cls: Type) -> bool:
         params = list(init_sig.parameters.keys())
 
         # Remove 'self' parameter
-        if 'self' in params:
-            params.remove('self')
+        if "self" in params:
+            params.remove("self")
 
         # v0.5 strategies have no parameters (besides self)
         # v0.3 strategies have (broker, data) parameters
@@ -106,7 +109,7 @@ class _V05StrategyWrapper:
         params = {name: spec.default_value for name, spec in param_specs.items()}
 
         # Generate signals upfront (v0.5 strategies use vectorized signal generation)
-        data_dict = {'ohlcv': data}
+        data_dict = {"ohlcv": data}
         self.signals = self.strategy.compute_signals(data_dict, params)
 
         # Track previous signal for change detection
@@ -129,7 +132,7 @@ class _V05StrategyWrapper:
             return
 
         current_signal = self.signals.iloc[i]
-        current_price = row['close']
+        current_price = row["close"]
         current_time = row.name
 
         # Signal transition logic
@@ -164,7 +167,7 @@ def run_backtest(
     position_sizer: Optional[BasePositionSizer] = None,
     stop_loss_pct: Optional[float] = None,
     take_profit_pct: Optional[float] = None,
-    leverage: float = 1.0  # v0.3 新增
+    leverage: float = 1.0,  # v0.3 新增
 ) -> BacktestResult:
     """
     Run backtest with position sizing, stop-loss, and take-profit support
@@ -245,11 +248,11 @@ def run_backtest(
                 entry_price=broker.position_entry_price,
                 direction=broker.position_direction,  # v0.3: 傳入方向
                 stop_loss_pct=stop_loss_pct,
-                take_profit_pct=take_profit_pct
+                take_profit_pct=take_profit_pct,
             )
 
             # Update MAE/MFE tracking
-            position_tracker.update(row['low'], row['high'])
+            position_tracker.update(row["low"], row["high"])
 
             # Execute SL/TP if triggered
             if sl_triggered or tp_triggered:
@@ -270,7 +273,7 @@ def run_backtest(
                     # Update last trade with additional info
                     last_trade = broker.trades[-1]
                     equity_after = broker.cash  # After selling, no position
-                    
+
                     # Store in position tracker for trade log
                     position_tracker.record_trade_detail(
                         entry_reason="strategy_signal",
@@ -279,12 +282,15 @@ def run_backtest(
                         mae=mae,
                         mfe=mfe,
                         equity_after=equity_after,
-                        fee=broker.position_entry_price * last_trade.qty * broker.fee_rate * 2  # entry + exit
+                        fee=broker.position_entry_price
+                        * last_trade.qty
+                        * broker.fee_rate
+                        * 2,  # entry + exit
                     )
 
                 # Reset tracker
                 position_tracker.reset()
-                
+
                 # Update equity
                 broker.update_equity(price=exit_price, time=timestamp)
                 continue
@@ -294,7 +300,7 @@ def run_backtest(
 
         # If strategy just opened a position, start tracking
         if broker.has_position and not position_tracker.is_active:
-            position_tracker.start(i, row['low'], row['high'])
+            position_tracker.start(i, row["low"], row["high"])
 
         # If position was closed by strategy (not SL/TP), record details
         if not broker.has_position and position_tracker.is_active:
@@ -311,13 +317,13 @@ def run_backtest(
                     mae=mae,
                     mfe=mfe,
                     equity_after=equity_after,
-                    fee=broker.trades[-1].entry_price * broker.trades[-1].qty * broker.fee_rate * 2
+                    fee=broker.trades[-1].entry_price * broker.trades[-1].qty * broker.fee_rate * 2,
                 )
 
             position_tracker.reset()
 
         # Update equity
-        current_price = row['close']
+        current_price = row["close"]
         broker.update_equity(price=current_price, time=timestamp)
 
     # Build trade log
@@ -329,10 +335,7 @@ def run_backtest(
     metrics = compute_basic_metrics(equity_curve, trades)
 
     result = BacktestResult(
-        equity_curve=equity_curve,
-        trades=trades,
-        metrics=metrics,
-        trade_log=trade_log
+        equity_curve=equity_curve, trades=trades, metrics=metrics, trade_log=trade_log
     )
 
     return result
@@ -343,7 +346,7 @@ def _check_sl_tp(
     entry_price: float,
     direction: DirectionType,  # v0.3 新增
     stop_loss_pct: Optional[float],
-    take_profit_pct: Optional[float]
+    take_profit_pct: Optional[float],
 ) -> tuple:
     """
     Check if stop-loss or take-profit is triggered (v0.3 - 方向感知)
@@ -365,7 +368,7 @@ def _check_sl_tp(
     """
     sl_triggered = False
     tp_triggered = False
-    exit_price = row['close']  # Default to close
+    exit_price = row["close"]  # Default to close
     exit_reason = "strategy_signal"
 
     # === 多單的 SL/TP ===
@@ -380,14 +383,14 @@ def _check_sl_tp(
         if take_profit_pct is not None and take_profit_pct > 0:
             tp_price = entry_price * (1 + take_profit_pct)
         else:
-            tp_price = float('inf')
+            tp_price = float("inf")
 
         # 檢查觸發（SL 優先）
-        if sl_price > 0 and row['low'] <= sl_price:
+        if sl_price > 0 and row["low"] <= sl_price:
             sl_triggered = True
             exit_price = sl_price
             exit_reason = "stop_loss"
-        elif tp_price < float('inf') and row['high'] >= tp_price:
+        elif tp_price < float("inf") and row["high"] >= tp_price:
             tp_triggered = True
             exit_price = tp_price
             exit_reason = "take_profit"
@@ -398,7 +401,7 @@ def _check_sl_tp(
         if stop_loss_pct is not None and stop_loss_pct > 0:
             sl_price = entry_price * (1 + stop_loss_pct)
         else:
-            sl_price = float('inf')
+            sl_price = float("inf")
 
         # 止盈價: entry * (1 - take_profit_pct)  # 注意: 空單止盈是價格下跌
         if take_profit_pct is not None and take_profit_pct > 0:
@@ -407,11 +410,11 @@ def _check_sl_tp(
             tp_price = 0
 
         # 檢查觸發（SL 優先）
-        if sl_price < float('inf') and row['high'] >= sl_price:
+        if sl_price < float("inf") and row["high"] >= sl_price:
             sl_triggered = True
             exit_price = sl_price
             exit_reason = "stop_loss"
-        elif tp_price > 0 and row['low'] <= tp_price:
+        elif tp_price > 0 and row["low"] <= tp_price:
             tp_triggered = True
             exit_price = tp_price
             exit_reason = "take_profit"
@@ -428,7 +431,7 @@ class _PositionTracker:
     def __init__(self):
         self.is_active = False
         self.entry_bar_index = 0
-        self.lowest_price = float('inf')
+        self.lowest_price = float("inf")
         self.highest_price = 0.0
         self.trade_details = []
 
@@ -457,24 +460,34 @@ class _PositionTracker:
             return 0.0
         return (self.highest_price - entry_price) / entry_price
 
-    def record_trade_detail(self, entry_reason: str, exit_reason: str, holding_bars: int,
-                           mae: float, mfe: float, equity_after: float, fee: float):
+    def record_trade_detail(
+        self,
+        entry_reason: str,
+        exit_reason: str,
+        holding_bars: int,
+        mae: float,
+        mfe: float,
+        equity_after: float,
+        fee: float,
+    ):
         """Record additional trade details"""
-        self.trade_details.append({
-            'entry_reason': entry_reason,
-            'exit_reason': exit_reason,
-            'holding_bars': holding_bars,
-            'mae': mae,
-            'mfe': mfe,
-            'equity_after': equity_after,
-            'fee': fee
-        })
+        self.trade_details.append(
+            {
+                "entry_reason": entry_reason,
+                "exit_reason": exit_reason,
+                "holding_bars": holding_bars,
+                "mae": mae,
+                "mfe": mfe,
+                "equity_after": equity_after,
+                "fee": fee,
+            }
+        )
 
     def reset(self):
         """Reset tracker"""
         self.is_active = False
         self.entry_bar_index = 0
-        self.lowest_price = float('inf')
+        self.lowest_price = float("inf")
         self.highest_price = 0.0
 
 
@@ -493,40 +506,59 @@ def _build_trade_log(trades: List[Trade], trade_details: List[dict]) -> pd.DataF
     """
     if len(trades) == 0:
         # Return empty DataFrame with correct columns
-        return pd.DataFrame(columns=[
-            'entry_time', 'exit_time', 'entry_price', 'exit_price',
-            'size', 'fee', 'pnl', 'pnl_pct', 'entry_reason', 'exit_reason',
-            'holding_bars', 'mae', 'mfe', 'equity_after'
-        ])
+        return pd.DataFrame(
+            columns=[
+                "entry_time",
+                "exit_time",
+                "entry_price",
+                "exit_price",
+                "size",
+                "fee",
+                "pnl",
+                "pnl_pct",
+                "entry_reason",
+                "exit_reason",
+                "holding_bars",
+                "mae",
+                "mfe",
+                "equity_after",
+            ]
+        )
 
     records = []
     for i, trade in enumerate(trades):
-        detail = trade_details[i] if i < len(trade_details) else {
-            'entry_reason': 'strategy_signal',
-            'exit_reason': 'strategy_signal',
-            'holding_bars': 0,
-            'mae': 0.0,
-            'mfe': 0.0,
-            'equity_after': 0.0,
-            'fee': 0.0
-        }
+        detail = (
+            trade_details[i]
+            if i < len(trade_details)
+            else {
+                "entry_reason": "strategy_signal",
+                "exit_reason": "strategy_signal",
+                "holding_bars": 0,
+                "mae": 0.0,
+                "mfe": 0.0,
+                "equity_after": 0.0,
+                "fee": 0.0,
+            }
+        )
 
-        records.append({
-            'entry_time': trade.entry_time,
-            'exit_time': trade.exit_time,
-            'entry_price': trade.entry_price,
-            'exit_price': trade.exit_price,
-            'size': trade.qty,
-            'fee': detail['fee'],
-            'pnl': trade.pnl,
-            'pnl_pct': trade.return_pct,
-            'entry_reason': detail['entry_reason'],
-            'exit_reason': detail['exit_reason'],
-            'holding_bars': detail['holding_bars'],
-            'mae': detail['mae'],
-            'mfe': detail['mfe'],
-            'equity_after': detail['equity_after']
-        })
+        records.append(
+            {
+                "entry_time": trade.entry_time,
+                "exit_time": trade.exit_time,
+                "entry_price": trade.entry_price,
+                "exit_price": trade.exit_price,
+                "size": trade.qty,
+                "fee": detail["fee"],
+                "pnl": trade.pnl,
+                "pnl_pct": trade.return_pct,
+                "entry_reason": detail["entry_reason"],
+                "exit_reason": detail["exit_reason"],
+                "holding_bars": detail["holding_bars"],
+                "mae": detail["mae"],
+                "mfe": detail["mfe"],
+                "equity_after": detail["equity_after"],
+            }
+        )
 
     return pd.DataFrame(records)
 
@@ -538,7 +570,7 @@ def _validate_data(data: pd.DataFrame):
     if not isinstance(data.index, pd.DatetimeIndex):
         raise ValueError("Data index must be DatetimeIndex")
 
-    required_columns = ['open', 'high', 'low', 'close', 'volume']
+    required_columns = ["open", "high", "low", "close", "volume"]
     missing_columns = set(required_columns) - set(data.columns)
     if missing_columns:
         raise ValueError(f"Missing required columns: {missing_columns}")
