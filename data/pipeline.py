@@ -26,9 +26,9 @@ import pandas as pd
 from data.perpetual import FundingRateData, OpenInterestData
 from data.quality import DataQualityController
 from data.symbol_manager import SymbolManager
-from data.timeframe_manager import Timeframe, TimeframeManager
+from data.timeframe_manager import TimeframeManager
 from data_config import config
-from strategies.api_v2 import BaseStrategy, DataRequirement, DataSource
+from strategies.api_v2 import BaseStrategy, DataSource
 
 # Configure logging
 logger = logging.getLogger(__name__)

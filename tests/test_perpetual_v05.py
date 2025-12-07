@@ -13,30 +13,21 @@ Version: v0.5
 
 import unittest
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-from data.exchanges.base_connector import ExchangeConnector
 
 # Exchange Connectors
 from data.exchanges.binance_connector import BinanceAPIError, BinanceConnector
 
 # Perpetual Data
-from data.perpetual import (
-    FundingRateData,
-    OpenInterestData,
-    fetch_funding_rate,
-    fetch_open_interest,
-    get_latest_funding_rate,
-)
+from data.perpetual import FundingRateData, OpenInterestData
 
 # Pipeline Integration
-from data.pipeline import DataPipeline, get_pipeline
+from data.pipeline import get_pipeline
 
 # Quality Control
-from data.quality import DataQualityController, IssueSeverity, QualityCheckResult, QualityIssue
+from data.quality import DataQualityController, QualityCheckResult
 
 
 class TestBinanceConnector(unittest.TestCase):

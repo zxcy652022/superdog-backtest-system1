@@ -236,7 +236,6 @@ class BaseStrategy(ABC):
             ...         )
             ...     }
         """
-        pass
 
     @abstractmethod
     def get_data_requirements(self) -> List[DataRequirement]:
@@ -255,7 +254,6 @@ class BaseStrategy(ABC):
             ...         DataRequirement(DataSource.FUNDING, required=False)
             ...     ]
         """
-        pass
 
     @abstractmethod
     def compute_signals(self, data: Dict[str, pd.DataFrame], params: Dict[str, Any]) -> pd.Series:
@@ -298,7 +296,6 @@ class BaseStrategy(ABC):
 
             返回的 signals Series 必須與 data['ohlcv'] 的 index 對齊
         """
-        pass
 
     def get_metadata(self) -> Dict[str, Any]:
         """獲取策略元數據

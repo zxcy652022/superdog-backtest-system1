@@ -14,7 +14,6 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 import unittest
 
 import click
-from click.testing import CliRunner
 
 from cli.dynamic_params import (
     DynamicCLI,

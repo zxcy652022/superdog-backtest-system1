@@ -17,13 +17,10 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
-from functools import lru_cache
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
-import numpy as np
-import pandas as pd
 import yaml
 
 from data.universe_calculator import UniverseCalculator, calculate_all_metrics

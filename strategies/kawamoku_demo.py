@@ -20,7 +20,6 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 
 from typing import Any, Dict, List
 
-import numpy as np
 import pandas as pd
 
 from strategies.api_v2 import (

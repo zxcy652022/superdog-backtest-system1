@@ -12,7 +12,7 @@ Usage:
 
 import sys
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 
 
 class MenuOption:

@@ -6,7 +6,7 @@ Data Validator Module v0.1
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict
 
 import pandas as pd
@@ -25,7 +25,6 @@ class OHLCVValidator:
 
     def __init__(self):
         """初始化驗證器"""
-        pass
 
     def validate_ohlcv_csv(self, file_path: str, timeframe: str = "1h") -> Dict:
         """

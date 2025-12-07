@@ -13,7 +13,6 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
 import unittest
-from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd

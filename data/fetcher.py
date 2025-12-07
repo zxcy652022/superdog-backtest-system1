@@ -9,7 +9,6 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import ccxt
 import pandas as pd

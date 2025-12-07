@@ -14,22 +14,12 @@ Version: v0.6 Phase 2
 Design Reference: docs/specs/v0.6/superdog_v06_strategy_lab_spec.md
 """
 
-import json
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
-
-import numpy as np
+from typing import Any, Callable, Dict, List, Optional
 
 from .experiment_runner import ExperimentRunner, ParameterExpander
-from .experiments import (
-    ExperimentConfig,
-    ExperimentResult,
-    ExperimentRun,
-    ExperimentStatus,
-    ParameterRange,
-)
+from .experiments import ExperimentConfig, ExperimentResult, ExperimentRun, ExperimentStatus
 
 
 class OptimizationMode(Enum):
@@ -200,7 +190,6 @@ class ParameterOptimizer:
 
         try:
             from skopt import gp_minimize
-            from skopt.space import Categorical, Integer, Real
             from skopt.utils import use_named_args
         except ImportError:
             print("❌ scikit-optimize 未安裝，回退到隨機搜索")

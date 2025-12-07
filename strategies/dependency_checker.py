@@ -14,12 +14,11 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
 import importlib
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from strategies.api_v2 import BaseStrategy, DataRequirement, DataSource
+from strategies.api_v2 import BaseStrategy, DataSource
 
 
 @dataclass

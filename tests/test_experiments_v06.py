@@ -18,15 +18,12 @@ import json
 import shutil
 import tempfile
 import unittest
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 
 from execution_engine import (
     AnalysisReport,
-    ExperimentConfig,
     ExperimentResult,
     ExperimentRun,
     ExperimentRunner,
@@ -34,7 +31,6 @@ from execution_engine import (
     OptimizationConfig,
     OptimizationMode,
     ParameterExpander,
-    ParameterExpansionMode,
     ParameterOptimizer,
     ParameterRange,
     ResultAnalyzer,

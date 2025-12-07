@@ -15,7 +15,7 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 
 from datetime import timedelta
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import pandas as pd
 

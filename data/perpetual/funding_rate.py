@@ -14,11 +14,10 @@ Version: v0.5
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import numpy as np
 import pandas as pd
 
 from data.exchanges.base_connector import ExchangeConnector

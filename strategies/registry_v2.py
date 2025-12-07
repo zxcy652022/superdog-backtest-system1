@@ -17,11 +17,10 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md §3
 
 import importlib
 import inspect
-import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional
 
 # v0.3 策略基類
 from backtest.engine import BaseStrategy as V03BaseStrategy
@@ -37,12 +36,8 @@ except ImportError:
 
 # 元數據和相依性檢查
 try:
-    from strategies.dependency_checker import (
-        DependencyChecker,
-        DependencyCheckResult,
-        check_strategy_dependencies,
-    )
-    from strategies.metadata import MetadataManager, StrategyMetadata, get_metadata_manager
+    from strategies.dependency_checker import DependencyChecker, DependencyCheckResult
+    from strategies.metadata import StrategyMetadata, get_metadata_manager
 
     HAS_METADATA = True
 except ImportError:

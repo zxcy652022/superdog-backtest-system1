@@ -18,7 +18,7 @@ Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §3
 
 import inspect
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional, Type
+from typing import Dict, List, Optional, Type
 
 import pandas as pd
 

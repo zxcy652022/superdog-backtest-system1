@@ -6,7 +6,6 @@ SuperDog v0.6 Phase 4: Risk Management System Tests
 Version: v0.6.0-phase4
 """
 
-from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -20,7 +19,6 @@ from risk_management import (  # Support/Resistance; Dynamic Stops; Risk Calcula
     SRType,
     StopLossType,
     SupportResistanceDetector,
-    TakeProfitType,
     calculate_fixed_risk_size,
     calculate_kelly_size,
     calculate_portfolio_risk,

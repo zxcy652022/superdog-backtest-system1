@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-12-08T04:14:21.773983",
+  "timestamp": "2025-12-08T05:02:06.345757",
   "total_tests": 23,
   "total_passed": 22,
   "total_failed": 1,
   "success_rate": 95.65217391304348,
-  "duration_seconds": 31.245770931243896,
+  "duration_seconds": 31.337594747543335,
   "results": {
     "phase1": {
       "passed": 4,
@@ -13,22 +13,22 @@
         {
           "name": "宇宙管理模組導入",
           "passed": true,
-          "duration": 0.010454177856445312
+          "duration": 0.0
         },
         {
           "name": "幣種屬性計算",
           "passed": "True",
-          "duration": 0.0006940364837646484
+          "duration": 0.0010480880737304688
         },
         {
           "name": "分類規則邏輯",
           "passed": true,
-          "duration": 2.1457672119140625e-06
+          "duration": 3.0994415283203125e-06
         },
         {
           "name": "數據存儲機制",
           "passed": true,
-          "duration": 0.024318218231201172
+          "duration": 0.042257070541381836
         }
       ]
     },
@@ -39,22 +39,22 @@
         {
           "name": "實驗系統模組導入",
           "passed": true,
-          "duration": 0.008171796798706055
+          "duration": 1.1920928955078125e-06
         },
         {
           "name": "參數網格展開",
           "passed": true,
-          "duration": 2.1457672119140625e-06
+          "duration": 2.86102294921875e-06
         },
         {
           "name": "實驗配置驗證",
           "passed": true,
-          "duration": 2.1457672119140625e-06
+          "duration": 1.3113021850585938e-05
         },
         {
           "name": "結果分析功能",
           "passed": "True",
-          "duration": 0.0002560615539550781
+          "duration": 0.00039386749267578125
         }
       ]
     },
@@ -70,17 +70,17 @@
         {
           "name": "手續費計算邏輯",
           "passed": true,
-          "duration": 0.0
+          "duration": 9.5367431640625e-07
         },
         {
           "name": "滑價計算邏輯",
           "passed": true,
-          "duration": 1.1920928955078125e-06
+          "duration": 9.5367431640625e-07
         },
         {
           "name": "強平風險檢測",
           "passed": true,
-          "duration": 7.152557373046875e-07
+          "duration": 9.5367431640625e-07
         }
       ]
     },
@@ -91,27 +91,27 @@
         {
           "name": "風控模組導入",
           "passed": true,
-          "duration": 0.3205559253692627
+          "duration": 0.0
         },
         {
           "name": "支撐壓力檢測",
           "passed": true,
-          "duration": 0.001191854476928711
+          "duration": 0.0014998912811279297
         },
         {
           "name": "動態止損計算",
           "passed": "True",
-          "duration": 1.9073486328125e-05
+          "duration": 2.7894973754882812e-05
         },
         {
           "name": "風險指標計算",
           "passed": "True",
-          "duration": 5.1975250244140625e-05
+          "duration": 7.987022399902344e-05
         },
         {
           "name": "倉位計算邏輯",
           "passed": true,
-          "duration": 1.1920928955078125e-06
+          "duration": 2.1457672119140625e-06
         }
       ]
     },
@@ -122,17 +122,17 @@
         {
           "name": "數據管道整合",
           "passed": true,
-          "duration": 0.001110076904296875
+          "duration": 0.0016276836395263672
         },
         {
           "name": "策略執行整合",
           "passed": true,
-          "duration": 0.0010151863098144531
+          "duration": 0.00146484375
         },
         {
           "name": "CLI命令可用性",
           "passed": true,
-          "duration": 0.2740647792816162
+          "duration": 0.43287110328674316
         }
       ]
     },
@@ -143,17 +143,17 @@
         {
           "name": "基本CLI命令",
           "passed": true,
-          "duration": 0.2857208251953125
+          "duration": 0.392941951751709
         },
         {
           "name": "驗證命令",
           "passed": false,
-          "duration": 30.008493900299072
+          "duration": 30.01853084564209
         },
         {
           "name": "實驗命令幫助",
           "passed": true,
-          "duration": 0.30923008918762207
+          "duration": 0.44422483444213867
         }
       ]
     }

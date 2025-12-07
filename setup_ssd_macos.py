@@ -5,12 +5,8 @@ SuperDog SSD 環境設置腳本 (macOS 版)
 針對 MacBook Air M1 和「權志龍的寶藏」SSD 的專用設置
 """
 
-import os
 import shutil
-import sys
 from pathlib import Path
-
-import pandas as pd
 
 
 def setup_data_config():

@@ -20,7 +20,7 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
-from .support_resistance import SRLevel, SupportResistanceDetector
+from .support_resistance import SupportResistanceDetector
 
 
 class StopLossType(Enum):

@@ -11,7 +11,7 @@ Version: v0.5
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 import requests
@@ -23,8 +23,6 @@ logger = logging.getLogger(__name__)
 
 class BinanceAPIError(Exception):
     """Binance API 錯誤"""
-
-    pass
 
 
 class BinanceConnector(ExchangeConnector):

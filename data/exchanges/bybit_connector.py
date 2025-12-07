@@ -13,7 +13,6 @@ Author: SuperDog Quant Team
 import logging
 import time
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -26,8 +25,6 @@ logger = logging.getLogger(__name__)
 
 class BybitAPIError(ExchangeAPIError):
     """Bybit API 專用錯誤類別"""
-
-    pass
 
 
 class BybitConnector(ExchangeConnector):

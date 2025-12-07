@@ -12,21 +12,17 @@ Version: v0.4
 """
 
 import unittest
-from datetime import datetime
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from cli.dynamic_params import DynamicCLI
-from cli.parameter_validator import BacktestConfigValidator, ParameterValidator
 from data.pipeline import DataPipeline, get_pipeline
 from data.storage import OHLCVStorage
 from data.symbol_manager import get_top_symbols, validate_symbol
 from data.timeframe_manager import get_timeframe_manager
 from strategies.dependency_checker import check_strategy_dependencies
 from strategies.kawamoku_demo import KawamokuStrategy
-from strategies.metadata import get_metadata_manager
 from strategies.registry import get_strategy, list_strategies
 from strategies.registry_v2 import get_registry
 

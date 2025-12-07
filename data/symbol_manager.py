@@ -15,7 +15,7 @@ Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 
 class QuoteAsset(Enum):

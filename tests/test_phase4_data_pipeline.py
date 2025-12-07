@@ -11,8 +11,7 @@ Version: v0.4
 """
 
 import unittest
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -20,7 +19,6 @@ import pandas as pd
 from data.pipeline import DataLoadResult, DataPipeline, get_pipeline, load_strategy_data
 from data.storage import OHLCVStorage
 from data.symbol_manager import (
-    QuoteAsset,
     SymbolInfo,
     SymbolManager,
     get_symbol_manager,

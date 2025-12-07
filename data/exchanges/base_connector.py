@@ -16,13 +16,9 @@ import pandas as pd
 class ExchangeAPIError(Exception):
     """交易所 API 錯誤基底類別"""
 
-    pass
-
 
 class DataFormatError(Exception):
     """數據格式錯誤"""
-
-    pass
 
 
 class ExchangeConnector(ABC):
@@ -74,7 +70,6 @@ class ExchangeConnector(ABC):
             APIError: 當 API 請求失敗時
             DataFormatError: 當數據格式異常時
         """
-        pass
 
     @abstractmethod
     def get_open_interest(
@@ -103,7 +98,6 @@ class ExchangeConnector(ABC):
                 - change_24h: float (optional)
                 - change_percentage: float (optional)
         """
-        pass
 
     def get_mark_price(self, symbol: str) -> Dict[str, Any]:
         """獲取當前標記價格（可選實作）
@@ -168,7 +162,6 @@ class ExchangeConnector(ABC):
         Raises:
             APIError: 當 API 返回錯誤時
         """
-        pass
 
     def _validate_symbol(self, symbol: str) -> str:
         """驗證和標準化交易對符號

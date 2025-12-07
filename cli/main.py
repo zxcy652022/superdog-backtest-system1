@@ -23,7 +23,6 @@ Design Reference:
 
 import sys
 from pathlib import Path
-from typing import Any, Dict
 
 import click
 
@@ -33,13 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backtest.engine import run_backtest  # noqa: E402
 
 # v0.4 新增導入
-from cli.dynamic_params import (  # noqa: E402
-    DynamicCLI,
-    extract_strategy_params,
-    format_strategy_help,
-    validate_and_convert_params,
-)
-from cli.parameter_validator import BacktestConfigValidator, ParameterValidator  # noqa: E402
+from cli.dynamic_params import format_strategy_help  # noqa: E402
 from data.storage import load_ohlcv  # noqa: E402
 from execution_engine.portfolio_runner import (  # noqa: E402
     RunConfig,
@@ -74,7 +67,6 @@ def cli():
     - superdog verify         # 驗證 v0.5 安裝
     - superdog list           # 列出所有策略
     """
-    pass
 
 
 @cli.command(name="run")
@@ -434,7 +426,6 @@ def universe_group():
         superdog universe show large_cap
         superdog universe export --type yaml
     """
-    pass
 
 
 @universe_group.command(name="build")
@@ -541,7 +532,6 @@ def show_universe(classification, date, top, format):
         superdog universe show all --format json
     """
     import json as json_module
-    from datetime import datetime
 
     from data.universe_manager import get_universe_manager
 
@@ -737,7 +727,6 @@ def experiment_group():
     - show      顯示實驗詳情
     - analyze   分析實驗結果
     """
-    pass
 
 
 @experiment_group.command(name="create")
@@ -965,7 +954,6 @@ def optimize_experiment(config, mode, metric, workers, early_stopping):
             ParameterOptimizer,
             load_experiment_config,
         )
-        from strategies.registry import get_strategy
 
         # 加載配置
         click.echo()
