@@ -182,12 +182,20 @@ class SimulatedBroker:
         if total_required > self.cash * 1.000001:  # 允許 0.0001% 的誤差
             return False
 
+        # 數值溢出檢查
+        if not (0 < total_required < 1e15):  # 合理範圍檢查
+            return False
+
+        new_cash = self.cash - total_required
+        if new_cash < -1e10 or new_cash > 1e15:  # 防止異常值
+            return False
+
         # 執行開倉
         self.position_qty = size
         self.position_direction = "long"
         self.position_entry_price = price
         self.position_entry_time = time
-        self.cash -= total_required
+        self.cash = new_cash
 
         return True
 
@@ -205,12 +213,20 @@ class SimulatedBroker:
         if total_required > self.cash * 1.000001:  # 允許 0.0001% 的誤差
             return False
 
+        # 數值溢出檢查
+        if not (0 < total_required < 1e15):
+            return False
+
+        new_cash = self.cash - total_required
+        if new_cash < -1e10 or new_cash > 1e15:
+            return False
+
         # 執行開倉
         self.position_qty = size
         self.position_direction = "short"
         self.position_entry_price = price
         self.position_entry_time = time
-        self.cash -= total_required  # 扣除保證金+手續費
+        self.cash = new_cash  # 扣除保證金+手續費
 
         return True
 
@@ -226,6 +242,10 @@ class SimulatedBroker:
         revenue = actual_size * price
         fee = revenue * self.fee_rate
         net_revenue = revenue - fee
+
+        # 數值有效性檢查
+        if not all(abs(x) < 1e15 for x in [revenue, fee, net_revenue]):
+            return False
 
         # 計算PnL
         entry_cost = actual_size * self.position_entry_price
@@ -253,7 +273,17 @@ class SimulatedBroker:
         # 開倉時扣除了: position_value / leverage + fee_entry
         # 平倉時收到: revenue - fee_exit
         released_margin = entry_cost / self.leverage
-        self.cash += released_margin + net_revenue
+        cash_change = released_margin + net_revenue
+
+        # 數值溢出檢查
+        if not abs(cash_change) < 1e15:
+            return False
+
+        new_cash = self.cash + cash_change
+        if new_cash < -1e10 or new_cash > 1e15:
+            return False
+
+        self.cash = new_cash
 
         # 更新持倉
         self.position_qty -= actual_size
@@ -274,6 +304,10 @@ class SimulatedBroker:
         cost = actual_size * price
         fee = cost * self.fee_rate
         total_cost = cost + fee
+
+        # 數值有效性檢查
+        if not all(abs(x) < 1e15 for x in [cost, fee, total_cost]):
+            return False
 
         # 做空收入（在開倉時的理論收入）
         revenue = actual_size * self.position_entry_price
@@ -300,7 +334,17 @@ class SimulatedBroker:
 
         # 更新cash
         released_margin = revenue / self.leverage
-        self.cash += released_margin - total_cost
+        cash_change = released_margin - total_cost
+
+        # 數值溢出檢查
+        if not abs(cash_change) < 1e15:
+            return False
+
+        new_cash = self.cash + cash_change
+        if new_cash < -1e10 or new_cash > 1e15:
+            return False
+
+        self.cash = new_cash
 
         # 更新持倉
         self.position_qty -= actual_size

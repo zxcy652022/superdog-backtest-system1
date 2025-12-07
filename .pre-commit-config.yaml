@@ -58,7 +58,7 @@ repos:
     hooks:
       - id: check-empty-python-files
         name: Check for empty Python files
-        entry: python scripts/check_empty_files.py
+        entry: python3 scripts/check_empty_files.py
         language: system
         files: \.py$
         exclude: __init__\.py$
@@ -66,7 +66,7 @@ repos:
       # 檢查版本一致性
       - id: check-version-consistency
         name: Check version consistency
-        entry: python scripts/check_version.py
+        entry: python3 scripts/check_version.py
         language: system
         pass_filenames: false
         files: (README\.md|CHANGELOG\.md|__init__\.py)$
