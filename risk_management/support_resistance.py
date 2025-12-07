@@ -339,7 +339,7 @@ class SupportResistanceDetector:
             oi_ratio = oi_at_time / avg_oi
             return min(oi_ratio / 1.5, 1.0)
 
-        except:
+        except Exception:
             return 0.0
 
     def _calculate_funding_score(self, level: SRLevel, funding_data: pd.DataFrame) -> float:
@@ -365,7 +365,7 @@ class SupportResistanceDetector:
                 return min(abs(avg_funding) / 0.0003, 1.0)
 
             return 0.0
-        except:
+        except Exception:
             return 0.0
 
     def _综合_strength(self, level: SRLevel) -> float:

@@ -9,6 +9,8 @@ import platform
 from pathlib import Path
 from typing import Dict, Optional
 
+import pandas as pd
+
 
 class DataConfig:
     """數據路徑配置管理器"""
@@ -141,7 +143,7 @@ class DataConfig:
 
             total, used, free = shutil.disk_usage(path)
             return f"{free // (2**30)} GB"
-        except:
+        except Exception:
             return "Unknown"
 
 

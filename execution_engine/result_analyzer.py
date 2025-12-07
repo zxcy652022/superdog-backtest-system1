@@ -226,7 +226,7 @@ class ResultAnalyzer:
                 grouped_var = self.df.groupby(col)[metric].var().mean()
                 # 方差比例（越大說明該參數影響越大）
                 importance[col.replace("param_", "")] = 1 - (grouped_var / total_variance)
-            except:
+            except Exception:
                 importance[col.replace("param_", "")] = 0.0
 
         # 歸一化
@@ -256,7 +256,7 @@ class ResultAnalyzer:
                 # 計算 Pearson 相關係數
                 corr = self.df[col].corr(self.df[metric])
                 correlations[col.replace("param_", "")] = corr if not np.isnan(corr) else 0.0
-            except:
+            except Exception:
                 correlations[col.replace("param_", "")] = 0.0
 
         return correlations

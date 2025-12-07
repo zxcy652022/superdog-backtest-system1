@@ -783,7 +783,7 @@ def create_experiment(name, strategy, symbols, timeframe, output):
                     # 嘗試轉換為數字
                     try:
                         values = [float(v.strip()) for v in values_str.split(",")]
-                    except:
+                    except ValueError:
                         values = [v.strip() for v in values_str.split(",")]
                     parameters[param_name] = values
                 else:

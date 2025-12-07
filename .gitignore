@@ -44,3 +44,4 @@ cleanup_log_*.json
 
 # Prevention tools
 scripts/
+superdog_v06_validation_report.json
