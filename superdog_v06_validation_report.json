@@ -1,0 +1,161 @@
+{
+  "timestamp": "2025-12-07T23:24:12.306446",
+  "total_tests": 23,
+  "total_passed": 22,
+  "total_failed": 1,
+  "success_rate": 95.65217391304348,
+  "duration_seconds": 31.949448108673096,
+  "results": {
+    "phase1": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "宇宙管理模組導入",
+          "passed": true,
+          "duration": 0.019854068756103516
+        },
+        {
+          "name": "幣種屬性計算",
+          "passed": "True",
+          "duration": 0.0010519027709960938
+        },
+        {
+          "name": "分類規則邏輯",
+          "passed": true,
+          "duration": 4.291534423828125e-06
+        },
+        {
+          "name": "數據存儲機制",
+          "passed": true,
+          "duration": 0.036923885345458984
+        }
+      ]
+    },
+    "phase2": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "實驗系統模組導入",
+          "passed": true,
+          "duration": 0.013948917388916016
+        },
+        {
+          "name": "參數網格展開",
+          "passed": true,
+          "duration": 3.0994415283203125e-06
+        },
+        {
+          "name": "實驗配置驗證",
+          "passed": true,
+          "duration": 3.0994415283203125e-06
+        },
+        {
+          "name": "結果分析功能",
+          "passed": "True",
+          "duration": 0.0004296302795410156
+        }
+      ]
+    },
+    "phase3": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "執行模型模組導入",
+          "passed": true,
+          "duration": 1.9073486328125e-06
+        },
+        {
+          "name": "手續費計算邏輯",
+          "passed": true,
+          "duration": 2.1457672119140625e-06
+        },
+        {
+          "name": "滑價計算邏輯",
+          "passed": true,
+          "duration": 1.9073486328125e-06
+        },
+        {
+          "name": "強平風險檢測",
+          "passed": true,
+          "duration": 9.5367431640625e-07
+        }
+      ]
+    },
+    "phase4": {
+      "passed": 5,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "風控模組導入",
+          "passed": true,
+          "duration": 0.4891510009765625
+        },
+        {
+          "name": "支撐壓力檢測",
+          "passed": true,
+          "duration": 0.001767873764038086
+        },
+        {
+          "name": "動態止損計算",
+          "passed": "True",
+          "duration": 2.8848648071289062e-05
+        },
+        {
+          "name": "風險指標計算",
+          "passed": "True",
+          "duration": 7.772445678710938e-05
+        },
+        {
+          "name": "倉位計算邏輯",
+          "passed": true,
+          "duration": 2.1457672119140625e-06
+        }
+      ]
+    },
+    "integration": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "數據管道整合",
+          "passed": true,
+          "duration": 0.001682281494140625
+        },
+        {
+          "name": "策略執行整合",
+          "passed": true,
+          "duration": 0.0014960765838623047
+        },
+        {
+          "name": "CLI命令可用性",
+          "passed": true,
+          "duration": 0.46454620361328125
+        }
+      ]
+    },
+    "cli": {
+      "passed": 2,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "基本CLI命令",
+          "passed": true,
+          "duration": 0.387894868850708
+        },
+        {
+          "name": "驗證命令",
+          "passed": false,
+          "duration": 30.015213012695312
+        },
+        {
+          "name": "實驗命令幫助",
+          "passed": true,
+          "duration": 0.5147130489349365
+        }
+      ]
+    }
+  }
+}

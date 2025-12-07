@@ -23,7 +23,7 @@ import pandas as pd
 from backtest.engine import run_backtest, BacktestResult
 from backtest.position_sizer import AllInSizer, FixedCashSizer, PercentOfEquitySizer
 from data.storage import load_ohlcv
-from strategies.registry import get_strategy
+from strategies.registry_v2 import get_registry
 
 
 @dataclass
@@ -389,7 +389,8 @@ def _run_single_backtest(config: RunConfig, verbose: bool = False) -> SingleRunR
     try:
         # Step 1: 獲取策略類
         try:
-            strategy_cls = get_strategy(config.strategy)
+            registry = get_registry()
+            strategy_cls = registry.get_strategy(config.strategy)
         except Exception as e:
             raise ValueError(f"Strategy not found: {config.strategy}") from e
 
