@@ -203,5 +203,5 @@ python cleanup_v06.py --dry-run
 ---
 
 **版本**: 1.0.0
-**日期**: 2024-12-08
+**日期**: 2025-12-08
 **維護**: Architecture Team

@@ -4,7 +4,7 @@
 **狀態**: ✅ 實作完成
 **實作位置**: `strategies/api_v2.py`
 **負責人**: Architecture Team
-**最後更新**: 2024-12-08
+**最後更新**: 2025-12-08
 
 ---
 
@@ -115,7 +115,7 @@ def get_metadata(cls) -> StrategyMetadata:
         complexity=StrategyComplexity.BEGINNER,
         description="簡單移動平均線策略",
         author="SuperDog Team",
-        created_date="2024-12-08",
+        created_date="2025-12-08",
         tags=["trend", "sma", "beginner"]
     )
 ```
@@ -339,8 +339,8 @@ class SimpleSMAStrategy(BaseStrategy):
                 "OHLCV: close, volume"
             ],
             author="SuperDog Team",
-            created_date="2024-12-08",
-            last_modified="2024-12-08",
+            created_date="2025-12-08",
+            last_modified="2025-12-08",
             tags=["trend", "sma", "crossover", "beginner"],
             performance_notes=(
                 "回測結果顯示在趨勢市場勝率約 45-50%，"
@@ -1293,7 +1293,7 @@ signals = np.where(ma_fast > ma_slow, 1, 0)
 
 ## 🚀 版本歷史
 
-### v0.6.0 (2024-12-08)
+### v0.6.0 (2025-12-08)
 - ✅ 統一策略 API 規格
 - ✅ 完整參數管理系統
 - ✅ 數據需求聲明機制
@@ -1317,7 +1317,7 @@ signals = np.where(ma_fast > ma_slow, 1, 0)
 
 **文件版本**: 1.0.0
 **對應程式版本**: v0.6.0
-**最後更新**: 2024-12-08
+**最後更新**: 2025-12-08
 **下次審查**: 2025-01-08
 
 **聲明**: 本規格為 SuperDog v0.6+ 的**強制標準**，所有策略必須遵守。
