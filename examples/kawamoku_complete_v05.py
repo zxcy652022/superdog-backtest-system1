@@ -29,10 +29,10 @@ from typing import Dict, List
 # 添加項目根目錄到 Python 路徑
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import numpy as np
-import pandas as pd
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
-from strategies.api_v2 import BaseStrategy, DataRequirement, DataSource
+from strategies.api_v2 import BaseStrategy, DataRequirement, DataSource  # noqa: E402
 
 
 class KawamokuMultiFactorStrategy(BaseStrategy):

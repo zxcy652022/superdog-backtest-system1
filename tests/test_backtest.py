@@ -14,9 +14,9 @@ import sys
 
 sys.path.append(os.path.abspath("."))
 
-from backtest.engine import BacktestResult, run_backtest
-from data.storage import load_ohlcv
-from strategies.simple_sma import SimpleSMAStrategy
+from backtest.engine import BacktestResult, run_backtest  # noqa: E402
+from data.storage import load_ohlcv  # noqa: E402
+from strategies.simple_sma import SimpleSMAStrategy  # noqa: E402
 
 
 def test_backtest_basic():

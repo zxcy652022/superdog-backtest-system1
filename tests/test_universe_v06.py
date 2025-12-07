@@ -17,8 +17,6 @@ Author: DDragon
 
 import json
 import shutil
-
-# 添加項目根目錄到路徑
 import sys
 import tempfile
 import unittest
@@ -28,16 +26,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+# 添加項目根目錄到路徑
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data.universe_calculator import (
+from data.universe_calculator import (  # noqa: E402
     AssetTypeInfo,
     OIMetrics,
     UniverseCalculator,
     VolumeMetrics,
     calculate_all_metrics,
 )
-from data.universe_manager import (
+from data.universe_manager import (  # noqa: E402
     ClassificationRules,
     SymbolMetadata,
     UniverseManager,

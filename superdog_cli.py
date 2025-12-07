@@ -14,7 +14,7 @@ from pathlib import Path
 # 添加項目根目錄到 Python 路徑
 sys.path.insert(0, str(Path(__file__).parent))
 
-from cli.interactive import MainMenu
+from cli.interactive import MainMenu  # noqa: E402
 
 
 def main():

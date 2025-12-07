@@ -30,20 +30,24 @@ import click
 # 添加項目根目錄到 Python 路徑 (v0.5 修復)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backtest.engine import run_backtest
+from backtest.engine import run_backtest  # noqa: E402
 
 # v0.4 新增導入
-from cli.dynamic_params import (
+from cli.dynamic_params import (  # noqa: E402
     DynamicCLI,
     extract_strategy_params,
     format_strategy_help,
     validate_and_convert_params,
 )
-from cli.parameter_validator import BacktestConfigValidator, ParameterValidator
-from data.storage import load_ohlcv
-from execution_engine.portfolio_runner import RunConfig, load_configs_from_yaml, run_portfolio
-from reports.text_reporter import render_portfolio, render_single
-from strategies.registry_v2 import get_registry
+from cli.parameter_validator import BacktestConfigValidator, ParameterValidator  # noqa: E402
+from data.storage import load_ohlcv  # noqa: E402
+from execution_engine.portfolio_runner import (  # noqa: E402
+    RunConfig,
+    load_configs_from_yaml,
+    run_portfolio,
+)
+from reports.text_reporter import render_portfolio, render_single  # noqa: E402
+from strategies.registry_v2 import get_registry  # noqa: E402
 
 
 @click.group()

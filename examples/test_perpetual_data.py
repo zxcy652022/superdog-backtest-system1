@@ -13,9 +13,9 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta  # noqa: E402
 
-from data.perpetual import (
+from data.perpetual import (  # noqa: E402
     FundingRateData,
     OpenInterestData,
     fetch_funding_rate,

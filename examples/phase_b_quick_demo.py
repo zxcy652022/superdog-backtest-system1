@@ -18,9 +18,9 @@ from pathlib import Path
 # 添加項目根目錄到 Python 路徑
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta  # noqa: E402
 
-import pandas as pd
+import pandas as pd  # noqa: E402
 
 
 def print_section(title: str):

@@ -5,8 +5,8 @@ import sys
 
 sys.path.append(os.path.abspath("."))
 
-from data.fetcher import download_btcusdt_1h
-from data.validator import validate_ohlcv_csv
+from data.fetcher import download_btcusdt_1h  # noqa: E402
+from data.validator import validate_ohlcv_csv  # noqa: E402
 
 
 def test_fetch_and_validate():
