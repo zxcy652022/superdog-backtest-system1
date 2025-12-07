@@ -1,17 +1,32 @@
 """
-Data Storage Module v0.1
+Data Storage Module v0.4
 
 負責讀取和處理 OHLCV CSV 數據。
 將 CSV 轉換為 pandas DataFrame，並進行必要的格式化。
+
+v0.4 Updates:
+- 整合 TimeframeManager 和 SymbolManager
+- 支援多時間週期和多交易對
+- 與 DataPipeline 無縫整合
+- 增強的數據驗證和清理
+- SSD 環境支援
+
+Version: v0.4
+Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
 """
 
 import pandas as pd
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict
 import logging
+from pathlib import Path
 
 # SSD 配置支援 (v0.4)
 from data_config import config
+
+# v0.4: 新增管理器
+from data.timeframe_manager import TimeframeManager, Timeframe
+from data.symbol_manager import SymbolManager, SymbolInfo
 
 # 設定日誌
 logging.basicConfig(level=logging.INFO)
@@ -19,11 +34,24 @@ logger = logging.getLogger(__name__)
 
 
 class OHLCVStorage:
-    """OHLCV 數據儲存與讀取器"""
+    """OHLCV 數據儲存與讀取器
 
-    def __init__(self):
-        """初始化儲存器"""
-        pass
+    v0.4 Updates:
+    - 整合 TimeframeManager 和 SymbolManager
+    - 支援多時間週期和多交易對載入
+    - 自動數據驗證和清理
+    - SSD 環境整合
+    """
+
+    def __init__(self, data_dir: Optional[Path] = None):
+        """初始化儲存器
+
+        Args:
+            data_dir: 數據目錄路徑（默認使用 SSD 配置）
+        """
+        self.data_dir = data_dir or config.data_root
+        self.timeframe_manager = TimeframeManager()
+        self.symbol_manager = SymbolManager()
 
     def load_ohlcv(
         self,
@@ -124,6 +152,194 @@ class OHLCVStorage:
             error_msg = f"載入 OHLCV 數據失敗: {e}"
             logger.error(error_msg)
             raise Exception(error_msg)
+
+    def load_symbol_data(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> pd.DataFrame:
+        """
+        v0.4: 載入指定交易對和時間週期的數據
+
+        Args:
+            symbol: 交易對（如 BTCUSDT）
+            timeframe: 時間週期（如 1h）
+            start_date: 開始日期（可選）
+            end_date: 結束日期（可選）
+
+        Returns:
+            pd.DataFrame: OHLCV 數據
+
+        Raises:
+            ValueError: 當交易對或時間週期無效時
+            FileNotFoundError: 當數據文件不存在時
+
+        Example:
+            >>> storage = OHLCVStorage()
+            >>> df = storage.load_symbol_data("BTCUSDT", "1h")
+        """
+        # 驗證交易對
+        if not self.symbol_manager.validate_symbol(symbol):
+            raise ValueError(f"Invalid symbol: {symbol}")
+
+        # 驗證時間週期
+        if not self.timeframe_manager.validate_timeframe(timeframe):
+            raise ValueError(f"Invalid timeframe: {timeframe}")
+
+        # 構建文件路徑
+        # 檢查歷史數據目錄（binance）
+        file_path = self.data_dir / "historical" / "binance" / f"{symbol}_{timeframe}.csv"
+
+        # 如果不存在，嘗試 raw 目錄（向後兼容）
+        if not file_path.exists():
+            file_path = self.data_dir / "raw" / f"{symbol}_{timeframe}.csv"
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"Data file not found: {file_path}")
+
+        # 載入數據
+        df = self.load_ohlcv(str(file_path))
+
+        # 過濾日期範圍
+        if start_date:
+            df = df[df.index >= pd.Timestamp(start_date)]
+        if end_date:
+            df = df[df.index <= pd.Timestamp(end_date)]
+
+        logger.info(
+            f"Loaded {len(df)} bars for {symbol} ({timeframe})"
+        )
+
+        return df
+
+    def load_multiple_symbols(
+        self,
+        symbols: List[str],
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        v0.4: 載入多個交易對的數據
+
+        Args:
+            symbols: 交易對列表
+            timeframe: 時間週期
+            start_date: 開始日期（可選）
+            end_date: 結束日期（可選）
+
+        Returns:
+            字典，鍵為交易對，值為 DataFrame
+
+        Example:
+            >>> storage = OHLCVStorage()
+            >>> symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+            >>> data = storage.load_multiple_symbols(symbols, "1h")
+            >>> print(f"Loaded {len(data)} symbols")
+        """
+        result = {}
+
+        for symbol in symbols:
+            try:
+                df = self.load_symbol_data(symbol, timeframe, start_date, end_date)
+                result[symbol] = df
+            except Exception as e:
+                logger.warning(f"Failed to load {symbol}: {e}")
+
+        logger.info(
+            f"Successfully loaded {len(result)}/{len(symbols)} symbols"
+        )
+
+        return result
+
+    def load_multiple_timeframes(
+        self,
+        symbol: str,
+        timeframes: List[str],
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        v0.4: 載入單一交易對的多個時間週期數據
+
+        Args:
+            symbol: 交易對
+            timeframes: 時間週期列表
+            start_date: 開始日期（可選）
+            end_date: 結束日期（可選）
+
+        Returns:
+            字典，鍵為時間週期，值為 DataFrame
+
+        Example:
+            >>> storage = OHLCVStorage()
+            >>> timeframes = ["1h", "4h", "1d"]
+            >>> data = storage.load_multiple_timeframes("BTCUSDT", timeframes)
+            >>> print(f"Loaded {len(data)} timeframes")
+        """
+        result = {}
+
+        for timeframe in timeframes:
+            try:
+                df = self.load_symbol_data(symbol, timeframe, start_date, end_date)
+                result[timeframe] = df
+            except Exception as e:
+                logger.warning(f"Failed to load {symbol} {timeframe}: {e}")
+
+        logger.info(
+            f"Successfully loaded {len(result)}/{len(timeframes)} timeframes for {symbol}"
+        )
+
+        return result
+
+    def list_available_data(self) -> List[Dict[str, str]]:
+        """
+        v0.4: 列出所有可用的數據文件
+
+        Returns:
+            可用數據文件的列表，每個元素包含 symbol 和 timeframe
+
+        Example:
+            >>> storage = OHLCVStorage()
+            >>> available = storage.list_available_data()
+            >>> for item in available:
+            ...     print(f"{item['symbol']} - {item['timeframe']}")
+        """
+        # 檢查多個可能的數據目錄
+        search_dirs = [
+            self.data_dir / "historical" / "binance",
+            self.data_dir / "raw"
+        ]
+
+        available = []
+
+        for search_dir in search_dirs:
+            if not search_dir.exists():
+                continue
+
+            for file_path in search_dir.glob("*_*.csv"):
+                # 解析文件名（格式：SYMBOL_TIMEFRAME.csv）
+                file_name = file_path.stem
+                parts = file_name.rsplit('_', 1)
+
+                if len(parts) == 2:
+                    symbol, timeframe = parts
+
+                    # 驗證
+                    if (self.symbol_manager.validate_symbol(symbol) and
+                        self.timeframe_manager.validate_timeframe(timeframe)):
+                        # 避免重複
+                        if not any(item['symbol'] == symbol and item['timeframe'] == timeframe for item in available):
+                            available.append({
+                                'symbol': symbol,
+                                'timeframe': timeframe,
+                                'file_path': str(file_path)
+                            })
+
+        logger.info(f"Found {len(available)} available data files")
+        return available
 
     def save_ohlcv(
         self,
