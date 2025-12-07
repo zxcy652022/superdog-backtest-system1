@@ -1,5 +1,5 @@
 """
-Data Pipeline v0.4
+Data Pipeline v0.5
 
 統一數據管道系統 - 根據策略需求載入和管理數據
 
@@ -9,9 +9,10 @@ Data Pipeline v0.4
 - 多交易對數據載入
 - 數據快取機制
 - 與 SSD 環境無縫整合
+- v0.5: 支援資金費率和持倉量數據
 
-Version: v0.4
-Design Reference: docs/specs/planned/v0.4_strategy_api_spec.md
+Version: v0.5 (upgraded from v0.4)
+Design Reference: docs/specs/planned/v0.5_perpetual_data_ecosystem_spec.md
 """
 
 import pandas as pd
@@ -24,6 +25,10 @@ from strategies.api_v2 import BaseStrategy, DataSource, DataRequirement
 from data.timeframe_manager import TimeframeManager, Timeframe
 from data.symbol_manager import SymbolManager
 from data_config import config
+
+# v0.5: Import perpetual data modules
+from data.perpetual import FundingRateData, OpenInterestData
+from data.quality import DataQualityController
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -95,10 +100,23 @@ class DataPipeline:
         self.timeframe_manager = TimeframeManager()
         self.symbol_manager = SymbolManager()
 
+        # v0.5 Phase A: 初始化永續數據處理器
+        self.funding_rate_data = FundingRateData()
+        self.open_interest_data = OpenInterestData()
+
+        # v0.5 Phase B: 初始化新增數據處理器
+        from data.perpetual import BasisData, LiquidationData, LongShortRatioData
+        self.basis_data = BasisData()
+        self.liquidation_data = LiquidationData()
+        self.long_short_ratio_data = LongShortRatioData()
+
+        # v0.5: 初始化數據品質控制器
+        self.quality_controller = DataQualityController(strict_mode=False)
+
         # 數據快取
         self._cache: Dict[str, pd.DataFrame] = {}
 
-        logger.info(f"DataPipeline initialized with data_dir: {self.data_dir}")
+        logger.info(f"DataPipeline v0.5 initialized with data_dir: {self.data_dir}")
 
     def load_strategy_data(
         self,
@@ -168,34 +186,111 @@ class DataPipeline:
                             f"Optional OHLCV data not found for {symbol}"
                         )
 
-                elif req.source == DataSource.FUNDING:
-                    # v0.4: Funding 數據尚未支援
-                    if req.required:
+                elif req.source == DataSource.FUNDING_RATE:
+                    # v0.5 Phase A: 載入資金費率數據
+                    data = self._load_funding_rate(
+                        symbol, timeframe, start_date, end_date
+                    )
+
+                    if data is not None:
+                        # 數據品質檢查
+                        quality_result = self.quality_controller.check_funding_rate(data)
+                        if not quality_result.passed:
+                            logger.warning(f"Funding rate quality check failed: {quality_result.get_summary()}")
+
+                        loaded_data['funding_rate'] = data
+                    elif req.required:
                         result.success = False
-                        result.error = "Funding rate data not supported in v0.4"
+                        result.error = f"Required funding rate data not found for {symbol}"
                         return result
                     else:
                         result.warnings.append(
-                            "Funding rate data not available in v0.4 (coming in v0.5)"
+                            f"Optional funding rate data not found for {symbol}"
                         )
 
                 elif req.source == DataSource.OPEN_INTEREST:
-                    # v0.4: OI 數據尚未支援
-                    if req.required:
+                    # v0.5 Phase A: 載入持倉量數據
+                    data = self._load_open_interest(
+                        symbol, timeframe, start_date, end_date
+                    )
+
+                    if data is not None:
+                        # 數據品質檢查
+                        quality_result = self.quality_controller.check_open_interest(data)
+                        if not quality_result.passed:
+                            logger.warning(f"Open interest quality check failed: {quality_result.get_summary()}")
+
+                        loaded_data['open_interest'] = data
+                    elif req.required:
                         result.success = False
-                        result.error = "Open interest data not supported in v0.4"
+                        result.error = f"Required open interest data not found for {symbol}"
                         return result
                     else:
                         result.warnings.append(
-                            "Open interest data not available in v0.4 (coming in v0.5)"
+                            f"Optional open interest data not found for {symbol}"
+                        )
+
+                elif req.source == DataSource.BASIS:
+                    # v0.5 Phase B: 載入期現基差數據
+                    data = self._load_basis(
+                        symbol, timeframe, start_date, end_date
+                    )
+
+                    if data is not None:
+                        loaded_data['basis'] = data
+                    elif req.required:
+                        result.success = False
+                        result.error = f"Required basis data not found for {symbol}"
+                        return result
+                    else:
+                        result.warnings.append(
+                            f"Optional basis data not found for {symbol}"
+                        )
+
+                elif req.source == DataSource.LIQUIDATIONS:
+                    # v0.5 Phase B: 載入爆倉數據
+                    data = self._load_liquidations(
+                        symbol, timeframe, start_date, end_date
+                    )
+
+                    if data is not None:
+                        loaded_data['liquidations'] = data
+                    elif req.required:
+                        result.success = False
+                        result.error = f"Required liquidations data not found for {symbol}"
+                        return result
+                    else:
+                        result.warnings.append(
+                            f"Optional liquidations data not found for {symbol}"
+                        )
+
+                elif req.source == DataSource.LONG_SHORT_RATIO:
+                    # v0.5 Phase B: 載入多空持倉比數據
+                    data = self._load_long_short_ratio(
+                        symbol, timeframe, start_date, end_date
+                    )
+
+                    if data is not None:
+                        loaded_data['long_short_ratio'] = data
+                    elif req.required:
+                        result.success = False
+                        result.error = f"Required long/short ratio data not found for {symbol}"
+                        return result
+                    else:
+                        result.warnings.append(
+                            f"Optional long/short ratio data not found for {symbol}"
                         )
 
                 else:
-                    # 其他數據源
+                    # 未支援的數據源
                     if req.required:
                         result.success = False
-                        result.error = f"Data source {req.source.value} not supported"
+                        result.error = f"Data source {req.source.value} not supported yet"
                         return result
+                    else:
+                        result.warnings.append(
+                            f"Data source {req.source.value} not supported yet, skipping"
+                        )
 
             except Exception as e:
                 logger.error(f"Error loading data for {req.source.value}: {e}")
@@ -334,34 +429,211 @@ class DataPipeline:
         Returns:
             清理後的 DataFrame
         """
-        # 1. 刪除重複的索引
-        df = df[~df.index.duplicated(keep='first')]
+        # v0.5: 使用數據品質控制器
+        quality_result = self.quality_controller.check_ohlcv(df)
 
-        # 2. 排序
-        df = df.sort_index()
-
-        # 3. 刪除 NaN 值
-        initial_rows = len(df)
-        df = df.dropna()
-
-        if len(df) < initial_rows:
-            logger.warning(f"Dropped {initial_rows - len(df)} rows with NaN values")
-
-        # 4. 驗證價格邏輯（high >= low, close 在 [low, high] 之間）
-        invalid_mask = (df['high'] < df['low']) | (df['close'] > df['high']) | (df['close'] < df['low'])
-
-        if invalid_mask.any():
-            logger.warning(f"Found {invalid_mask.sum()} rows with invalid price relationships")
-            df = df[~invalid_mask]
-
-        # 5. 刪除零價格或負價格
-        invalid_price_mask = (df['close'] <= 0) | (df['open'] <= 0)
-
-        if invalid_price_mask.any():
-            logger.warning(f"Found {invalid_price_mask.sum()} rows with invalid prices")
-            df = df[~invalid_price_mask]
+        if not quality_result.passed:
+            logger.warning(f"OHLCV quality check failed: {quality_result.get_summary()}")
+            # 自動清理數據
+            df = self.quality_controller.clean_ohlcv(df, auto_fix=True)
+            logger.info(f"OHLCV data cleaned, {len(df)} rows remaining")
 
         return df
+
+    def _load_funding_rate(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Optional[pd.DataFrame]:
+        """載入資金費率數據
+
+        Args:
+            symbol: 交易對
+            timeframe: 時間週期（用於確定時間範圍）
+            start_date: 開始日期
+            end_date: 結束日期
+
+        Returns:
+            資金費率 DataFrame 或 None
+        """
+        try:
+            # 優先從存儲載入
+            df = self.funding_rate_data.load(symbol, 'binance', start_date, end_date)
+
+            # 如果存儲中沒有，嘗試從 API 獲取
+            if df.empty and start_date and end_date:
+                logger.info(f"Fetching funding rate data from API for {symbol}")
+                df = self.funding_rate_data.fetch(
+                    symbol, start_date, end_date, exchange='binance'
+                )
+
+                # 保存到存儲
+                if not df.empty:
+                    self.funding_rate_data.save(df, symbol, 'binance')
+
+            return df if not df.empty else None
+
+        except Exception as e:
+            logger.error(f"Error loading funding rate data: {e}")
+            return None
+
+    def _load_open_interest(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Optional[pd.DataFrame]:
+        """載入持倉量數據
+
+        Args:
+            symbol: 交易對
+            timeframe: 時間週期
+            start_date: 開始日期
+            end_date: 結束日期
+
+        Returns:
+            持倉量 DataFrame 或 None
+        """
+        try:
+            # 優先從存儲載入
+            df = self.open_interest_data.load(symbol, 'binance', timeframe, start_date, end_date)
+
+            # 如果存儲中沒有，嘗試從 API 獲取
+            if df.empty and start_date and end_date:
+                logger.info(f"Fetching open interest data from API for {symbol}")
+                df = self.open_interest_data.fetch(
+                    symbol, start_date, end_date, interval=timeframe, exchange='binance'
+                )
+
+                # 保存到存儲
+                if not df.empty:
+                    self.open_interest_data.save(df, symbol, 'binance', interval=timeframe)
+
+            return df if not df.empty else None
+
+        except Exception as e:
+            logger.error(f"Error loading open interest data: {e}")
+            return None
+
+    def _load_basis(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Optional[pd.DataFrame]:
+        """載入期現基差數據 (v0.5 Phase B)
+
+        Args:
+            symbol: 交易對
+            timeframe: 時間週期
+            start_date: 開始日期
+            end_date: 結束日期
+
+        Returns:
+            基差 DataFrame 或 None
+        """
+        try:
+            # 優先從存儲載入
+            df = self.basis_data.load(symbol, 'binance', start_date, end_date)
+
+            # 如果存儲中沒有，嘗試從 API 計算
+            if df.empty and start_date and end_date:
+                logger.info(f"Calculating basis data from API for {symbol}")
+                df = self.basis_data.fetch_and_calculate(
+                    symbol, start_date, end_date, interval=timeframe, exchange='binance'
+                )
+
+                # 保存到存儲
+                if not df.empty:
+                    self.basis_data.save(df, symbol, 'binance')
+
+            return df if not df.empty else None
+
+        except Exception as e:
+            logger.error(f"Error loading basis data: {e}")
+            return None
+
+    def _load_liquidations(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Optional[pd.DataFrame]:
+        """載入爆倉數據 (v0.5 Phase B)
+
+        Args:
+            symbol: 交易對
+            timeframe: 時間週期
+            start_date: 開始日期
+            end_date: 結束日期
+
+        Returns:
+            爆倉 DataFrame 或 None
+        """
+        try:
+            # 優先從存儲載入
+            df = self.liquidation_data.load(symbol, 'binance', start_date, end_date)
+
+            # 如果存儲中沒有，嘗試從 API 獲取
+            if df.empty and start_date and end_date:
+                logger.info(f"Fetching liquidation data from API for {symbol}")
+                df = self.liquidation_data.fetch(
+                    symbol, start_date, end_date, exchange='binance'
+                )
+
+                # 保存到存儲
+                if not df.empty:
+                    self.liquidation_data.save(df, symbol, 'binance')
+
+            return df if not df.empty else None
+
+        except Exception as e:
+            logger.error(f"Error loading liquidation data: {e}")
+            return None
+
+    def _load_long_short_ratio(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Optional[pd.DataFrame]:
+        """載入多空持倉比數據 (v0.5 Phase B)
+
+        Args:
+            symbol: 交易對
+            timeframe: 時間週期
+            start_date: 開始日期
+            end_date: 結束日期
+
+        Returns:
+            多空比 DataFrame 或 None
+        """
+        try:
+            # 優先從存儲載入
+            df = self.long_short_ratio_data.load(symbol, 'binance', start_date, end_date)
+
+            # 如果存儲中沒有，嘗試從 API 獲取
+            if df.empty and start_date and end_date:
+                logger.info(f"Fetching long/short ratio data from API for {symbol}")
+                df = self.long_short_ratio_data.fetch(
+                    symbol, start_date, end_date, interval=timeframe, exchange='binance'
+                )
+
+                # 保存到存儲
+                if not df.empty:
+                    self.long_short_ratio_data.save(df, symbol, 'binance')
+
+            return df if not df.empty else None
+
+        except Exception as e:
+            logger.error(f"Error loading long/short ratio data: {e}")
+            return None
 
     def load_multiple_symbols(
         self,

@@ -131,14 +131,25 @@ class DataSource(Enum):
     定義策略可用的數據源類型
 
     Note:
-        v0.4 僅支援 OHLCV
-        v0.5 將支援 FUNDING, OPEN_INTEREST, BASIS, VOLUME_PROFILE
+        v0.4: OHLCV
+        v0.5 Phase A: FUNDING_RATE, OPEN_INTEREST
+        v0.5 Phase B: BASIS, LIQUIDATIONS, LONG_SHORT_RATIO
+
+    Backward Compatibility:
+        FUNDING = FUNDING_RATE (v0.4 alias)
+        OI = OPEN_INTEREST (v0.4 alias)
     """
-    OHLCV = "ohlcv"           # 基礎K線數據（v0.4 支援）
-    FUNDING = "funding"       # 資金費率（v0.5 規劃）
-    OPEN_INTEREST = "oi"      # 持倉量（v0.5 規劃）
-    BASIS = "basis"           # 基差數據（v0.5 規劃）
-    VOLUME_PROFILE = "vp"     # 成交量分佈（v0.5 規劃）
+    OHLCV = "ohlcv"                      # 基礎K線數據（v0.4）
+    FUNDING_RATE = "funding_rate"        # 資金費率（v0.5 Phase A）
+    OPEN_INTEREST = "open_interest"      # 持倉量（v0.5 Phase A）
+    BASIS = "basis"                      # 期現基差（v0.5 Phase B）
+    LIQUIDATIONS = "liquidations"        # 爆倉數據（v0.5 Phase B）
+    LONG_SHORT_RATIO = "long_short"      # 多空持倉比（v0.5 Phase B）
+    VOLUME_PROFILE = "volume_profile"    # 成交量分佈（v0.5 Phase C）
+
+    # Backward compatibility aliases (v0.4)
+    FUNDING = "funding_rate"             # Alias for FUNDING_RATE
+    OI = "open_interest"                 # Alias for OPEN_INTEREST
 
 
 @dataclass

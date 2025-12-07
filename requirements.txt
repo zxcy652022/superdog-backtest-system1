@@ -1,0 +1,17 @@
+# SuperDog Quant Trading System - Requirements
+# Version: v0.5
+# Python: 3.8+
+
+# Core Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP Requests (for API connectors)
+requests>=2.31.0
+
+# Data Storage
+pyarrow>=12.0.0  # For parquet file support
+
+# Optional but recommended
+# matplotlib>=3.7.0  # For visualization (Phase C)
+# scipy>=1.10.0  # For advanced statistics (Phase C)

@@ -365,6 +365,29 @@ class SimulatedBroker:
             # 已有空單，不支持加倉
             return False
 
+    def short_all(self, price: float, time: pd.Timestamp) -> bool:
+        """
+        全倉開空（v0.5 新增）
+
+        Alias for sell_all when no position exists.
+        Opens a full short position using all available equity.
+
+        Args:
+            price: Entry price
+            time: Entry time
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # v0.5: Shorthand for opening short position
+        if self.position_direction == "flat":
+            equity = self.get_current_equity(price)
+            size = equity / (price * (1 + self.fee_rate) / self.leverage)
+            return self.sell(size, price, time)
+        else:
+            # Already have position
+            return False
+
     def update_equity(self, price: float, time: pd.Timestamp):
         """
         更新權益

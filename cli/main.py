@@ -1,10 +1,16 @@
 """
-SuperDog Backtest CLI v0.4
+SuperDog Backtest CLI v0.5
 
 Command-line interface for running single or portfolio backtests and printing
 plain-text reports.
 
-v0.4 新增:
+v0.5 新增:
+- 永續合約數據支援 (6種數據源)
+- 多交易所支援 (Binance, Bybit, OKX)
+- 互動式選單系統
+- Phase A/B/C 完整功能
+
+v0.4 特性:
 - 動態策略參數支援
 - 策略信息查詢命令
 - v2.0 Strategy API 整合
@@ -12,11 +18,16 @@ v0.4 新增:
 Design Reference:
 - v0.3: docs/specs/planned/v0.3_cli_spec.md
 - v0.4: docs/specs/planned/v0.4_strategy_api_spec.md
+- v0.5: PHASE_B_DELIVERY.md, V05_FINAL_SUMMARY.md
 """
 
 import click
 import sys
+from pathlib import Path
 from typing import Dict, Any
+
+# 添加項目根目錄到 Python 路徑 (v0.5 修復)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from execution_engine.portfolio_runner import RunConfig, run_portfolio, load_configs_from_yaml
 from reports.text_reporter import render_single, render_portfolio
@@ -35,17 +46,28 @@ from cli.parameter_validator import ParameterValidator, BacktestConfigValidator
 
 
 @click.group()
-@click.version_option(version="0.4.0", prog_name="SuperDog Backtest")
+@click.version_option(version="0.5.0", prog_name="SuperDog Backtest")
 def cli():
     """
-    SuperDog Backtest CLI v0.4
+    SuperDog Backtest CLI v0.5
 
-    量化交易回測引擎命令行工具
+    專業量化交易回測引擎命令行工具
 
-    v0.4 新特性:
+    v0.5 新特性:
+    - 永續合約數據生態系統 (6種數據源)
+    - 多交易所支援 (Binance, Bybit, OKX)
+    - 互動式選單系統 (使用 'interactive' 命令)
+    - 完整驗證工具 (使用 'verify' 命令)
+
+    v0.4 特性:
     - 動態策略參數支援
     - 使用 'info' 命令查看策略詳細信息
     - 使用 'list' 命令查看所有可用策略
+
+    快速開始:
+    - superdog interactive    # 啟動互動式選單
+    - superdog verify         # 驗證 v0.5 安裝
+    - superdog list           # 列出所有策略
     """
     pass
 
@@ -236,6 +258,144 @@ def strategy_info_cmd(strategy):
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         raise click.Abort()
+
+
+@cli.command(name="interactive")
+def interactive_menu():
+    """
+    啟動 SuperDog v0.5 互動式選單系統
+
+    提供美觀的終端界面，包含:
+    - 數據管理 (下載/查看/清理)
+    - 策略管理 (創建/配置/回測)
+    - 系統工具 (驗證/更新/幫助)
+    - 快速開始嚮導
+
+    Example:
+        superdog interactive
+    """
+    try:
+        from cli.interactive import MainMenu
+        menu = MainMenu()
+        menu.run()
+    except KeyboardInterrupt:
+        click.echo("\n\n已取消")
+    except Exception as e:
+        click.echo(f"錯誤: {e}", err=True)
+        raise click.Abort()
+
+
+@cli.command(name="verify")
+def verify_installation():
+    """
+    驗證 SuperDog v0.5 安裝完整性
+
+    檢查項目:
+    - Phase A/B 模組導入 (7個模組)
+    - 文件結構 (7個文件)
+    - DataPipeline 集成
+    - 依賴包
+
+    Example:
+        superdog verify
+    """
+    try:
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, "verify_v05_phase_b.py"],
+            capture_output=True,
+            text=True
+        )
+        click.echo(result.stdout)
+        if result.returncode != 0:
+            click.echo(result.stderr, err=True)
+            raise click.Abort()
+    except FileNotFoundError:
+        click.echo("錯誤: verify_v05_phase_b.py 未找到", err=True)
+        click.echo("請確保在項目根目錄運行此命令", err=True)
+        raise click.Abort()
+    except Exception as e:
+        click.echo(f"錯誤: {e}", err=True)
+        raise click.Abort()
+
+
+@cli.command(name="demo")
+@click.option("--type", "demo_type",
+              type=click.Choice(['phase-b', 'kawamoku', 'all']),
+              default='phase-b',
+              help="示範類型")
+def run_demo(demo_type):
+    """
+    運行 SuperDog v0.5 示範腳本
+
+    示範類型:
+    - phase-b: Phase B 快速示範 (8個功能模組)
+    - kawamoku: 川沐多因子策略示範
+    - all: 運行所有示範
+
+    Example:
+        superdog demo --type phase-b
+        superdog demo --type kawamoku
+    """
+    import subprocess
+
+    demos = {
+        'phase-b': 'examples/phase_b_quick_demo.py',
+        'kawamoku': 'examples/kawamoku_complete_v05.py'
+    }
+
+    if demo_type == 'all':
+        for name, script in demos.items():
+            click.echo(f"\n{'='*60}")
+            click.echo(f"運行 {name} 示範...")
+            click.echo(f"{'='*60}\n")
+            try:
+                subprocess.run([sys.executable, script], check=True)
+            except subprocess.CalledProcessError as e:
+                click.echo(f"錯誤: {name} 示範失敗", err=True)
+    else:
+        script = demos[demo_type]
+        try:
+            subprocess.run([sys.executable, script], check=True)
+        except subprocess.CalledProcessError as e:
+            click.echo(f"錯誤: 示範失敗", err=True)
+            raise click.Abort()
+
+
+@cli.command(name="test")
+@click.option("--type", "test_type",
+              type=click.Choice(['integration', 'all']),
+              default='integration',
+              help="測試類型")
+def run_tests(test_type):
+    """
+    運行 SuperDog v0.5 測試套件
+
+    測試類型:
+    - integration: 端到端整合測試 (17個測試)
+    - all: 運行所有測試
+
+    Example:
+        superdog test --type integration
+    """
+    import subprocess
+
+    if test_type == 'integration':
+        script = 'tests/test_integration_v05.py'
+        click.echo("運行整合測試...\n")
+        try:
+            subprocess.run([sys.executable, script], check=True)
+        except subprocess.CalledProcessError:
+            click.echo("測試失敗", err=True)
+            raise click.Abort()
+    elif test_type == 'all':
+        click.echo("運行所有測試...\n")
+        # 未來可以添加更多測試
+        try:
+            subprocess.run([sys.executable, 'tests/test_integration_v05.py'], check=True)
+        except subprocess.CalledProcessError:
+            click.echo("測試失敗", err=True)
+            raise click.Abort()
 
 
 if __name__ == "__main__":

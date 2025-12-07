@@ -1,5 +1,5 @@
 """
-Backtest Engine v0.3
+Backtest Engine v0.5
 
 Core backtest engine module with position sizing, stop-loss, take-profit, and detailed trade logging.
 Handles main backtest loop: iterate bars, call strategy, manage positions, compute metrics.
@@ -8,12 +8,18 @@ v0.3 新增：
 - SL/TP 方向感知（支援多單和空單）
 - 支援槓桿參數傳遞
 
+v0.5 新增：
+- 支援 v0.3 策略 (legacy API with broker parameter)
+- 支援 v0.5 策略 (new Strategy API v2.0)
+- 自動檢測策略類型並使用正確的初始化方式
+
 Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §3
 """
 
 from dataclasses import dataclass
 from typing import Dict, List, Type, Optional, Literal
 import pandas as pd
+import inspect
 from backtest.broker import SimulatedBroker, Trade, DirectionType
 from backtest.metrics import compute_basic_metrics
 from backtest.position_sizer import BasePositionSizer, AllInSizer
@@ -29,7 +35,11 @@ class BacktestResult:
 
 
 class BaseStrategy:
-    """Base strategy class"""
+    """Base strategy class (v0.3 Legacy API)
+
+    This is the v0.3 base strategy class for backward compatibility.
+    New strategies should use strategies.api_v2.BaseStrategy
+    """
 
     def __init__(self, broker: SimulatedBroker, data: pd.DataFrame):
         self.broker = broker
@@ -37,6 +47,113 @@ class BaseStrategy:
 
     def on_bar(self, i: int, row: pd.Series):
         raise NotImplementedError("Strategy must implement on_bar method")
+
+
+def _is_v05_strategy(strategy_cls: Type) -> bool:
+    """Check if a strategy class uses v0.5 API (Strategy API v2.0)
+
+    Detection logic:
+    - v0.5 strategies: __init__(self) - no parameters
+    - v0.3 strategies: __init__(self, broker, data) - has parameters
+
+    Args:
+        strategy_cls: Strategy class to check
+
+    Returns:
+        True if v0.5 strategy, False if v0.3 strategy
+    """
+    try:
+        # Get __init__ signature
+        init_sig = inspect.signature(strategy_cls.__init__)
+        params = list(init_sig.parameters.keys())
+
+        # Remove 'self' parameter
+        if 'self' in params:
+            params.remove('self')
+
+        # v0.5 strategies have no parameters (besides self)
+        # v0.3 strategies have (broker, data) parameters
+        return len(params) == 0
+    except Exception:
+        # Default to v0.3 if we can't determine
+        return False
+
+
+class _V05StrategyWrapper:
+    """Adapter to wrap v0.5 Strategy API v2.0 for use in v0.3 backtest engine
+
+    This wrapper:
+    1. Instantiates v0.5 strategy with no parameters
+    2. Generates signals using compute_signals()
+    3. Converts signals to buy/sell actions via on_bar()
+    """
+
+    def __init__(self, strategy_cls: Type, broker: SimulatedBroker, data: pd.DataFrame):
+        """Initialize wrapper
+
+        Args:
+            strategy_cls: v0.5 strategy class
+            broker: Simulated broker instance
+            data: OHLCV DataFrame
+        """
+        # Create v0.5 strategy instance (no parameters)
+        self.strategy = strategy_cls()
+        self.broker = broker
+        self.data = data
+
+        # Get default parameters
+        param_specs = self.strategy.get_parameters()
+        params = {name: spec.default_value for name, spec in param_specs.items()}
+
+        # Generate signals upfront (v0.5 strategies use vectorized signal generation)
+        data_dict = {'ohlcv': data}
+        self.signals = self.strategy.compute_signals(data_dict, params)
+
+        # Track previous signal for change detection
+        self.prev_signal = 0
+
+    def on_bar(self, i: int, row: pd.Series):
+        """Execute trading logic for current bar
+
+        Converts v0.5 signals to v0.3 buy/sell actions:
+        - Signal changes from 0 to 1: Buy
+        - Signal changes from 1 to 0: Sell
+        - Signal changes from 0 to -1: Short
+        - Signal changes from -1 to 0: Cover
+
+        Args:
+            i: Current bar index
+            row: Current bar data
+        """
+        if i >= len(self.signals):
+            return
+
+        current_signal = self.signals.iloc[i]
+        current_price = row['close']
+        current_time = row.name
+
+        # Signal transition logic
+        if current_signal == 1 and self.prev_signal != 1:
+            # Enter long position
+            if not self.broker.has_position:
+                self.broker.buy_all(current_price, current_time)
+        elif current_signal == -1 and self.prev_signal != -1:
+            # Enter short position
+            if self.broker.has_position and self.broker.is_long:
+                # Close long first
+                self.broker.sell(self.broker.position_qty, current_price, current_time)
+            if not self.broker.has_position:
+                # Open short
+                self.broker.short_all(current_price, current_time)
+        elif current_signal == 0 and self.prev_signal != 0:
+            # Close any position
+            if self.broker.has_position:
+                if self.broker.is_long:
+                    self.broker.sell(self.broker.position_qty, current_price, current_time)
+                elif self.broker.is_short:
+                    self.broker.buy(self.broker.position_qty, current_price, current_time)
+
+        self.prev_signal = current_signal
 
 
 def run_backtest(
@@ -52,9 +169,13 @@ def run_backtest(
     """
     Run backtest with position sizing, stop-loss, and take-profit support
 
+    v0.5: Now supports both v0.3 and v0.5 strategy APIs automatically:
+    - v0.3 strategies: __init__(broker, data) - legacy API
+    - v0.5 strategies: __init__() - new Strategy API v2.0
+
     Args:
         data: OHLCV DataFrame with DatetimeIndex
-        strategy_cls: Strategy class (inherits from BaseStrategy)
+        strategy_cls: Strategy class (v0.3 or v0.5 API)
         initial_cash: Initial capital (default 10000)
         fee_rate: Fee rate (default 0.0005 = 0.05%)
         position_sizer: Position sizer (default AllInSizer)
@@ -64,6 +185,13 @@ def run_backtest(
 
     Returns:
         BacktestResult containing equity curve, trades, metrics, and trade log
+
+    Examples:
+        # v0.3 strategy (legacy)
+        >>> result = run_backtest(data, SimpleSMAStrategy, initial_cash=10000)
+
+        # v0.5 strategy (new API)
+        >>> result = run_backtest(data, KawamokuStrategy, initial_cash=10000)
     """
     _validate_data(data)
 
@@ -96,7 +224,15 @@ def run_backtest(
     # Replace buy_all with our wrapper
     broker.buy_all = buy_all_with_sizer
 
-    strategy = strategy_cls(broker=broker, data=data)
+    # v0.5: Detect strategy type and instantiate accordingly
+    is_v05 = _is_v05_strategy(strategy_cls)
+
+    if is_v05:
+        # v0.5 Strategy API v2.0: Use wrapper to adapt to v0.3 backtest engine
+        strategy = _V05StrategyWrapper(strategy_cls, broker, data)
+    else:
+        # v0.3 Legacy API: Direct instantiation with broker and data
+        strategy = strategy_cls(broker=broker, data=data)
 
     # Track position for SL/TP and MAE/MFE
     position_tracker = _PositionTracker()
