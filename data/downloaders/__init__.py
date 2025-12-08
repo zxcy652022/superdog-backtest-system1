@@ -13,7 +13,12 @@ Version: v0.7
 
 from data.downloaders.multi_tf_downloader import MultiTimeframeDownloader
 from data.downloaders.rate_limiter import RateLimiter
-from data.downloaders.robust_downloader import RobustDownloader, download_all
+from data.downloaders.robust_downloader import (
+    DownloadConfig,
+    DownloadReport,
+    RobustDownloader,
+    download_all,
+)
 from data.downloaders.symbol_mapper import SymbolMapper, normalize_symbol
 from data.downloaders.top_symbols_fetcher import (TopSymbolsFetcher,
                                                   get_top_symbols)
@@ -26,6 +31,8 @@ __all__ = [
     "get_top_symbols",
     "MultiTimeframeDownloader",
     "RobustDownloader",
+    "DownloadConfig",
+    "DownloadReport",
     "download_all",
 ]
 
