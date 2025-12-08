@@ -1,5 +1,5 @@
 """
-Simulated Broker Module v0.3
+Simulated Broker Module v0.7
 
 模擬交易所，負責處理買入、賣出、權益更新等操作。
 支援全倉進出（buy_all / sell_all）和指定倉位（buy / sell）。
@@ -8,6 +8,11 @@ v0.3 新增：
 - 支援做空交易（short selling）
 - 支援槓桿交易（leverage）
 - 持倉方向感知（long/short/flat）
+
+v0.7 改進：
+- get_current_equity() 計入浮動盈虧 (mark-to-market)
+- update_equity() 使用真實權益計算
+- 權益曲線正確反映持倉期間的價值變化
 
 Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §2
 """
@@ -293,27 +298,28 @@ class SimulatedBroker:
         return True
 
     def _close_short(self, size: float, price: float, time: pd.Timestamp) -> bool:
-        """平空單（內部方法）"""
+        """平空單（內部方法）
+
+        v0.7 修復: 正確計算平空後的現金變化
+        """
         if not self.is_short:
             return False
 
         actual_size = min(size, self.position_qty)
 
-        # 做空的PnL計算: (entry - exit) * size
-        # 買入成本
-        cost = actual_size * price
-        fee = cost * self.fee_rate
-        total_cost = cost + fee
+        # 入場價值（開空時賣出的價值）
+        entry_value = actual_size * self.position_entry_price
+        # 平倉成本（買入平倉的成本）
+        exit_cost = actual_size * price
+        exit_fee = exit_cost * self.fee_rate
 
         # 數值有效性檢查
-        if not all(abs(x) < 1e15 for x in [cost, fee, total_cost]):
+        if not all(abs(x) < 1e15 for x in [entry_value, exit_cost, exit_fee]):
             return False
 
-        # 做空收入（在開倉時的理論收入）
-        revenue = actual_size * self.position_entry_price
-
-        # PnL = 賣高買低的差價
-        pnl = revenue - cost - fee
+        # PnL = 賣高買低的差價 - 手續費
+        # (開空時的入場費已在開倉時扣除)
+        pnl = entry_value - exit_cost - exit_fee
 
         # return_pct（做空的回報率）
         return_pct = (self.position_entry_price - price) / self.position_entry_price
@@ -332,9 +338,14 @@ class SimulatedBroker:
         )
         self.trades.append(trade)
 
-        # 更新cash
-        released_margin = revenue / self.leverage
-        cash_change = released_margin - total_cost
+        # v0.7 修復: 正確計算現金變化
+        # 開空時扣除: margin + entry_fee = entry_value / leverage + entry_fee
+        # 平空時返回: margin + 做空利潤 - exit_fee
+        #           = entry_value / leverage + (entry_value - exit_cost) - exit_fee
+        #           = entry_value / leverage + entry_value - exit_cost - exit_fee
+        released_margin = entry_value / self.leverage
+        gross_profit = entry_value - exit_cost  # 做空毛利（價差）
+        cash_change = released_margin + gross_profit - exit_fee
 
         # 數值溢出檢查
         if not abs(cash_change) < 1e15:
@@ -418,14 +429,14 @@ class SimulatedBroker:
         """
         更新權益
 
-        v0.3 簡化假設: equity只在平倉時更新，持倉期間不計入mark-to-market
+        v0.7 改進: 計入浮動盈虧 (mark-to-market)
 
         Args:
             price: 當前價格
             time: 當前時間
         """
-        # v0.3 簡化: equity = cash（不計入浮動盈虧）
-        equity = self.cash
+        # v0.7: 計算真實權益（包含浮動盈虧）
+        equity = self.get_current_equity(price)
         self.equity_history.append((time, equity))
 
     def get_equity_curve(self) -> pd.Series:
@@ -445,13 +456,31 @@ class SimulatedBroker:
         """
         取得當前權益
 
-        v0.3 簡化版: 返回cash，不計入未實現盈虧
+        v0.7 改進: 計入未實現盈虧 (mark-to-market)
 
         Args:
             price: 當前價格
 
         Returns:
-            float: 當前權益
+            float: 當前權益 = cash + 浮動盈虧
         """
-        # v0.3 簡化: 返回cash（不計入浮動盈虧）
-        return self.cash
+        if not self.has_position:
+            return self.cash
+
+        # 計算浮動盈虧
+        position_value = self.position_qty * price
+        entry_value = self.position_qty * self.position_entry_price
+
+        if self.position_direction == "long":
+            # 多單浮動盈虧 = 當前價值 - 入場價值
+            unrealized_pnl = position_value - entry_value
+        else:  # short
+            # 空單浮動盈虧 = 入場價值 - 當前價值
+            unrealized_pnl = entry_value - position_value
+
+        # 計算占用保證金
+        margin_used = entry_value / self.leverage
+
+        # 總權益 = cash + 保證金 + 浮動盈虧
+        # (cash 在開倉時已扣除保證金，所以要加回來)
+        return self.cash + margin_used + unrealized_pnl
