@@ -653,6 +653,44 @@ DataSource.LONG_SHORT_RATIO     # 多空比
 
 ---
 
+## [v0.7.1] - 2025-12-09
+
+### Added - 策略開發
+
+- **DualMA 雙均線策略 v1.0** (`strategies/dual_ma_v1.py`)
+  - 均線密集檢測（Cluster Detection）
+  - 均線密集突破後回踩確認進場
+  - 三段止盈（2R/4R/8R）
+  - 風險型倉位管理（固定 1% 風險）
+  - 移動止損（TP1 後移至保本，TP2 後移至 TP1）
+  - 使用 v0.3 Legacy API（支援狀態保存）
+
+- **測試腳本** (`test_dual_ma.py`)
+  - 完整回測驗證
+  - 績效指標輸出
+  - 交易記錄顯示
+
+### Technical Details
+
+**策略參數:**
+| 參數 | 默認值 | 說明 |
+|------|--------|------|
+| ma_len_short | 20 | 短期均線週期 |
+| ma_len_mid | 60 | 中期均線週期 |
+| ma_len_long | 120 | 長期均線週期 |
+| use_ema | True | 使用 SMA+EMA 平均 |
+| cluster_threshold | 0.01 | 均線密集閾值 (1%) |
+| risk_per_trade_pct | 0.01 | 每筆風險佔比 (1%) |
+| tp1_rr/tp2_rr/tp3_rr | 2.0/4.0/8.0 | 止盈風險回報比 |
+| tp1_pct/tp2_pct | 0.3/0.3 | 分批止盈比例 |
+
+**回測結果 (BTCUSDT 1h, 30天):**
+- 交易次數: 3 筆（1次進場，3次分批止盈）
+- 勝率: 100%
+- 總損益: +495.01
+
+---
+
 ## [Unreleased]
 
 ### 規劃中
