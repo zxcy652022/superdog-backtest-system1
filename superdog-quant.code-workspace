@@ -1,38 +1,7 @@
 {
     "folders": [
         {
-            "name": "📁 SuperDog 主專案",
             "path": "."
-        },
-        {
-            "name": "💾 數據存儲 (SSD)",
-            "path": "/Volumes/權志龍的寶藏/SuperDogData"
         }
-    ],
-    "settings": {
-        "python.defaultInterpreterPath": "./.venv/bin/python",
-        "python.terminal.activateEnvironment": true,
-        "files.exclude": {
-            "**/__pycache__": true,
-            "**/*.pyc": true,
-            ".pytest_cache": true
-        },
-        "search.exclude": {
-            "**/historical/**": true,
-            "**/backtest_results/**": true,
-            "**/cache/**": true
-        },
-        "files.watcherExclude": {
-            "**/historical/**": true,
-            "**/cache/**": true
-        }
-    },
-    "extensions": {
-        "recommendations": [
-            "ms-python.python",
-            "ms-python.pylint",
-            "ms-python.black-formatter",
-            "ms-toolsai.jupyter"
-        ]
-    }
+    ]
 }

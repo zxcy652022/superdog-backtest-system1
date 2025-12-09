@@ -18,7 +18,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from strategies.api_v2 import BaseStrategy, DataSource
+from data.paths import get_ohlcv_path
+from strategies.api import BaseStrategy, DataSource
 
 
 @dataclass
@@ -355,8 +356,8 @@ class DependencyChecker:
             >>> if not is_available:
             ...     print(error)
         """
-        # 檢查數據文件是否存在
-        data_file = Path(f"data/raw/{symbol}_{timeframe}.csv")
+        # 檢查數據文件是否存在 (使用 SSD 路徑)
+        data_file = get_ohlcv_path(symbol, timeframe, create_dir=False)
 
         if not data_file.exists():
             return False, f"Data file not found: {data_file}"

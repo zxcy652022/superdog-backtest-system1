@@ -17,7 +17,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from strategies.api_v2 import (
+from strategies.api import (
     BaseStrategy,
     DataRequirement,
     DataSource,

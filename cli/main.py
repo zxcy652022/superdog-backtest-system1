@@ -32,13 +32,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backtest.engine import run_backtest  # noqa: E402
 
 # v0.4 新增導入
-from cli.dynamic_params import format_strategy_help  # noqa: E402
+from cli.params_generator import format_strategy_help  # noqa: E402
+from data.paths import get_ohlcv_path  # noqa: E402
 from data.storage import load_ohlcv  # noqa: E402
-from execution_engine.portfolio_runner import (  # noqa: E402
-    RunConfig,
-    load_configs_from_yaml,
-    run_portfolio,
-)
+from execution.runner import RunConfig, load_configs_from_yaml, run_portfolio  # noqa: E402
 from reports.text_reporter import render_portfolio, render_single  # noqa: E402
 from strategies.registry_v2 import get_registry  # noqa: E402
 
@@ -93,8 +90,8 @@ def run_single(
         # 1. 獲取策略
         strategy_cls = get_registry().get_strategy(strategy)
 
-        # 2. 載入數據
-        data_file = f"data/raw/{symbol}_{timeframe}.csv"
+        # 2. 載入數據 (使用 SSD 路徑)
+        data_file = str(get_ohlcv_path(symbol, timeframe))
         data = load_ohlcv(data_file)
 
         # 3. 執行回測
@@ -744,7 +741,7 @@ def create_experiment(name, strategy, symbols, timeframe, output):
             --symbols BTCUSDT,ETHUSDT --timeframe 1h
     """
     try:
-        from execution_engine import create_experiment_config
+        from execution import create_experiment_config
 
         # 解析幣種列表
         symbol_list = [s.strip() for s in symbols.split(",")]
@@ -830,7 +827,7 @@ def run_experiment_cmd(config, workers, no_retry, fail_fast):
     try:
         from backtest.engine import run_backtest
         from data.pipeline import get_pipeline
-        from execution_engine import ExperimentRunner, load_experiment_config
+        from execution import ExperimentRunner, load_experiment_config
 
         # 加載配置
         click.echo()
@@ -948,7 +945,7 @@ def optimize_experiment(config, mode, metric, workers, early_stopping):
     try:
         from backtest.engine import run_backtest
         from data.pipeline import get_pipeline
-        from execution_engine import (
+        from execution import (
             OptimizationConfig,
             OptimizationMode,
             ParameterOptimizer,
@@ -1114,7 +1111,7 @@ def analyze_experiment(experiment_id, output, format, top):
         superdog experiment analyze --id sma_test_abc123 --output report.md
     """
     try:
-        from execution_engine import ExperimentRunner, ResultAnalyzer
+        from execution import ExperimentRunner, ResultAnalyzer
 
         # 加載結果
         click.echo()

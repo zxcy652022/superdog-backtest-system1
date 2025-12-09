@@ -19,8 +19,8 @@ import numpy as np
 import pandas as pd
 
 from data.pipeline import DataPipeline
-from data.symbol_manager import get_top_symbols
 from data.timeframe_manager import TimeframeManager
+from data.universe.symbols import get_top_symbols
 from strategies.kawamoku_demo import KawamokuStrategy
 
 # v0.4 Components

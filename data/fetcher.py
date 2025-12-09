@@ -13,6 +13,8 @@ from pathlib import Path
 import ccxt
 import pandas as pd
 
+from data.paths import get_ohlcv_path
+
 # 設定日誌
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -223,7 +225,7 @@ class OHLCVFetcher:
 def download_btcusdt_1h(
     start_date: str = "2020-01-01",
     end_date: str = "2024-01-01",
-    save_path: str = "data/raw/BTCUSDT_1h.csv",
+    save_path: str = None,
 ) -> str:
     """
     便捷函數：下載 BTCUSDT 1h 數據
@@ -236,6 +238,10 @@ def download_btcusdt_1h(
     Returns:
         str: CSV 檔案路徑
     """
+    # 使用 SSD 路徑作為默認值
+    if save_path is None:
+        save_path = str(get_ohlcv_path("BTCUSDT", "1h"))
+
     fetcher = OHLCVFetcher(exchange_name="binance")
     return fetcher.fetch_ohlcv(
         symbol="BTC/USDT",

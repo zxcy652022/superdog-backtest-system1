@@ -26,8 +26,14 @@ import yaml
 from data.downloaders.multi_tf_downloader import MultiTimeframeDownloader
 from data.downloaders.rate_limiter import RateLimiter
 from data.downloaders.top_symbols_fetcher import TopSymbolsFetcher
+from data.paths import get_raw_data_dir
 
 logger = logging.getLogger(__name__)
+
+
+def _get_default_output_dir() -> str:
+    """獲取默認輸出目錄 (從 SSD 或本地)"""
+    return str(get_raw_data_dir("binance"))
 
 
 @dataclass
@@ -58,8 +64,8 @@ class DownloadConfig:
     # 速率限制
     requests_per_minute: int = 1100
 
-    # 存儲設置
-    output_dir: str = "data/raw/binance"
+    # 存儲設置 (默認使用 SSD)
+    output_dir: str = field(default_factory=_get_default_output_dir)
 
     @classmethod
     def from_yaml(cls, yaml_path: str) -> "DownloadConfig":
@@ -100,9 +106,9 @@ class DownloadConfig:
         rate_config = data.get("rate_limiting", {})
         config.requests_per_minute = rate_config.get("requests_per_minute", 1100)
 
-        # 解析存儲配置
+        # 解析存儲配置 (默認使用 SSD)
         storage_config = data.get("storage", {})
-        config.output_dir = storage_config.get("base_path", "data/raw/binance")
+        config.output_dir = storage_config.get("base_path", _get_default_output_dir())
 
         return config
 
@@ -229,8 +235,7 @@ class RobustDownloader:
             return report
 
         logger.info(
-            f"開始下載: {len(symbols)} 幣種 x {len(timeframes)} 時間週期 = "
-            f"{report.total_tasks} 個任務"
+            f"開始下載: {len(symbols)} 幣種 x {len(timeframes)} 時間週期 = " f"{report.total_tasks} 個任務"
         )
 
         # 執行下載

@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from backtest.engine import BacktestResult
-from execution_engine.portfolio_runner import PortfolioResult, RunConfig
+from execution.runner import PortfolioResult, RunConfig
 
 
 def render_single(

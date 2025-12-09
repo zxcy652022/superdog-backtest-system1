@@ -1,119 +1,67 @@
 """
-Position Sizer Module v0.2
+Position Sizer - 簡單倉位計算器
 
-Provides different position sizing strategies for backtest.
-Controls how much capital to allocate per trade.
+提供回測引擎使用的簡單倉位計算接口。
+更進階的倉位管理請使用 risk.position_sizer 模組。
+
+Version: v0.7
 """
 
 from abc import ABC, abstractmethod
 
 
 class BasePositionSizer(ABC):
-    """Abstract base class for position sizers"""
+    """倉位計算基類"""
 
     @abstractmethod
     def get_size(self, equity: float, price: float) -> float:
         """
-        Calculate position size
+        計算倉位大小
 
         Args:
-            equity: Current equity
-            price: Entry price
+            equity: 當前權益
+            price: 進場價格
 
         Returns:
-            float: Position size (can be fractional, <= 0 means no entry)
+            float: 倉位大小（<=0 表示不進場）
         """
-        raise NotImplementedError("Subclass must implement get_size()")
+        raise NotImplementedError
 
 
 class AllInSizer(BasePositionSizer):
-    """All-in position sizer - uses all available equity"""
+    """全倉進場"""
 
     def __init__(self, fee_rate: float = 0.0005):
-        """
-        Args:
-            fee_rate: Transaction fee rate
-        """
         self.fee_rate = fee_rate
 
     def get_size(self, equity: float, price: float) -> float:
-        """
-        Calculate all-in position size
-
-        Args:
-            equity: Current equity
-            price: Entry price
-
-        Returns:
-            float: Maximum position size after accounting for fees
-        """
         if equity <= 0 or price <= 0:
             return 0.0
-
-        # size = equity / (price * (1 + fee_rate))
-        size = equity / (price * (1 + self.fee_rate))
-        return size
+        return equity / (price * (1 + self.fee_rate))
 
 
 class FixedCashSizer(BasePositionSizer):
-    """Fixed cash amount position sizer"""
+    """固定金額進場"""
 
     def __init__(self, cash_amount: float, fee_rate: float = 0.0005):
-        """
-        Args:
-            cash_amount: Fixed cash amount to use per trade
-            fee_rate: Transaction fee rate
-        """
         self.cash_amount = cash_amount
         self.fee_rate = fee_rate
 
     def get_size(self, equity: float, price: float) -> float:
-        """
-        Calculate fixed cash position size
-
-        Args:
-            equity: Current equity (not used, but kept for interface consistency)
-            price: Entry price
-
-        Returns:
-            float: Position size for fixed cash amount
-        """
         if self.cash_amount <= 0 or price <= 0:
             return 0.0
-
-        # size = cash_amount / (price * (1 + fee_rate))
-        size = self.cash_amount / (price * (1 + self.fee_rate))
-        return size
+        return self.cash_amount / (price * (1 + self.fee_rate))
 
 
 class PercentOfEquitySizer(BasePositionSizer):
-    """Percent of equity position sizer"""
+    """權益百分比進場"""
 
     def __init__(self, percent: float, fee_rate: float = 0.0005):
-        """
-        Args:
-            percent: Percentage of equity to use (0.0 to 1.0)
-            fee_rate: Transaction fee rate
-        """
         self.percent = percent
         self.fee_rate = fee_rate
 
     def get_size(self, equity: float, price: float) -> float:
-        """
-        Calculate percent of equity position size
-
-        Args:
-            equity: Current equity
-            price: Entry price
-
-        Returns:
-            float: Position size for percentage of equity
-        """
         if equity <= 0 or price <= 0 or self.percent <= 0:
             return 0.0
-
-        # amount = equity * percent
-        # size = amount / (price * (1 + fee_rate))
         amount = equity * self.percent
-        size = amount / (price * (1 + self.fee_rate))
-        return size
+        return amount / (price * (1 + self.fee_rate))

@@ -95,7 +95,7 @@ class TestDataPipelineIntegration(unittest.TestCase):
 
     def test_data_source_enum(self):
         """測試 DataSource 枚舉"""
-        from strategies.api_v2 import DataSource
+        from strategies.api import DataSource
 
         # Phase A+B 所有數據源
         sources = [
@@ -263,7 +263,7 @@ class TestEndToEndWorkflow(unittest.TestCase):
 
     def test_strategy_data_requirements(self):
         """測試策略數據需求定義"""
-        from strategies.api_v2 import DataRequirement, DataSource
+        from strategies.api import DataRequirement, DataSource
 
         # 創建多因子策略的數據需求
         requirements = [

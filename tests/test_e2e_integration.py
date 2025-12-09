@@ -19,12 +19,11 @@ import pandas as pd
 from cli.dynamic_params import DynamicCLI
 from data.pipeline import DataPipeline, get_pipeline
 from data.storage import OHLCVStorage
-from data.symbol_manager import get_top_symbols, validate_symbol
 from data.timeframe_manager import get_timeframe_manager
+from data.universe.symbols import get_top_symbols, validate_symbol
 from strategies.dependency_checker import check_strategy_dependencies
 from strategies.kawamoku_demo import KawamokuStrategy
-from strategies.registry import get_strategy, list_strategies
-from strategies.registry_v2 import get_registry
+from strategies.registry import get_registry, get_strategy, list_strategies
 
 # v0.4 Components
 from strategies.simple_sma_v2 import SimpleSMAStrategyV2
@@ -282,8 +281,8 @@ class TestE2ECLIIntegration(unittest.TestCase):
     def test_backtest_config_validation(self):
         """測試回測配置驗證"""
         # Test basic config validation using symbol and timeframe managers
-        from data.symbol_manager import validate_symbol
         from data.timeframe_manager import get_timeframe_manager
+        from data.universe.symbols import validate_symbol
 
         # 1. Valid config
         self.assertTrue(validate_symbol("BTCUSDT"))

@@ -27,8 +27,14 @@ import pandas as pd
 from data.downloaders.rate_limiter import RateLimiter
 from data.downloaders.symbol_mapper import SymbolMapper
 from data.fetcher import OHLCVFetcher
+from data.paths import get_raw_data_dir
 
 logger = logging.getLogger(__name__)
+
+
+def _get_default_output_dir() -> str:
+    """獲取默認輸出目錄 (從 SSD 或本地)"""
+    return str(get_raw_data_dir("binance"))
 
 
 @dataclass
@@ -103,23 +109,20 @@ class MultiTimeframeDownloader:
 
     def __init__(
         self,
-        output_dir: str = "data/raw/binance",
+        output_dir: Optional[str] = None,
         max_workers: int = 5,
         rate_limiter: Optional[RateLimiter] = None,
         checkpoint_file: Optional[str] = None,
     ):
         """初始化下載器"""
-        self.output_dir = Path(output_dir)
+        # 使用 SSD 路徑作為默認值
+        self.output_dir = Path(output_dir if output_dir else _get_default_output_dir())
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.max_workers = max_workers
-        self.rate_limiter = rate_limiter or RateLimiter(
-            requests_per_minute=1100, name="downloader"
-        )
+        self.rate_limiter = rate_limiter or RateLimiter(requests_per_minute=1100, name="downloader")
 
-        self.checkpoint_file = checkpoint_file or str(
-            self.output_dir / ".download_checkpoint.json"
-        )
+        self.checkpoint_file = checkpoint_file or str(self.output_dir / ".download_checkpoint.json")
         self.completed_tasks: set = set()
         self._load_checkpoint()
 
@@ -153,9 +156,7 @@ class MultiTimeframeDownloader:
 
         results = []
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            future_to_task = {
-                executor.submit(self._download_single, task): task for task in tasks
-            }
+            future_to_task = {executor.submit(self._download_single, task): task for task in tasks}
 
             for future in as_completed(future_to_task):
                 task = future_to_task[future]
@@ -185,8 +186,7 @@ class MultiTimeframeDownloader:
 
         self._save_checkpoint()
         logger.info(
-            f"下載完成: 成功={self.progress.completed_tasks}, "
-            f"失敗={self.progress.failed_tasks}"
+            f"下載完成: 成功={self.progress.completed_tasks}, " f"失敗={self.progress.failed_tasks}"
         )
 
         return results
@@ -269,10 +269,7 @@ class MultiTimeframeDownloader:
                 )
 
             duration = time.time() - start_time
-            logger.debug(
-                f"下載成功: {task.symbol}/{task.timeframe} - "
-                f"{rows} 行, {duration:.2f}s"
-            )
+            logger.debug(f"下載成功: {task.symbol}/{task.timeframe} - " f"{rows} 行, {duration:.2f}s")
 
             return DownloadResult(
                 symbol=task.symbol,
@@ -370,7 +367,7 @@ class MultiTimeframeDownloader:
 def download_symbols_multi_tf(
     symbols: List[str],
     timeframes: List[str] = None,
-    output_dir: str = "data/raw/binance",
+    output_dir: Optional[str] = None,
     max_workers: int = 5,
 ) -> List[DownloadResult]:
     """下載多個幣種的多個時間週期（便捷函數）"""

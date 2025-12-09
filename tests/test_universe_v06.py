@@ -28,14 +28,14 @@ import pandas as pd
 # 添加項目根目錄到路徑
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data.universe_calculator import (  # noqa: E402
+from data.universe.calculator import (  # noqa: E402
     AssetTypeInfo,
     OIMetrics,
     UniverseCalculator,
     VolumeMetrics,
     calculate_all_metrics,
 )
-from data.universe_manager import (  # noqa: E402
+from data.universe.manager import (  # noqa: E402
     ClassificationRules,
     SymbolMetadata,
     UniverseManager,
@@ -66,7 +66,9 @@ class TestUniverseCalculator(unittest.TestCase):
 
     def _create_test_data(self):
         """創建測試用的OHLCV數據"""
-        dates = pd.date_range("2024-01-01", periods=100, freq="1D")
+        # 使用當前日期往前推 100 天，這樣 history_days 計算才會接近 100
+        end_date = datetime.now()
+        dates = pd.date_range(end=end_date, periods=100, freq="1D")
 
         # BTC: 高流動性幣種
         btc_data = pd.DataFrame(

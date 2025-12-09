@@ -18,16 +18,16 @@ import pandas as pd
 
 from data.pipeline import DataLoadResult, DataPipeline, get_pipeline, load_strategy_data
 from data.storage import OHLCVStorage
-from data.symbol_manager import (
+
+# 測試目標模組
+from data.timeframe_manager import Timeframe, TimeframeManager, get_timeframe_manager
+from data.universe.symbols import (
     SymbolInfo,
     SymbolManager,
     get_symbol_manager,
     get_top_symbols,
     validate_symbol,
 )
-
-# 測試目標模組
-from data.timeframe_manager import Timeframe, TimeframeManager, get_timeframe_manager
 
 # 測試策略
 from strategies.simple_sma_v2 import SimpleSMAStrategyV2

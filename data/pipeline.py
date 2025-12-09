@@ -22,12 +22,13 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from data.config import config
+
 # v0.5: Import perpetual data modules
 from data.perpetual import FundingRateData, OpenInterestData
 from data.quality import DataQualityController
-from data.symbol_manager import SymbolManager
 from data.timeframe_manager import TimeframeManager
-from data_config import config
+from data.universe.symbols import SymbolManager
 from strategies.api_v2 import BaseStrategy, DataSource
 
 # Configure logging

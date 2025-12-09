@@ -6,6 +6,43 @@
 
 ---
 
+## [0.7.3] - 2025-12-09
+
+### Refactor - 專案結構大重構
+
+**目錄重命名**
+- `execution_engine/` → `execution/`
+- `risk_management/` → `risk/`
+- `cli/interactive/` → `cli/interactive_menu.py`
+
+**策略簡化**
+- 移除 dual_ma_v1, kawamoku_demo
+- 保留 dual_ma_v2 作為主策略
+- `api_v2` → `api`, `registry_v2` → `registry`
+
+**數據模組整合**
+- 新增 `data/universe/` 子目錄 (manager, calculator, symbols)
+- 新增 `data/paths.py` 統一路徑管理
+- 新增 `data/config.py` 兼容層
+- `data/aggregation/` → `data/aggregator.py`
+- `data/quality/` → `data/quality.py`
+
+**執行模型整合**
+- 新增 `execution/models/` 子目錄
+- 整合 fee, funding, slippage, liquidation 模型
+
+**文檔重組**
+- 新增 `docs/RULES.md`, `docs/API.md`
+- `docs/architecture/overview.md` → `docs/ARCHITECTURE.md`
+- 舊版文檔移至 `docs/archive/`
+
+**清理**
+- 移除空模組 (utils/, risk/)
+- 移除根目錄雜項文件
+- 更新所有 import 路徑
+
+---
+
 ## [0.7.2] - 2025-12-09
 
 ### Fixed - Broker 權益計算修復

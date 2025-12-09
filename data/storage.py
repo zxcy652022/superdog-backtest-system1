@@ -21,13 +21,12 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from data.symbol_manager import SymbolManager
+# SSD 配置支援 (v0.4)
+from data.config import config
 
 # v0.4: 新增管理器
 from data.timeframe_manager import TimeframeManager
-
-# SSD 配置支援 (v0.4)
-from data_config import config
+from data.universe.symbols import SymbolManager
 
 # 設定日誌
 logging.basicConfig(level=logging.INFO)

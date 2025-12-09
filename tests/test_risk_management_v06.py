@@ -10,7 +10,6 @@ Version: v0.6.0-phase4
 import numpy as np
 import pandas as pd
 import pytest
-
 from risk_management import (  # Support/Resistance; Dynamic Stops; Risk Calculator; Position Sizer
     DynamicStopManager,
     PositionSizer,
@@ -301,7 +300,8 @@ def test_calculate_portfolio_risk_convenience(sample_returns):
 
 def test_position_sizer_fixed_risk():
     """測試固定風險倉位計算"""
-    sizer = PositionSizer(default_risk_pct=0.02)
+    # 設置較高的 max_position_pct 以避免觸發最大倉位限制
+    sizer = PositionSizer(default_risk_pct=0.02, max_position_pct=1.0)
 
     size = sizer.calculate_position_size(
         account_balance=10000, entry_price=50000, stop_loss=49000, method=SizingMethod.FIXED_RISK
@@ -334,7 +334,8 @@ def test_position_sizer_kelly():
 
 def test_position_sizer_volatility_adjusted():
     """測試波動率調整倉位"""
-    sizer = PositionSizer()
+    # 設置較高的 max_position_pct 以避免觸發最大倉位限制
+    sizer = PositionSizer(max_position_pct=1.0)
 
     # 高波動 -> 小倉位
     high_vol_size = sizer.calculate_position_size(

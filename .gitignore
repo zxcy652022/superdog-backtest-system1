@@ -1,5 +1,10 @@
+# ===========================================
+# SuperDog Quant .gitignore
+# ===========================================
+
 # macOS
 .DS_Store
+__MACOSX/
 
 # Python
 __pycache__/
@@ -9,31 +14,43 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.eggs/
 
 # Virtual env
 .venv/
 venv/
 env/
 
-# VS Code
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
 
 # Jupyter
 .ipynb_checkpoints/
 
-# Data
-data/raw/*.tmp
-*.log
-# SSD 數據配置 (v0.4)
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data files (keep structure, ignore data)
+data/raw/**/*.csv
+data/raw/**/*.parquet
+data/raw/*.csv
+data/raw/*.parquet
+data/processed/
+data/experiments/
 data/ssd/
 local_data/
 *.pkl
+
+# Temporary and backup files
+*.tmp
+*.log
 *.backup
 backtest_results/
-
-# macOS
-.DS_Store
-__MACOSX/
 
 # Archive and cleanup
 *.zip
@@ -42,6 +59,8 @@ __MACOSX/
 .backup/
 cleanup_log_*.json
 
-# Prevention tools
-scripts/
-superdog_v06_validation_report.json
+# Secrets (never commit)
+.env.local
+.env.production
+secrets/
+credentials.json
