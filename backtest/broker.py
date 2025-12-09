@@ -274,11 +274,13 @@ class SimulatedBroker:
         )
         self.trades.append(trade)
 
-        # 更新cash（退還占用資金 + PnL）
-        # 開倉時扣除了: position_value / leverage + fee_entry
-        # 平倉時收到: revenue - fee_exit
+        # 更新cash（退還保證金 + 利潤 - 手續費）
+        # 開倉時扣除了: entry_cost / leverage + entry_fee
+        # 平倉時退回: 保證金 + 價差利潤 - 出場手續費
+        # v0.7.4 修復: 槓桿交易中，平倉不是收到「全部賣出金額」，而是「保證金 + 利潤」
         released_margin = entry_cost / self.leverage
-        cash_change = released_margin + net_revenue
+        price_profit = (price - self.position_entry_price) * actual_size  # 價差利潤
+        cash_change = released_margin + price_profit - fee
 
         # 數值溢出檢查
         if not abs(cash_change) < 1e15:

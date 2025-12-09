@@ -53,6 +53,7 @@ class SimpleSMAStrategy(BaseStrategy):
             if current_price > current_sma and not self.broker.has_position:
                 self.broker.buy_all(price=current_price, time=current_time)
 
-            # 平倉訊號：價格跌破 SMA 向下
-            elif current_price < current_sma and self.broker.has_position:
-                self.broker.sell_all(price=current_price, time=current_time)
+            # 平倉訊號：價格跌破 SMA 向下（只平多單，不開空）
+            elif current_price < current_sma and self.broker.is_long:
+                # v0.3 兼容：使用 sell() 明確平倉，避免 sell_all() 開空
+                self.broker.sell(self.broker.position_qty, price=current_price, time=current_time)
