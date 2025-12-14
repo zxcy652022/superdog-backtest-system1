@@ -1,5 +1,5 @@
 """
-Backtest Engine v0.5
+Backtest Engine v1.0
 
 Core backtest engine module with position sizing, stop-loss, take-profit, and detailed trade logging.
 Handles main backtest loop: iterate bars, call strategy, manage positions, compute metrics.
@@ -13,12 +13,17 @@ v0.5 新增：
 - 支援 v0.5 策略 (new Strategy API v2.0)
 - 自動檢測策略類型並使用正確的初始化方式
 
-Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §3
+v1.0 新增：
+- 滑點模型支援
+- 爆倉檢測整合
+- 維持保證金率設定
+
+Design Reference: docs/v1.0/DESIGN.md
 """
 
 import inspect
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import pandas as pd
 
@@ -168,6 +173,9 @@ def run_backtest(
     stop_loss_pct: Optional[float] = None,
     take_profit_pct: Optional[float] = None,
     leverage: float = 1.0,  # v0.3 新增
+    strategy_params: Optional[Dict[str, Any]] = None,  # v0.7 新增：策略參數
+    maintenance_margin_rate: float = 0.005,  # v1.0 新增：維持保證金率
+    slippage_rate: Optional[float] = None,  # v1.0 新增：固定滑點率
 ) -> BacktestResult:
     """
     Run backtest with position sizing, stop-loss, and take-profit support
@@ -175,6 +183,8 @@ def run_backtest(
     v0.5: Now supports both v0.3 and v0.5 strategy APIs automatically:
     - v0.3 strategies: __init__(broker, data) - legacy API
     - v0.5 strategies: __init__() - new Strategy API v2.0
+
+    v1.0: 新增滑點和爆倉檢測支援
 
     Args:
         data: OHLCV DataFrame with DatetimeIndex
@@ -185,6 +195,9 @@ def run_backtest(
         stop_loss_pct: Stop loss percentage (e.g., 0.02 = 2%)
         take_profit_pct: Take profit percentage (e.g., 0.05 = 5%)
         leverage: Leverage multiplier (default 1.0, range 1-100) - v0.3
+        strategy_params: Strategy parameters dict - v0.7
+        maintenance_margin_rate: Maintenance margin rate for liquidation (default 0.5%) - v1.0
+        slippage_rate: Fixed slippage rate (None = no slippage) - v1.0
 
     Returns:
         BacktestResult containing equity curve, trades, metrics, and trade log
@@ -195,6 +208,14 @@ def run_backtest(
 
         # v0.5 strategy (new API)
         >>> result = run_backtest(data, KawamokuStrategy, initial_cash=10000)
+
+        # v1.0 with slippage and liquidation
+        >>> result = run_backtest(
+        ...     data, MyStrategy,
+        ...     leverage=10,
+        ...     slippage_rate=0.0005,
+        ...     maintenance_margin_rate=0.005
+        ... )
     """
     _validate_data(data)
 
@@ -202,8 +223,13 @@ def run_backtest(
     if position_sizer is None:
         position_sizer = AllInSizer(fee_rate=fee_rate)
 
-    # v0.3: Pass leverage to broker
-    broker = SimulatedBroker(initial_cash=initial_cash, fee_rate=fee_rate, leverage=leverage)
+    # v1.0: Pass leverage and maintenance_margin_rate to broker
+    broker = SimulatedBroker(
+        initial_cash=initial_cash,
+        fee_rate=fee_rate,
+        leverage=leverage,
+        maintenance_margin_rate=maintenance_margin_rate,
+    )
 
     # v0.2: Wrap broker.buy_all to respect position_sizer
     # This allows v0.1 strategies (that call buy_all) to work with position_sizer
@@ -230,17 +256,31 @@ def run_backtest(
     # v0.5: Detect strategy type and instantiate accordingly
     is_v05 = _is_v05_strategy(strategy_cls)
 
+    # v0.7: 準備策略參數
+    params = strategy_params or {}
+
     if is_v05:
         # v0.5 Strategy API v2.0: Use wrapper to adapt to v0.3 backtest engine
         strategy = _V05StrategyWrapper(strategy_cls, broker, data)
     else:
         # v0.3 Legacy API: Direct instantiation with broker and data
-        strategy = strategy_cls(broker=broker, data=data)
+        # v0.7: 傳入策略參數
+        strategy = strategy_cls(broker=broker, data=data, **params)
 
     # Track position for SL/TP and MAE/MFE
     position_tracker = _PositionTracker()
 
     for i, (timestamp, row) in enumerate(data.iterrows()):
+        # v1.0: Check liquidation first (highest priority)
+        if broker.has_position and broker.check_liquidation_in_bar(row):
+            liq_price = broker.get_liquidation_price()
+            broker.process_liquidation(timestamp, liq_price)
+            position_tracker.reset()
+
+            # Update equity
+            broker.update_equity(price=row["close"], time=timestamp)
+            continue
+
         # Check SL/TP if we have position
         if broker.has_position:
             sl_triggered, tp_triggered, exit_price, exit_reason = _check_sl_tp(

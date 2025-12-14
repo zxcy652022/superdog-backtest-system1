@@ -1,0 +1,328 @@
+# DualMA 策略 Top 20 幣種回測配置
+# 時間範圍: 2024-06 ~ 2025-12
+# 初始資金: 300 USDT
+# 週期: 1h, 4h
+
+runs:
+  # ========== BTC ==========
+  - strategy: dualma
+    symbol: BTCUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: BTCUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== ETH ==========
+  - strategy: dualma
+    symbol: ETHUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: ETHUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== BNB ==========
+  - strategy: dualma
+    symbol: BNBUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: BNBUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== XRP ==========
+  - strategy: dualma
+    symbol: XRPUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: XRPUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== SOL ==========
+  - strategy: dualma
+    symbol: SOLUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: SOLUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== DOGE ==========
+  - strategy: dualma
+    symbol: DOGEUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: DOGEUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== ADA ==========
+  - strategy: dualma
+    symbol: ADAUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: ADAUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== TRX ==========
+  - strategy: dualma
+    symbol: TRXUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: TRXUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== AVAX ==========
+  - strategy: dualma
+    symbol: AVAXUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: AVAXUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== LINK ==========
+  - strategy: dualma
+    symbol: LINKUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: LINKUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== DOT ==========
+  - strategy: dualma
+    symbol: DOTUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: DOTUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== UNI ==========
+  - strategy: dualma
+    symbol: UNIUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: UNIUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== LTC ==========
+  - strategy: dualma
+    symbol: LTCUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: LTCUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== ATOM ==========
+  - strategy: dualma
+    symbol: ATOMUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: ATOMUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== ETC ==========
+  - strategy: dualma
+    symbol: ETCUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: ETCUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== FIL ==========
+  - strategy: dualma
+    symbol: FILUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: FILUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== ARB ==========
+  - strategy: dualma
+    symbol: ARBUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: ARBUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== OP ==========
+  - strategy: dualma
+    symbol: OPUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: OPUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  # ========== APT ==========
+  - strategy: dualma
+    symbol: APTUSDT
+    timeframe: 1h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005
+
+  - strategy: dualma
+    symbol: APTUSDT
+    timeframe: 4h
+    start: "2024-06-01"
+    end: "2025-12-01"
+    initial_cash: 300
+    fee_rate: 0.0005

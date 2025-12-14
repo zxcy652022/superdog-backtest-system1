@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Portfolio Runner v0.3
+Portfolio Runner v1.0
 
 批量回測執行器，負責執行多個回測任務並聚合結果。
 
@@ -10,7 +10,12 @@ Features:
 - 結果聚合和查詢
 - 支援從 YAML 載入配置
 
-Design Reference: docs/specs/planned/v0.3_portfolio_runner_api.md
+v1.0 新增：
+- 滑點模型整合
+- 爆倉檢測支援
+- 維持保證金率設定
+
+Design Reference: docs/v1.0/DESIGN.md
 """
 
 import time
@@ -62,6 +67,10 @@ class RunConfig:
     strategy_params: Dict[str, Any] = field(default_factory=dict)
     # 例如: {"fast_period": 5, "slow_period": 20}
 
+    # v1.0 新增：滑點和爆倉配置
+    slippage_rate: Optional[float] = None  # 固定滑點率（None = 不使用滑點）
+    maintenance_margin_rate: float = 0.005  # 維持保證金率（0.5%）
+
     def __post_init__(self):
         """驗證配置"""
         if not self.strategy:
@@ -93,6 +102,9 @@ class RunConfig:
             "stop_loss_pct": self.stop_loss_pct,
             "take_profit_pct": self.take_profit_pct,
             "strategy_params": self.strategy_params,
+            # v1.0 新增
+            "slippage_rate": self.slippage_rate,
+            "maintenance_margin_rate": self.maintenance_margin_rate,
         }
 
 
@@ -429,6 +441,9 @@ def _run_single_backtest(config: RunConfig, verbose: bool = False) -> SingleRunR
             stop_loss_pct=config.stop_loss_pct,
             take_profit_pct=config.take_profit_pct,
             leverage=config.leverage,
+            strategy_params=config.strategy_params,  # v0.7: 傳遞策略參數
+            maintenance_margin_rate=config.maintenance_margin_rate,  # v1.0: 爆倉檢測
+            slippage_rate=config.slippage_rate,  # v1.0: 滑點模型
         )
 
         execution_time = time.time() - start_time
@@ -471,9 +486,17 @@ def _filter_date_range(
 ) -> pd.DataFrame:
     """過濾日期範圍"""
     if start:
-        data = data[data.index >= pd.Timestamp(start)]
+        start_ts = pd.Timestamp(start)
+        # 處理時區：如果數據有時區，則轉換 start_ts
+        if data.index.tz is not None:
+            start_ts = start_ts.tz_localize(data.index.tz)
+        data = data[data.index >= start_ts]
     if end:
-        data = data[data.index <= pd.Timestamp(end)]
+        end_ts = pd.Timestamp(end)
+        # 處理時區：如果數據有時區，則轉換 end_ts
+        if data.index.tz is not None:
+            end_ts = end_ts.tz_localize(data.index.tz)
+        data = data[data.index <= end_ts]
     return data
 
 

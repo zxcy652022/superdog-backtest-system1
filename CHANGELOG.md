@@ -756,7 +756,122 @@ DataSource.LONG_SHORT_RATIO     # 多空比
 
 ---
 
+## [1.0.0] - 2025-12-11
+
+### Added - SuperDog v1.0 核心功能
+
+**策略優化系統**
+- **OPTIMIZABLE_PARAMS 標準** (`strategies/base.py`)
+  - 策略參數內嵌定義（type, default, range, step, description, category）
+  - ParamCategory 分類（SIGNAL 信號參數 / EXECUTION 執行參數）
+  - 自動搜索空間生成
+  - 參數驗證和組合生成
+
+- **Walk-Forward 驗證器** (`execution/walk_forward.py`)
+  - 滾動窗口訓練/測試分割
+  - 支援多指標優化
+  - OOS (Out-of-Sample) 性能追蹤
+  - 參數穩定性分析
+  - 穩健性評分（0-100）
+  - 自動報告生成
+
+- **行情分類器** (`utils/market_classifier.py`)
+  - 四種市場狀態識別（BULL/BEAR/SIDEWAYS/HIGH_VOL）
+  - 基於 MA 對齊和 ATR 的分類邏輯
+  - 時間段行情統計
+  - 連續行情時段識別
+
+**風險管理增強**
+- **爆倉檢測** (`backtest/broker.py`)
+  - 維持保證金率設定（預設 0.5%）
+  - 爆倉價格計算（多單/空單）
+  - K 線內爆倉檢測（使用 high/low）
+  - 爆倉事件記錄（LiquidationEvent）
+  - Trade 新增 is_liquidation 標記
+
+- **滑點模型整合** (`execution/runner.py`, `backtest/engine.py`)
+  - RunConfig 新增 slippage_rate 參數
+  - RunConfig 新增 maintenance_margin_rate 參數
+  - 回測引擎整合爆倉檢測循環
+
+**互動式 CLI**
+- **主入口** (`superdog.py`)
+  - 數據管理（下載、檢查、查看）
+  - 快速回測（策略/幣種/時間選擇）
+  - 參數優化（Walk-Forward、網格搜索）
+  - 報告查看
+  - 系統設定
+
+**策略更新**
+- **BiGeDualMAStrategy** (`strategies/bige_dual_ma.py`)
+  - 加入 OPTIMIZABLE_PARAMS 定義
+  - 16 個可優化參數
+  - 繼承 OptimizableStrategyMixin
+
+### Changed
+
+- `backtest/broker.py`: v0.7 → v1.0
+  - 新增 maintenance_margin_rate 參數
+  - 新增 liquidation_events 列表
+  - 新增爆倉相關方法
+
+- `backtest/engine.py`: v0.5 → v1.0
+  - 新增 maintenance_margin_rate 參數
+  - 新增 slippage_rate 參數
+  - 主循環加入爆倉檢測（最高優先級）
+
+- `execution/runner.py`: v0.3 → v1.0
+  - RunConfig 新增 slippage_rate, maintenance_margin_rate
+
+### Documentation
+
+- **設計文檔** (`docs/v1.0/DESIGN.md`)
+  - 完整系統設計說明
+  - OPTIMIZABLE_PARAMS 格式定義
+  - Walk-Forward 驗證流程
+  - CLI 設計規格
+  - 實作計劃
+
+### Technical Highlights
+
+- **參數組合計算**: BiGeDualMAStrategy 有 ~16.9 億種參數組合
+- **爆倉公式**:
+  - 多單: liq_price = entry * (1 - 1/leverage + mmr)
+  - 空單: liq_price = entry * (1 + 1/leverage - mmr)
+- **穩健性評分**: 0-100 基於 OOS 一致性、IS/OOS 衰減、參數穩定性
+
+### Files Added
+
+- `strategies/base.py` - 可優化參數標準
+- `execution/walk_forward.py` - Walk-Forward 驗證器
+- `utils/__init__.py` - utils 模組初始化
+- `utils/market_classifier.py` - 行情分類器
+- `superdog.py` - CLI 主入口
+- `docs/v1.0/DESIGN.md` - v1.0 設計文檔
+
+### Migration Notes
+
+v0.7 → v1.0 完全向後兼容，無破壞性變更。
+
+新增功能為可選使用：
+```python
+# 使用爆倉檢測
+result = run_backtest(
+    data, strategy,
+    leverage=20,
+    maintenance_margin_rate=0.005,  # 0.5%
+)
+
+# 查看爆倉事件
+broker.liquidation_events
+broker.was_liquidated
+```
+
+---
+
 ## [Unreleased]
 
 ### 規劃中
-準備中
+- 回測設定精靈 (cli/backtest_wizard.py)
+- WF 驗證報告生成器
+- 端到端測試

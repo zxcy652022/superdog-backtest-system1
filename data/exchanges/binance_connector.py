@@ -178,37 +178,18 @@ class BinanceConnector(ExchangeConnector):
         endpoint = "/futures/data/openInterestHist"
         all_data = []
 
-        current_start = start_time
+        # 注意：Binance OI API 不支援 startTime/endTime 參數！
+        # 只能獲取最近的數據（limit 最大 500，約 21 天的 1h 數據）
+        params = {"symbol": symbol, "period": interval, "limit": min(limit, 500)}
 
-        while current_start < end_time:
-            params = {"symbol": symbol, "period": interval, "limit": min(limit, 500)}
+        try:
+            response = self._make_request(endpoint, params)
 
-            # 添加時間參數（注意：這個 API 只支持 startTime 和 endTime，不支持分頁）
-            if start_time:
-                params["startTime"] = int(current_start.timestamp() * 1000)
-            if end_time:
-                params["endTime"] = int(end_time.timestamp() * 1000)
-
-            try:
-                response = self._make_request(endpoint, params)
-
-                if not response:
-                    break
-
+            if response:
                 all_data.extend(response)
 
-                if len(response) < limit:
-                    break
-
-                # 更新 current_start
-                last_time = response[-1]["timestamp"]
-                current_start = datetime.fromtimestamp(last_time / 1000) + timedelta(milliseconds=1)
-
-                time.sleep(0.1)
-
-            except BinanceAPIError as e:
-                logger.error(f"Failed to fetch open interest: {e}")
-                break
+        except BinanceAPIError as e:
+            logger.error(f"Failed to fetch open interest: {e}")
 
         if not all_data:
             return pd.DataFrame()

@@ -1,5 +1,5 @@
 """
-Simulated Broker Module v0.7
+Simulated Broker Module v1.0
 
 模擬交易所，負責處理買入、賣出、權益更新等操作。
 支援全倉進出（buy_all / sell_all）和指定倉位（buy / sell）。
@@ -14,7 +14,12 @@ v0.7 改進：
 - update_equity() 使用真實權益計算
 - 權益曲線正確反映持倉期間的價值變化
 
-Design Reference: docs/specs/planned/v0.3_short_leverage_spec.md §2
+v1.0 新增：
+- 爆倉檢測（liquidation check）
+- 維持保證金率設定
+- 爆倉事件記錄
+
+Design Reference: docs/v1.0/DESIGN.md
 """
 
 from dataclasses import dataclass
@@ -40,16 +45,32 @@ class Trade:
     # v0.3 新增字段（向後兼容：提供默認值）
     direction: DirectionType = "long"  # 持倉方向
     leverage: float = 1.0  # 槓桿倍數
+    # v1.0 新增
+    is_liquidation: bool = False  # 是否為爆倉平倉
+
+
+@dataclass
+class LiquidationEvent:
+    """爆倉事件記錄（v1.0 新增）"""
+
+    time: pd.Timestamp  # 爆倉時間
+    direction: DirectionType  # 持倉方向
+    entry_price: float  # 入場價格
+    liquidation_price: float  # 爆倉價格
+    position_qty: float  # 持倉數量
+    loss: float  # 損失金額（正數）
+    leverage: float  # 槓桿倍數
 
 
 class SimulatedBroker:
-    """模擬交易所（v0.3 - 支援做空和槓桿）"""
+    """模擬交易所（v1.0 - 支援做空、槓桿和爆倉檢測）"""
 
     def __init__(
         self,
         initial_cash: float,
         fee_rate: float = 0.0005,
         leverage: float = 1.0,  # v0.3 新增：預設1倍（無槓桿）
+        maintenance_margin_rate: float = 0.005,  # v1.0 新增：維持保證金率（0.5%）
     ):
         """
         初始化模擬交易所
@@ -58,6 +79,7 @@ class SimulatedBroker:
             initial_cash: 初始資金
             fee_rate: 手續費率（預設 0.05%）
             leverage: 槓桿倍數（預設1倍，範圍1-100）
+            maintenance_margin_rate: 維持保證金率（預設0.5%，幣安永續合約標準）
 
         Raises:
             ValueError: 如果 leverage 不在 1-100 範圍內
@@ -70,6 +92,7 @@ class SimulatedBroker:
         self.cash = initial_cash
         self.fee_rate = fee_rate
         self.leverage = leverage  # v0.3 新增
+        self.maintenance_margin_rate = maintenance_margin_rate  # v1.0 新增
 
         # 持倉資訊（v0.3 改進）
         self.position_qty = 0.0
@@ -80,6 +103,7 @@ class SimulatedBroker:
         # 歷史記錄
         self.equity_history: List[tuple] = []  # (time, equity)
         self.trades: List[Trade] = []
+        self.liquidation_events: List[LiquidationEvent] = []  # v1.0 新增：爆倉事件
 
     @property
     def has_position(self) -> bool:
@@ -486,3 +510,142 @@ class SimulatedBroker:
         # 總權益 = cash + 保證金 + 浮動盈虧
         # (cash 在開倉時已扣除保證金，所以要加回來)
         return self.cash + margin_used + unrealized_pnl
+
+    # === v1.0 新增：爆倉檢測 ===
+
+    def get_liquidation_price(self) -> Optional[float]:
+        """計算當前持倉的爆倉價格
+
+        公式（簡化版）:
+        - 多單: 爆倉價 = 入場價 * (1 - 1/leverage + maintenance_margin_rate)
+        - 空單: 爆倉價 = 入場價 * (1 + 1/leverage - maintenance_margin_rate)
+
+        Returns:
+            Optional[float]: 爆倉價格，無持倉時返回 None
+        """
+        if not self.has_position:
+            return None
+
+        entry = self.position_entry_price
+        lev = self.leverage
+        mmr = self.maintenance_margin_rate
+
+        if self.position_direction == "long":
+            # 多單：價格下跌到某點時爆倉
+            # 當虧損 = 初始保證金 - 維持保證金時觸發
+            # 虧損率 = 1/leverage - mmr
+            liq_price = entry * (1 - 1 / lev + mmr)
+        else:  # short
+            # 空單：價格上漲到某點時爆倉
+            liq_price = entry * (1 + 1 / lev - mmr)
+
+        return liq_price
+
+    def check_liquidation(self, current_price: float) -> bool:
+        """檢查是否觸發爆倉
+
+        Args:
+            current_price: 當前價格
+
+        Returns:
+            bool: 是否觸發爆倉
+        """
+        if not self.has_position:
+            return False
+
+        liq_price = self.get_liquidation_price()
+        if liq_price is None:
+            return False
+
+        if self.position_direction == "long":
+            # 多單：當前價格 <= 爆倉價格
+            return current_price <= liq_price
+        else:  # short
+            # 空單：當前價格 >= 爆倉價格
+            return current_price >= liq_price
+
+    def check_liquidation_in_bar(self, bar: pd.Series) -> bool:
+        """檢查在一根 K 線內是否觸發爆倉
+
+        考慮 K 線的最低/最高價，更精確地判斷是否觸及爆倉價
+
+        Args:
+            bar: K 線數據（需包含 high, low）
+
+        Returns:
+            bool: 是否觸發爆倉
+        """
+        if not self.has_position:
+            return False
+
+        liq_price = self.get_liquidation_price()
+        if liq_price is None:
+            return False
+
+        if self.position_direction == "long":
+            # 多單：K 線最低價 <= 爆倉價格
+            return bar["low"] <= liq_price
+        else:  # short
+            # 空單：K 線最高價 >= 爆倉價格
+            return bar["high"] >= liq_price
+
+    def process_liquidation(self, time: pd.Timestamp, price: float) -> bool:
+        """處理爆倉
+
+        強制平倉並記錄爆倉事件，損失全部保證金
+
+        Args:
+            time: 爆倉時間
+            price: 爆倉執行價格（通常使用爆倉價格或當根 K 線的極端價）
+
+        Returns:
+            bool: 是否成功處理爆倉
+        """
+        if not self.has_position:
+            return False
+
+        # 計算損失（全部保證金）
+        entry_value = self.position_qty * self.position_entry_price
+        margin = entry_value / self.leverage
+
+        # 記錄爆倉事件
+        event = LiquidationEvent(
+            time=time,
+            direction=self.position_direction,
+            entry_price=self.position_entry_price,
+            liquidation_price=price,
+            position_qty=self.position_qty,
+            loss=margin,
+            leverage=self.leverage,
+        )
+        self.liquidation_events.append(event)
+
+        # 記錄交易（爆倉也是一筆平倉交易）
+        trade = Trade(
+            entry_time=self.position_entry_time,
+            exit_time=time,
+            entry_price=self.position_entry_price,
+            exit_price=price,
+            qty=self.position_qty,
+            pnl=-margin,  # 損失全部保證金
+            return_pct=-1.0 / self.leverage + self.maintenance_margin_rate,  # 接近 -100%/leverage
+            direction=self.position_direction,
+            leverage=self.leverage,
+            is_liquidation=True,
+        )
+        self.trades.append(trade)
+
+        # 清空持倉（保證金已損失，cash 不變）
+        self._clear_position()
+
+        return True
+
+    @property
+    def was_liquidated(self) -> bool:
+        """是否曾經被爆倉（v1.0 新增）"""
+        return len(self.liquidation_events) > 0
+
+    @property
+    def liquidation_count(self) -> int:
+        """爆倉次數（v1.0 新增）"""
+        return len(self.liquidation_events)

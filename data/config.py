@@ -33,6 +33,11 @@ class DataConfig:
         return get_data_root()
 
     @property
+    def data_root(self) -> Path:
+        """獲取數據根目錄（兼容 OHLCVStorage）"""
+        return get_data_root()
+
+    @property
     def raw_data_dir(self) -> Path:
         """獲取原始數據目錄"""
         return get_raw_data_dir()

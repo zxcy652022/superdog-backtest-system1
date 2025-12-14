@@ -64,3 +64,4 @@ cleanup_log_*.json
 .env.production
 secrets/
 credentials.json
+archive/

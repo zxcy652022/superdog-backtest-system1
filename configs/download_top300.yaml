@@ -1,0 +1,41 @@
+# Top 300 幣種批量下載配置
+# 用途: 批量下載歷史數據供策略回測
+# 建議: 在空閒時間或睡前運行
+
+# ========== 幣種設置 ==========
+symbols:
+  source: binance_top          # 數據來源: binance_top (從 Binance 獲取 Top N)
+  count: 300                   # 下載幣種數量 (Top 300)
+  filters:
+    exclude_stablecoins: true  # 排除穩定幣 (USDC, DAI, etc.)
+    exclude_leveraged: true    # 排除槓桿代幣 (BTCUP, BTCDOWN, etc.)
+    min_volume_24h: 500000     # 最低 24h 成交量 (500K USD)
+
+# ========== 時間週期 ==========
+timeframes:
+  enabled:
+    - "15m"   # 15 分鐘線
+    - "1h"    # 1 小時線
+    - "4h"    # 4 小時線
+    - "1d"    # 日線
+
+# ========== 日期範圍 ==========
+date_range:
+  start: "2023-01-01"          # 起始日期 (2 年數據)
+  end: null                    # 結束日期 (null = 今天)
+
+# ========== 下載設置 ==========
+download:
+  parallel_workers: 3          # 並行工作數 (建議 3-5，避免 API 限制)
+  checkpoint_enabled: true     # 啟用斷點續傳
+  retry_failed: true           # 自動重試失敗任務
+  max_retries: 3               # 最大重試次數
+
+# ========== 速率限制 ==========
+rate_limiting:
+  requests_per_minute: 800     # 每分鐘請求數 (Binance 限制 1200)
+
+# ========== 預估 ==========
+# 300 幣種 x 4 週期 = 1200 個下載任務
+# 每任務平均 3 秒 = 約 1 小時完成
+# 數據量約 2-3 GB (parquet 格式)
