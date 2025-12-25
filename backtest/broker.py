@@ -71,6 +71,7 @@ class SimulatedBroker:
         fee_rate: float = 0.0005,
         leverage: float = 1.0,  # v0.3 新增：預設1倍（無槓桿）
         maintenance_margin_rate: float = 0.005,  # v1.0 新增：維持保證金率（0.5%）
+        slippage_rate: float = 0.0005,  # v1.1 新增：滑點率（預設 0.05%）
     ):
         """
         初始化模擬交易所
@@ -80,6 +81,7 @@ class SimulatedBroker:
             fee_rate: 手續費率（預設 0.05%）
             leverage: 槓桿倍數（預設1倍，範圍1-100）
             maintenance_margin_rate: 維持保證金率（預設0.5%，幣安永續合約標準）
+            slippage_rate: 滑點率（預設 0.05%，買入價格上浮、賣出價格下浮）
 
         Raises:
             ValueError: 如果 leverage 不在 1-100 範圍內
@@ -93,6 +95,7 @@ class SimulatedBroker:
         self.fee_rate = fee_rate
         self.leverage = leverage  # v0.3 新增
         self.maintenance_margin_rate = maintenance_margin_rate  # v1.0 新增
+        self.slippage_rate = slippage_rate  # v1.1 新增
 
         # 持倉資訊（v0.3 改進）
         self.position_qty = 0.0
@@ -125,12 +128,12 @@ class SimulatedBroker:
         self, size: float, price: float, time: pd.Timestamp, leverage: Optional[float] = None
     ) -> bool:
         """
-        買入（v0.3: 開多或平空）
+        買入（v1.1: 開多、平空或加倉）
 
-        語義變更（v0.3）:
+        語義變更（v1.1）:
         - 無持倉: 開多單
         - 持有空單: 平空單（全部或部分）
-        - 持有多單: 返回False（不支持加倉）
+        - 持有多單: 加倉（v1.1 新增支援）
 
         Args:
             size: 買入數量（必須 > 0）
@@ -155,20 +158,20 @@ class SimulatedBroker:
         elif self.position_direction == "short":
             return self._close_short(size, price, time)
 
-        # Case 3: 持有多單 -> 不支持加倉
+        # Case 3: 持有多單 -> 加倉（v1.1 新增）
         else:  # self.position_direction == "long"
-            return False
+            return self._add_long(size, price, time, lev)
 
     def sell(
         self, size: float, price: float, time: pd.Timestamp, leverage: Optional[float] = None
     ) -> bool:
         """
-        賣出（v0.3: 開空或平多）
+        賣出（v1.1: 開空、平多或加倉）
 
-        語義變更（v0.3）:
+        語義變更（v1.1）:
         - 無持倉: 開空單
         - 持有多單: 平多單（全部或部分）
-        - 持有空單: 返回False（不支持加倉）
+        - 持有空單: 加倉（v1.1 新增支援）
 
         Args:
             size: 賣出數量（必須 > 0）
@@ -192,17 +195,42 @@ class SimulatedBroker:
         elif self.position_direction == "long":
             return self._close_long(size, price, time)
 
-        # Case 3: 持有空單 -> 不支持加倉
+        # Case 3: 持有空單 -> 加倉（v1.1 新增）
         else:  # self.position_direction == "short"
-            return False
+            return self._add_short(size, price, time, lev)
+
+    # === v1.1 新增：滑點計算 ===
+
+    def _apply_slippage(self, price: float, is_buy: bool) -> float:
+        """計算滑點後的實際執行價格
+
+        Args:
+            price: 原始價格
+            is_buy: 是否為買入操作
+
+        Returns:
+            float: 滑點後的價格（買入價格上浮、賣出價格下浮）
+        """
+        if is_buy:
+            # 買入：價格上浮（不利）
+            return price * (1 + self.slippage_rate)
+        else:
+            # 賣出：價格下浮（不利）
+            return price * (1 - self.slippage_rate)
 
     # === v0.3 新增：內部方法（私有） ===
 
     def _open_long(self, size: float, price: float, time: pd.Timestamp, leverage: float) -> bool:
-        """開多單（內部方法）"""
+        """開多單（內部方法）
+
+        v1.1 改進：加入滑點計算，買入價格上浮
+        """
+        # v1.1: 應用滑點（買入價格上浮）
+        actual_price = self._apply_slippage(price, is_buy=True)
+
         # 計算成本（考慮槓桿）
         # 槓桿的簡化模型: 占用資金 = 倉位價值 / leverage
-        position_value = size * price
+        position_value = size * actual_price
         required_margin = position_value / leverage
         entry_fee = position_value * self.fee_rate
         total_required = required_margin + entry_fee
@@ -219,21 +247,27 @@ class SimulatedBroker:
         if new_cash < -1e10 or new_cash > 1e15:  # 防止異常值
             return False
 
-        # 執行開倉
+        # 執行開倉（使用滑點後的實際價格）
         self.position_qty = size
         self.position_direction = "long"
-        self.position_entry_price = price
+        self.position_entry_price = actual_price  # v1.1: 使用實際成交價
         self.position_entry_time = time
         self.cash = new_cash
 
         return True
 
     def _open_short(self, size: float, price: float, time: pd.Timestamp, leverage: float) -> bool:
-        """開空單（內部方法）"""
+        """開空單（內部方法）
+
+        v1.1 改進：加入滑點計算，賣出價格下浮
+        """
+        # v1.1: 應用滑點（賣出/開空價格下浮）
+        actual_price = self._apply_slippage(price, is_buy=False)
+
         # 做空的簡化模型:
         # - 占用資金 = 倉位價值 / leverage
         # - 收入不立即計入cash（簡化處理）
-        position_value = size * price
+        position_value = size * actual_price
         required_margin = position_value / leverage
         entry_fee = position_value * self.fee_rate
         total_required = required_margin + entry_fee
@@ -250,25 +284,143 @@ class SimulatedBroker:
         if new_cash < -1e10 or new_cash > 1e15:
             return False
 
-        # 執行開倉
+        # 執行開倉（使用滑點後的實際價格）
         self.position_qty = size
         self.position_direction = "short"
-        self.position_entry_price = price
+        self.position_entry_price = actual_price  # v1.1: 使用實際成交價
         self.position_entry_time = time
         self.cash = new_cash  # 扣除保證金+手續費
 
         return True
 
-    def _close_long(self, size: float, price: float, time: pd.Timestamp) -> bool:
-        """平多單（內部方法）"""
+    # === v1.1 新增：加倉方法 ===
+
+    def _add_long(self, size: float, price: float, time: pd.Timestamp, leverage: float) -> bool:
+        """多單加倉（v1.1 新增）
+
+        加倉邏輯：
+        - 增加持倉數量
+        - 更新平均入場價格
+        - 扣除新倉位的保證金和手續費
+
+        v1.1 改進：加入滑點計算
+
+        Args:
+            size: 加倉數量
+            price: 加倉價格
+            time: 加倉時間
+            leverage: 槓桿倍數
+
+        Returns:
+            bool: 是否成功執行
+        """
         if not self.is_long:
             return False
+
+        # v1.1: 應用滑點（買入價格上浮）
+        actual_price = self._apply_slippage(price, is_buy=True)
+
+        # 計算加倉成本
+        add_value = size * actual_price
+        required_margin = add_value / leverage
+        entry_fee = add_value * self.fee_rate
+        total_required = required_margin + entry_fee
+
+        # 檢查資金是否足夠
+        if total_required > self.cash * 1.000001:
+            return False
+
+        # 數值溢出檢查
+        if not (0 < total_required < 1e15):
+            return False
+
+        new_cash = self.cash - total_required
+        if new_cash < -1e10 or new_cash > 1e15:
+            return False
+
+        # 更新平均入場價格（加權平均，使用實際成交價）
+        old_value = self.position_qty * self.position_entry_price
+        new_value = size * actual_price
+        total_qty = self.position_qty + size
+        self.position_entry_price = (old_value + new_value) / total_qty
+
+        # 更新持倉和現金
+        self.position_qty = total_qty
+        self.cash = new_cash
+
+        return True
+
+    def _add_short(self, size: float, price: float, time: pd.Timestamp, leverage: float) -> bool:
+        """空單加倉（v1.1 新增）
+
+        加倉邏輯：
+        - 增加空單持倉數量
+        - 更新平均入場價格
+        - 扣除新倉位的保證金和手續費
+
+        v1.1 改進：加入滑點計算
+
+        Args:
+            size: 加倉數量
+            price: 加倉價格
+            time: 加倉時間
+            leverage: 槓桿倍數
+
+        Returns:
+            bool: 是否成功執行
+        """
+        if not self.is_short:
+            return False
+
+        # v1.1: 應用滑點（賣出/開空價格下浮）
+        actual_price = self._apply_slippage(price, is_buy=False)
+
+        # 計算加倉成本
+        add_value = size * actual_price
+        required_margin = add_value / leverage
+        entry_fee = add_value * self.fee_rate
+        total_required = required_margin + entry_fee
+
+        # 檢查資金是否足夠
+        if total_required > self.cash * 1.000001:
+            return False
+
+        # 數值溢出檢查
+        if not (0 < total_required < 1e15):
+            return False
+
+        new_cash = self.cash - total_required
+        if new_cash < -1e10 or new_cash > 1e15:
+            return False
+
+        # 更新平均入場價格（加權平均，使用實際成交價）
+        old_value = self.position_qty * self.position_entry_price
+        new_value = size * actual_price
+        total_qty = self.position_qty + size
+        self.position_entry_price = (old_value + new_value) / total_qty
+
+        # 更新持倉和現金
+        self.position_qty = total_qty
+        self.cash = new_cash
+
+        return True
+
+    def _close_long(self, size: float, price: float, time: pd.Timestamp) -> bool:
+        """平多單（內部方法）
+
+        v1.1 改進：加入滑點計算，賣出價格下浮
+        """
+        if not self.is_long:
+            return False
+
+        # v1.1: 應用滑點（賣出價格下浮）
+        actual_price = self._apply_slippage(price, is_buy=False)
 
         # 實際平倉數量（不能超過持倉）
         actual_size = min(size, self.position_qty)
 
-        # 計算收益
-        revenue = actual_size * price
+        # 計算收益（使用滑點後價格）
+        revenue = actual_size * actual_price
         fee = revenue * self.fee_rate
         net_revenue = revenue - fee
 
@@ -281,15 +433,15 @@ class SimulatedBroker:
         # entry_fee已在開倉時扣除，這裡只扣exit_fee
         pnl = net_revenue - entry_cost
 
-        # 計算return_pct（基於entry價格）
-        return_pct = (price - self.position_entry_price) / self.position_entry_price
+        # 計算return_pct（基於entry價格，使用實際成交價）
+        return_pct = (actual_price - self.position_entry_price) / self.position_entry_price
 
         # 記錄交易（v0.3: 包含direction和leverage）
         trade = Trade(
             entry_time=self.position_entry_time,
             exit_time=time,
             entry_price=self.position_entry_price,
-            exit_price=price,
+            exit_price=actual_price,  # v1.1: 使用實際成交價
             qty=actual_size,
             pnl=pnl,
             return_pct=return_pct,
@@ -303,7 +455,7 @@ class SimulatedBroker:
         # 平倉時退回: 保證金 + 價差利潤 - 出場手續費
         # v0.7.4 修復: 槓桿交易中，平倉不是收到「全部賣出金額」，而是「保證金 + 利潤」
         released_margin = entry_cost / self.leverage
-        price_profit = (price - self.position_entry_price) * actual_size  # 價差利潤
+        price_profit = (actual_price - self.position_entry_price) * actual_size  # 價差利潤（使用實際成交價）
         cash_change = released_margin + price_profit - fee
 
         # 數值溢出檢查
@@ -327,16 +479,20 @@ class SimulatedBroker:
         """平空單（內部方法）
 
         v0.7 修復: 正確計算平空後的現金變化
+        v1.1 改進：加入滑點計算，買入價格上浮
         """
         if not self.is_short:
             return False
+
+        # v1.1: 應用滑點（買入/平空價格上浮）
+        actual_price = self._apply_slippage(price, is_buy=True)
 
         actual_size = min(size, self.position_qty)
 
         # 入場價值（開空時賣出的價值）
         entry_value = actual_size * self.position_entry_price
-        # 平倉成本（買入平倉的成本）
-        exit_cost = actual_size * price
+        # 平倉成本（買入平倉的成本，使用滑點後價格）
+        exit_cost = actual_size * actual_price
         exit_fee = exit_cost * self.fee_rate
 
         # 數值有效性檢查
@@ -347,15 +503,15 @@ class SimulatedBroker:
         # (開空時的入場費已在開倉時扣除)
         pnl = entry_value - exit_cost - exit_fee
 
-        # return_pct（做空的回報率）
-        return_pct = (self.position_entry_price - price) / self.position_entry_price
+        # return_pct（做空的回報率，使用實際成交價）
+        return_pct = (self.position_entry_price - actual_price) / self.position_entry_price
 
         # 記錄交易（v0.3: direction="short"）
         trade = Trade(
             entry_time=self.position_entry_time,
             exit_time=time,
             entry_price=self.position_entry_price,
-            exit_price=price,
+            exit_price=actual_price,  # v1.1: 使用實際成交價
             qty=actual_size,
             pnl=pnl,
             return_pct=return_pct,
@@ -370,7 +526,7 @@ class SimulatedBroker:
         #           = entry_value / leverage + (entry_value - exit_cost) - exit_fee
         #           = entry_value / leverage + entry_value - exit_cost - exit_fee
         released_margin = entry_value / self.leverage
-        gross_profit = entry_value - exit_cost  # 做空毛利（價差）
+        gross_profit = entry_value - exit_cost  # 做空毛利（價差，使用實際成交價）
         cash_change = released_margin + gross_profit - exit_fee
 
         # 數值溢出檢查
