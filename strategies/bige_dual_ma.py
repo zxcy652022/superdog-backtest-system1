@@ -267,7 +267,7 @@ class BiGeDualMAStrategy(BaseStrategy, OptimizableStrategyMixin):
             "cluster_lookback": 5,  # 連續 N 根 K 線密集才算數
             # === 倉位管理 ===
             "position_size_pct": 0.10,  # 每筆倉位 10%
-            "leverage": 10,  # 10x 槓桿（測試顯示收益/回撤比更優）
+            "leverage": 7,  # 7x 槓桿（平衡收益與回撤）
             # === 止損 ===
             "stop_loss_mode": "ma20",  # "ma20", "fixed_pct", "atr"
             "fixed_stop_loss_pct": 0.03,  # 固定止損 3%
@@ -300,14 +300,14 @@ class BiGeDualMAStrategy(BaseStrategy, OptimizableStrategyMixin):
             "add_position_fixed_pct": 0.50,  # 固定模式比例
             "add_position_pnl_pct": 1.0,  # 浮盈模式：100% 浮盈
             "add_position_min_interval": 3,  # 最少間隔 3 根 K 線
-            "max_add_count": 100,  # 最多加倉次數（設大以不限制）
+            "max_add_count": 3,  # 最多加倉 3 次（控制回撤）
             # === 回踩確認 ===
             "pullback_tolerance": 0.018,  # 1.8% 範圍內算回踩（優化後）
             # === 趨勢過濾 ===
             "require_trend_alignment": True,  # 要求均線排列
             "trend_mode": "loose",  # loose=MA20>MA60（更靈活，熊市表現更好）, strict=完整排列, none=不判斷
             # === 動態槓桿（浮雲滾倉模式）===
-            "dynamic_leverage": False,  # 預設關閉
+            "dynamic_leverage": False,  # 預設關閉（匹配昨天配置）
             "initial_leverage": 50,  # 初始高槓桿
             "min_leverage": 5,  # 最低槓桿
             # === 做空突破進場（崩盤模式）===
@@ -1073,6 +1073,13 @@ class BiGeDualMAStrategy(BaseStrategy, OptimizableStrategyMixin):
 
         # === 2. 倉位管理 ===
         if self.broker.has_position:
+            # === 2.1 爆倉檢測（v1.2 新增）===
+            if self.broker.check_liquidation_in_bar(row):
+                liq_price = self.broker.get_liquidation_price()
+                self.broker.process_liquidation(current_time, liq_price)
+                self._reset_position_state()
+                return
+
             # 動態槓桿更新
             self._update_leverage_if_needed(row["close"])
             self._manage_position(row, current_time, i)

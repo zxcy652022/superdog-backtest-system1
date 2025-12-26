@@ -60,6 +60,7 @@ backtest_results/
 cleanup_log_*.json
 
 # Secrets (never commit)
+.env
 .env.local
 .env.production
 secrets/

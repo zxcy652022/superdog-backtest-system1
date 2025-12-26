@@ -1,5 +1,5 @@
 """
-Simulated Broker Module v1.0
+Simulated Broker Module v1.2
 
 模擬交易所，負責處理買入、賣出、權益更新等操作。
 支援全倉進出（buy_all / sell_all）和指定倉位（buy / sell）。
@@ -18,6 +18,12 @@ v1.0 新增：
 - 爆倉檢測（liquidation check）
 - 維持保證金率設定
 - 爆倉事件記錄
+
+v1.2 修復：
+- 新增 position_leverage 追蹤開倉時的槓桿
+- get_current_equity() 使用 position_leverage 計算保證金
+- 加倉時使用加權平均更新 position_leverage
+- 修復動態槓桿模式下的權益計算錯誤
 
 Design Reference: docs/v1.0/DESIGN.md
 """
@@ -102,6 +108,7 @@ class SimulatedBroker:
         self.position_direction: DirectionType = "flat"  # v0.3 新增：持倉方向
         self.position_entry_price = 0.0
         self.position_entry_time: Optional[pd.Timestamp] = None
+        self.position_leverage: float = 1.0  # v1.2 新增：開倉時的槓桿（用於權益計算）
 
         # 歷史記錄
         self.equity_history: List[tuple] = []  # (time, equity)
@@ -252,6 +259,7 @@ class SimulatedBroker:
         self.position_direction = "long"
         self.position_entry_price = actual_price  # v1.1: 使用實際成交價
         self.position_entry_time = time
+        self.position_leverage = leverage  # v1.2: 記錄開倉槓桿
         self.cash = new_cash
 
         return True
@@ -289,6 +297,7 @@ class SimulatedBroker:
         self.position_direction = "short"
         self.position_entry_price = actual_price  # v1.1: 使用實際成交價
         self.position_entry_time = time
+        self.position_leverage = leverage  # v1.2: 記錄開倉槓桿
         self.cash = new_cash  # 扣除保證金+手續費
 
         return True
@@ -343,6 +352,12 @@ class SimulatedBroker:
         new_value = size * actual_price
         total_qty = self.position_qty + size
         self.position_entry_price = (old_value + new_value) / total_qty
+
+        # v1.2: 更新加權平均槓桿
+        old_margin = old_value / self.position_leverage
+        new_margin = new_value / leverage
+        total_margin = old_margin + new_margin
+        self.position_leverage = (old_value + new_value) / total_margin
 
         # 更新持倉和現金
         self.position_qty = total_qty
@@ -399,6 +414,12 @@ class SimulatedBroker:
         total_qty = self.position_qty + size
         self.position_entry_price = (old_value + new_value) / total_qty
 
+        # v1.2: 更新加權平均槓桿
+        old_margin = old_value / self.position_leverage
+        new_margin = new_value / leverage
+        total_margin = old_margin + new_margin
+        self.position_leverage = (old_value + new_value) / total_margin
+
         # 更新持倉和現金
         self.position_qty = total_qty
         self.cash = new_cash
@@ -454,7 +475,8 @@ class SimulatedBroker:
         # 開倉時扣除了: entry_cost / leverage + entry_fee
         # 平倉時退回: 保證金 + 價差利潤 - 出場手續費
         # v0.7.4 修復: 槓桿交易中，平倉不是收到「全部賣出金額」，而是「保證金 + 利潤」
-        released_margin = entry_cost / self.leverage
+        # v1.2 修復: 使用 position_leverage 而非 self.leverage
+        released_margin = entry_cost / self.position_leverage
         price_profit = (actual_price - self.position_entry_price) * actual_size  # 價差利潤（使用實際成交價）
         cash_change = released_margin + price_profit - fee
 
@@ -525,7 +547,8 @@ class SimulatedBroker:
         # 平空時返回: margin + 做空利潤 - exit_fee
         #           = entry_value / leverage + (entry_value - exit_cost) - exit_fee
         #           = entry_value / leverage + entry_value - exit_cost - exit_fee
-        released_margin = entry_value / self.leverage
+        # v1.2 修復: 使用 position_leverage 而非 self.leverage
+        released_margin = entry_value / self.position_leverage
         gross_profit = entry_value - exit_cost  # 做空毛利（價差，使用實際成交價）
         cash_change = released_margin + gross_profit - exit_fee
 
@@ -552,6 +575,7 @@ class SimulatedBroker:
         self.position_direction = "flat"
         self.position_entry_price = 0.0
         self.position_entry_time = None
+        self.position_leverage = 1.0  # v1.2: 重置槓桿
 
     # === v0.2 兼容方法（保留） ===
 
@@ -639,6 +663,7 @@ class SimulatedBroker:
         取得當前權益
 
         v0.7 改進: 計入未實現盈虧 (mark-to-market)
+        v1.2 修復: 使用 position_leverage 計算保證金
 
         Args:
             price: 當前價格
@@ -660,8 +685,8 @@ class SimulatedBroker:
             # 空單浮動盈虧 = 入場價值 - 當前價值
             unrealized_pnl = entry_value - position_value
 
-        # 計算占用保證金
-        margin_used = entry_value / self.leverage
+        # 計算占用保證金（v1.2: 使用開倉時的槓桿）
+        margin_used = entry_value / self.position_leverage
 
         # 總權益 = cash + 保證金 + 浮動盈虧
         # (cash 在開倉時已扣除保證金，所以要加回來)
@@ -676,6 +701,8 @@ class SimulatedBroker:
         - 多單: 爆倉價 = 入場價 * (1 - 1/leverage + maintenance_margin_rate)
         - 空單: 爆倉價 = 入場價 * (1 + 1/leverage - maintenance_margin_rate)
 
+        v1.2 修復: 使用 position_leverage 而非 self.leverage
+
         Returns:
             Optional[float]: 爆倉價格，無持倉時返回 None
         """
@@ -683,7 +710,7 @@ class SimulatedBroker:
             return None
 
         entry = self.position_entry_price
-        lev = self.leverage
+        lev = self.position_leverage  # v1.2: 使用開倉時的槓桿
         mmr = self.maintenance_margin_rate
 
         if self.position_direction == "long":
