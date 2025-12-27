@@ -14,9 +14,9 @@ PHASE1_CONFIG = {
     "symbols": ["BTCUSDT"],  # 第一階段只做 BTC
     "timeframe": "4h",
     # === 槓桿設定 ===
-    "leverage": 7,  # 回測驗證最穩定的設定
+    "leverage": 10,  # 前期加速驗證（滾到 $1000+ 後可降回 7x）
     # === 倉位管理 ===
-    "position_size_pct": 0.10,  # 10% 帳戶權益
+    "position_size_pct": 0.15,  # 15% 帳戶權益（前期加速）
     "add_position_mode": "fixed_50",  # 固定 50% 加倉
     "max_add_count": 3,  # 最多 3 次加倉（保守型，2週後可升級）
     # === 趨勢判斷 ===
@@ -26,8 +26,10 @@ PHASE1_CONFIG = {
     # === 止損設定 ===
     "stop_loss_confirm_bars": 10,  # 連續 10 根 K 線確認
     "ma20_buffer": 0.02,  # 2% 緩衝
+    "emergency_stop_atr": 3.5,  # 緊急止損：跌破 MA20 超過 3.5 倍 ATR 立即止損（黑天鵝保護）
     # === 回踩加倉設定 ===
     "pullback_tolerance": 0.018,  # 1.8% 容許範圍
+    "add_position_min_interval": 3,  # 最少間隔 3 根 K 線（與回測一致）
     # === 交易成本 ===
     "fee_rate": 0.0004,  # 0.04% 手續費
     "maintenance_margin_rate": 0.005,  # 0.5% 維持保證金

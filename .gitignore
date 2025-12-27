@@ -66,3 +66,4 @@ cleanup_log_*.json
 secrets/
 credentials.json
 archive/
+.env

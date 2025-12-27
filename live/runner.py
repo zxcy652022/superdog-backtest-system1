@@ -1,5 +1,5 @@
 """
-BiGe 7x 實盤運行器 v1.0
+BiGe 7x 實盤運行器 v1.1
 
 實盤策略運行腳本 - 連接幣安永續合約
 
@@ -8,11 +8,12 @@ BiGe 7x 實盤運行器 v1.0
 - 執行策略信號
 - 自動下單
 - 狀態監控與日誌
+- Telegram 通知（警犬風格）
 
 使用方式:
     python -m live.runner
 
-Version: v1.0
+Version: v1.1 - 新增 Telegram 通知
 """
 
 import logging
@@ -28,10 +29,11 @@ import pandas as pd
 # 添加項目根目錄到路徑
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
 
-from config.production_phase1 import PHASE1_CONFIG, STOP_CONDITIONS
-from live.binance_broker import BinanceFuturesBroker
+from config.production_phase1 import PHASE1_CONFIG, STOP_CONDITIONS  # noqa: E402
+from live.binance_broker import BinanceFuturesBroker  # noqa: E402
+from live.notifier import SuperDogNotifier  # noqa: E402
 
 # 載入環境變數
 load_dotenv()
@@ -72,6 +74,9 @@ class LiveStrategyRunner:
         # 初始化 Broker
         self.broker = BinanceFuturesBroker()
 
+        # 初始化通知器
+        self.notifier = SuperDogNotifier()
+
         # 策略狀態
         self.position_direction: Optional[str] = None  # "long", "short", None
         self.entry_price: Optional[float] = None
@@ -79,6 +84,9 @@ class LiveStrategyRunner:
         self.stop_loss: Optional[float] = None
         self.add_count: int = 0
         self.below_stop_count: int = 0  # 止損確認計數
+        self.current_bar: int = 0  # 當前 K 線編號（用於加倉間隔計算）
+        self.entry_bar: int = 0  # 開倉時的 K 線編號
+        self.last_add_bar: int = 0  # 最後一次加倉的 K 線編號
 
         # 監控狀態
         self.total_trades: int = 0
@@ -90,6 +98,12 @@ class LiveStrategyRunner:
         # 數據緩存
         self.data_cache: Optional[pd.DataFrame] = None
         self.last_bar_time: Optional[int] = None
+
+        # 日報追蹤
+        self.daily_start_equity: Optional[float] = None
+        self.daily_trades: int = 0
+        self.daily_wins: int = 0
+        self.last_daily_report_date: Optional[datetime] = None
 
     def initialize(self) -> bool:
         """
@@ -129,13 +143,47 @@ class LiveStrategyRunner:
         self.start_time = datetime.now()
         self.start_equity = balance["total"]
 
-        # 檢查是否有現有持倉
+        # 檢查是否有現有持倉並恢復狀態
         position = self.broker.get_position(self.symbol)
         if position:
             logger.info(f"檢測到現有持倉: {position.side} {position.qty} @ {position.entry_price}")
             self.position_direction = position.side.lower()
             self.entry_price = position.entry_price
-            # TODO: 恢復其他狀態
+            self.entry_time = datetime.now()  # 近似值
+
+            # 恢復止損位：需要先獲取 K 線數據計算 MA20
+            try:
+                df = self.fetch_klines()
+                if df is not None and len(df) >= 60:
+                    row = df.iloc[-1]
+                    avg20 = row["avg20"]
+                    if not pd.isna(avg20):
+                        if self.position_direction == "long":
+                            self.stop_loss = avg20 * (1 - self.config["ma20_buffer"])
+                        else:
+                            self.stop_loss = avg20 * (1 + self.config["ma20_buffer"])
+                        logger.info(f"恢復止損位: {self.stop_loss:.2f}")
+                    else:
+                        logger.warning("無法計算 MA20，止損位未設置")
+                else:
+                    logger.warning("數據不足，止損位未設置")
+            except Exception as e:
+                logger.error(f"恢復止損位失敗: {e}")
+
+            # 加倉次數無法精確恢復，設為保守值
+            self.add_count = self.config["max_add_count"]  # 假設已用完，避免過度加倉
+            logger.info(f"加倉次數設為最大值（保守處理）: {self.add_count}")
+
+            # 發送恢復通知
+            self.notifier.send_alert(
+                "POSITION_RECOVERED",
+                f"檢測到現有 {position.side} 持倉\n"
+                f"├ 數量：{position.qty}\n"
+                f"├ 進場價：${position.entry_price:,.2f}\n"
+                f"├ 止損位：${self.stop_loss:,.2f}"
+                if self.stop_loss
+                else "├ 止損位：未設置（請注意！）",
+            )
 
         logger.info("初始化完成！")
         logger.info(f"交易對: {self.symbol}")
@@ -144,6 +192,22 @@ class LiveStrategyRunner:
         logger.info(f"倉位大小: {self.config['position_size_pct'] * 100:.0f}%")
         logger.info(f"最大加倉次數: {self.config['max_add_count']}")
         logger.info("=" * 60)
+
+        # 記錄日報起始權益
+        self.daily_start_equity = balance["total"]
+
+        # 發送啟動通知
+        config_summary = (
+            f"├ 倉位大小：{self.config['position_size_pct'] * 100:.0f}%\n"
+            f"├ 最大加倉：{self.config['max_add_count']} 次\n"
+            f"└ 止損模式：MA20 追蹤"
+        )
+        self.notifier.send_startup(
+            equity=balance["total"],
+            leverage=leverage,
+            symbol=self.symbol,
+            config_summary=config_summary,
+        )
 
         return True
 
@@ -228,6 +292,52 @@ class LiveStrategyRunner:
 
         return None
 
+    def check_emergency_stop(self, row: pd.Series) -> bool:
+        """
+        檢查緊急止損（黑天鵝保護）
+
+        當單根 K 線跌破/突破 MA20 超過 N 倍 ATR 時，立即止損
+        不等待確認根數，防止極端行情造成巨大損失
+
+        Args:
+            row: 最新 K 線
+
+        Returns:
+            是否觸發緊急止損
+        """
+        if self.position_direction is None:
+            return False
+
+        p = self.config
+        emergency_atr = p.get("emergency_stop_atr", 3.5)  # 預設 3.5 倍 ATR
+
+        if emergency_atr <= 0:
+            return False
+
+        atr = row.get("atr")
+        avg20 = row.get("avg20")
+
+        if pd.isna(atr) or pd.isna(avg20) or atr <= 0:
+            return False
+
+        if self.position_direction == "long":
+            # 多單：檢查最低價跌破 MA20 的幅度
+            low = row["low"]
+            breach = avg20 - low  # 跌破幅度（正值表示跌破）
+            if breach > 0 and breach > emergency_atr * atr:
+                logger.warning(f"觸發緊急止損！跌破 MA20 達 {breach/atr:.1f} 倍 ATR")
+                return True
+
+        elif self.position_direction == "short":
+            # 空單：檢查最高價突破 MA20 的幅度
+            high = row["high"]
+            breach = high - avg20  # 突破幅度（正值表示突破）
+            if breach > 0 and breach > emergency_atr * atr:
+                logger.warning(f"觸發緊急止損！突破 MA20 達 {breach/atr:.1f} 倍 ATR")
+                return True
+
+        return False
+
     def check_exit_signal(self, row: pd.Series) -> bool:
         """
         檢查出場信號（止損）
@@ -238,6 +348,10 @@ class LiveStrategyRunner:
         Returns:
             是否應該出場
         """
+        # 優先檢查緊急止損（黑天鵝保護）
+        if self.check_emergency_stop(row):
+            return True
+
         if self.stop_loss is None:
             return False
 
@@ -278,6 +392,12 @@ class LiveStrategyRunner:
             return False
 
         if self.add_count >= p["max_add_count"]:
+            return False
+
+        # 檢查加倉間隔（與回測一致）
+        min_interval = p.get("add_position_min_interval", 3)
+        bars_since_last = self.current_bar - max(self.entry_bar, self.last_add_bar)
+        if bars_since_last < min_interval:
             return False
 
         close = row["close"]
@@ -366,39 +486,82 @@ class LiveStrategyRunner:
             self.entry_time = datetime.now()
             self.add_count = 0
             self.below_stop_count = 0
+            self.entry_bar = self.current_bar
+            self.last_add_bar = self.current_bar
 
             logger.info(f"進場成功: {direction.upper()} {qty} @ {result.avg_price}")
             logger.info(f"止損位: {self.stop_loss:.2f}")
+
+            # 發送開倉通知
+            balance = self.broker.get_account_balance()
+            self.notifier.send_entry(
+                direction=direction.upper(),
+                symbol=self.symbol,
+                qty=qty,
+                price=result.avg_price,
+                leverage=self.config["leverage"],
+                stop_loss=self.stop_loss,
+                equity=balance["total"],
+            )
             return True
         else:
             logger.error("進場失敗！")
+            self.notifier.send_alert("TRADE_ERROR", "開倉失敗！請檢查帳戶狀態。")
             return False
 
-    def execute_exit(self) -> bool:
+    def execute_exit(self, reason: str = "止損") -> bool:
         """
         執行出場（平倉）
+
+        Args:
+            reason: 平倉原因
 
         Returns:
             是否成功
         """
+        # 記錄平倉前的資訊
+        exit_direction = self.position_direction
+        exit_entry_price = self.entry_price
+        position = self.broker.get_position(self.symbol)
+        exit_qty = position.qty if position else 0
+
         result = self.broker.close_position(self.symbol)
 
         if result:
             logger.info(f"平倉成功: {result.avg_price}")
 
             # 計算盈虧
-            if self.entry_price:
-                if self.position_direction == "long":
-                    pnl_pct = (result.avg_price - self.entry_price) / self.entry_price
+            pnl_pct = 0
+            pnl_amount = 0
+            if exit_entry_price:
+                if exit_direction == "long":
+                    pnl_pct = (result.avg_price - exit_entry_price) / exit_entry_price
                 else:
-                    pnl_pct = (self.entry_price - result.avg_price) / self.entry_price
+                    pnl_pct = (exit_entry_price - result.avg_price) / exit_entry_price
+
+                # 計算實際盈虧金額
+                pnl_amount = exit_qty * exit_entry_price * pnl_pct
 
                 logger.info(f"本單盈虧: {pnl_pct * 100:.2f}%")
 
                 self.total_trades += 1
+                self.daily_trades += 1
                 if pnl_pct > 0:
                     self.winning_trades += 1
+                    self.daily_wins += 1
                 self.total_pnl += pnl_pct
+
+            # 發送平倉通知
+            self.notifier.send_exit(
+                direction=exit_direction.upper() if exit_direction else "UNKNOWN",
+                symbol=self.symbol,
+                qty=exit_qty,
+                entry_price=exit_entry_price or 0,
+                exit_price=result.avg_price,
+                pnl=pnl_amount,
+                pnl_pct=pnl_pct * 100,
+                reason=reason,
+            )
 
             # 重置狀態
             self.position_direction = None
@@ -411,6 +574,7 @@ class LiveStrategyRunner:
             return True
         else:
             logger.error("平倉失敗！")
+            self.notifier.send_alert("TRADE_ERROR", "平倉失敗！請立即檢查！")
             return False
 
     def execute_add_position(self, row: pd.Series) -> bool:
@@ -449,10 +613,29 @@ class LiveStrategyRunner:
 
         if result:
             self.add_count += 1
+            self.last_add_bar = self.current_bar
             logger.info(f"加倉成功: 第 {self.add_count} 次加倉")
+
+            # 取得更新後的持倉資訊
+            updated_position = self.broker.get_position(self.symbol)
+            total_qty = updated_position.qty if updated_position else add_qty
+            avg_price = updated_position.entry_price if updated_position else price
+
+            # 發送加倉通知
+            self.notifier.send_add_position(
+                direction=self.position_direction.upper() if self.position_direction else "UNKNOWN",
+                symbol=self.symbol,
+                add_qty=add_qty,
+                price=price,
+                add_count=self.add_count,
+                max_add=self.config["max_add_count"],
+                total_qty=total_qty,
+                avg_price=avg_price,
+            )
             return True
         else:
             logger.error("加倉失敗！")
+            self.notifier.send_alert("TRADE_ERROR", f"加倉失敗！第 {self.add_count + 1} 次加倉未能執行。")
             return False
 
     def update_trailing_stop(self, row: pd.Series):
@@ -496,7 +679,8 @@ class LiveStrategyRunner:
             return
 
         self.last_bar_time = bar_time
-        logger.info(f"處理 K 線: {bar_time}")
+        self.current_bar += 1  # 遞增 K 線計數器
+        logger.info(f"處理 K 線: {bar_time} (bar #{self.current_bar})")
         logger.info(
             f"  價格: O={row['open']:.2f} H={row['high']:.2f} L={row['low']:.2f} C={row['close']:.2f}"
         )
@@ -554,6 +738,99 @@ class LiveStrategyRunner:
 
         logger.info("=" * 40)
 
+    def check_and_send_daily_report(self):
+        """檢查並發送日報（每天早上 8 點）"""
+        now = datetime.now()
+
+        # 檢查是否已經發過今天的日報
+        if self.last_daily_report_date and self.last_daily_report_date.date() == now.date():
+            return
+
+        # 只在早上 8 點到 9 點之間發送
+        if now.hour != 8:
+            return
+
+        # 取得帳戶資訊
+        balance = self.broker.get_account_balance()
+        equity = balance["total"]
+
+        # 計算權益變化
+        equity_change = 0
+        equity_change_pct = 0
+        if self.daily_start_equity and self.daily_start_equity > 0:
+            equity_change = equity - self.daily_start_equity
+            equity_change_pct = (equity_change / self.daily_start_equity) * 100
+
+        # 取得持倉資訊
+        position = self.broker.get_position(self.symbol)
+        position_info = None
+        if position:
+            position_info = f"{position.side} {position.qty} @ ${position.entry_price:,.2f}"
+
+        # 計算運行時長
+        uptime_hours = 0
+        if self.start_time:
+            uptime_hours = (now - self.start_time).total_seconds() / 3600
+
+        # 發送日報
+        self.notifier.send_daily_report(
+            equity=equity,
+            equity_change=equity_change,
+            equity_change_pct=equity_change_pct,
+            trades_today=self.daily_trades,
+            wins_today=self.daily_wins,
+            position_info=position_info,
+            uptime_hours=uptime_hours,
+        )
+
+        # 更新狀態
+        self.last_daily_report_date = now
+        self.daily_start_equity = equity  # 重置日報起始權益
+        self.daily_trades = 0
+        self.daily_wins = 0
+
+    def send_heartbeat_if_needed(self):
+        """發送心跳通知（每小時一次）"""
+        balance = self.broker.get_account_balance()
+        price = self.broker.get_current_price(self.symbol)
+        position = self.broker.get_position(self.symbol)
+
+        position_info = None
+        positions_pnl = None
+        total_unrealized_pnl = None
+
+        if position:
+            position_info = f"{position.side} {position.qty} BTC @ ${position.entry_price:,.2f}"
+
+            # 計算盈虧百分比
+            if position.entry_price > 0 and price > 0:
+                if position.side.lower() == "long":
+                    pnl_pct = (price - position.entry_price) / position.entry_price * 100
+                else:
+                    pnl_pct = (position.entry_price - price) / position.entry_price * 100
+
+                positions_pnl = [
+                    {
+                        "symbol": self.symbol,
+                        "direction": position.side.upper()[:1],  # L 或 S
+                        "pnl_pct": pnl_pct,
+                    }
+                ]
+                total_unrealized_pnl = balance.get("unrealized_pnl", 0)
+
+        uptime_hours = None
+        if self.start_time:
+            uptime_hours = (datetime.now() - self.start_time).total_seconds() / 3600
+
+        self.notifier.send_heartbeat(
+            equity=balance["total"],
+            price=price,
+            position_info=position_info,
+            uptime_hours=uptime_hours,
+            positions_pnl=positions_pnl,
+            total_unrealized_pnl=total_unrealized_pnl,
+        )
+
     def run(self, interval_seconds: int = 60):
         """
         運行主循環
@@ -563,12 +840,15 @@ class LiveStrategyRunner:
         """
         if not self.initialize():
             logger.error("初始化失敗，退出")
+            self.notifier.send_alert("SYSTEM_ERROR", "系統初始化失敗！無法啟動交易。")
             return
 
         logger.info(f"開始運行，每 {interval_seconds} 秒檢查一次...")
 
         last_status_time = time.time()
         status_interval = 3600  # 每小時打印一次狀態
+        consecutive_errors = 0
+        max_consecutive_errors = 5
 
         try:
             while True:
@@ -576,14 +856,31 @@ class LiveStrategyRunner:
                     # 處理 K 線
                     self.process_bar()
 
-                    # 定期打印狀態
+                    # 定期打印狀態 + 發送心跳
                     current_time = time.time()
                     if current_time - last_status_time >= status_interval:
                         self.print_status()
+                        self.send_heartbeat_if_needed()
                         last_status_time = current_time
 
+                    # 檢查日報
+                    self.check_and_send_daily_report()
+
+                    # 重置錯誤計數
+                    consecutive_errors = 0
+
                 except Exception as e:
+                    consecutive_errors += 1
                     logger.error(f"處理錯誤: {e}", exc_info=True)
+
+                    # 連續錯誤過多，發送警報
+                    if consecutive_errors >= max_consecutive_errors:
+                        self.notifier.send_alert(
+                            "SYSTEM_ERROR",
+                            f"連續發生 {consecutive_errors} 次錯誤！\n系統可能不穩定，請檢查。",
+                            str(e),
+                        )
+                        consecutive_errors = 0  # 重置，避免重複發送
 
                 # 等待下一次檢查
                 time.sleep(interval_seconds)
@@ -591,6 +888,15 @@ class LiveStrategyRunner:
         except KeyboardInterrupt:
             logger.info("收到停止信號，退出...")
             self.print_status()
+
+            # 發送關閉通知
+            balance = self.broker.get_account_balance()
+            self.notifier.send_shutdown(
+                reason="手動停止 (Ctrl+C)",
+                equity=balance["total"],
+                total_trades=self.total_trades,
+                total_pnl=self.total_pnl * 100,  # 轉為百分比
+            )
 
 
 def main():
