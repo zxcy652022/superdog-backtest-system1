@@ -356,6 +356,21 @@ class BinanceFuturesBroker:
         try:
             data = self._request("POST", "/fapi/v1/order", params, signed=True)
 
+            # 計算平均成交價格
+            # 優先從 avgPrice 取得，如果為 0 則從 fills 計算
+            avg_price = float(data.get("avgPrice", 0))
+            if avg_price == 0 and "fills" in data and len(data["fills"]) > 0:
+                # 從成交明細計算加權平均價格
+                total_qty = 0
+                total_value = 0
+                for fill in data["fills"]:
+                    fill_qty = float(fill["qty"])
+                    fill_price = float(fill["price"])
+                    total_qty += fill_qty
+                    total_value += fill_qty * fill_price
+                if total_qty > 0:
+                    avg_price = total_value / total_qty
+
             result = OrderResult(
                 order_id=data["orderId"],
                 symbol=data["symbol"],
@@ -365,7 +380,7 @@ class BinanceFuturesBroker:
                 price=float(data.get("price", 0)),
                 status=data["status"],
                 executed_qty=float(data["executedQty"]),
-                avg_price=float(data.get("avgPrice", 0)),
+                avg_price=avg_price,
             )
 
             logger.info(f"下單成功: {side} {qty} {symbol} @ {result.avg_price}")

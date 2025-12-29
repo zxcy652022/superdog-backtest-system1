@@ -320,15 +320,31 @@ class MultiSymbolRunner:
         if state.position_direction == "long":
             low = row["low"]
             breach = avg20 - low
+            breach_atr_ratio = breach / atr if atr > 0 else 0
+            logger.debug(
+                f"[{state.symbol}] 緊急止損檢查(LONG): low={low:.4f}, avg20={avg20:.4f}, "
+                f"breach={breach:.4f}, ATR={atr:.4f}, ratio={breach_atr_ratio:.2f}/{emergency_atr}"
+            )
             if breach > 0 and breach > emergency_atr * atr:
-                logger.warning(f"[{state.symbol}] 觸發緊急止損！跌破 MA20 達 {breach/atr:.1f} 倍 ATR")
+                logger.warning(
+                    f"[{state.symbol}] 🚨 觸發緊急止損！跌破 MA20 達 {breach_atr_ratio:.1f} 倍 ATR "
+                    f"(閾值: {emergency_atr}x) | low={low:.2f}, avg20={avg20:.2f}, ATR={atr:.4f}"
+                )
                 return True
 
         elif state.position_direction == "short":
             high = row["high"]
             breach = high - avg20
+            breach_atr_ratio = breach / atr if atr > 0 else 0
+            logger.debug(
+                f"[{state.symbol}] 緊急止損檢查(SHORT): high={high:.4f}, avg20={avg20:.4f}, "
+                f"breach={breach:.4f}, ATR={atr:.4f}, ratio={breach_atr_ratio:.2f}/{emergency_atr}"
+            )
             if breach > 0 and breach > emergency_atr * atr:
-                logger.warning(f"[{state.symbol}] 觸發緊急止損！突破 MA20 達 {breach/atr:.1f} 倍 ATR")
+                logger.warning(
+                    f"[{state.symbol}] 🚨 觸發緊急止損！突破 MA20 達 {breach_atr_ratio:.1f} 倍 ATR "
+                    f"(閾值: {emergency_atr}x) | high={high:.2f}, avg20={avg20:.2f}, ATR={atr:.4f}"
+                )
                 return True
 
         return False
@@ -625,8 +641,11 @@ class MultiSymbolRunner:
             self.update_trailing_stop(state, row)
 
             if self.check_exit_signal(state, row):
-                logger.info(f"[{symbol}] 觸發止損！")
-                self.execute_exit(symbol, "止損")
+                # 判斷是緊急止損還是普通止損
+                is_emergency = self.check_emergency_stop(state, row)
+                reason = "緊急止損" if is_emergency else "止損"
+                logger.info(f"[{symbol}] 觸發{reason}！(below_stop_count={state.below_stop_count})")
+                self.execute_exit(symbol, reason)
                 return
 
             if self.check_add_position_signal(state, row):
@@ -650,16 +669,29 @@ class MultiSymbolRunner:
         logger.info(f"帳戶權益: {balance['total']:.2f} USDT")
         logger.info(f"未實現盈虧: {balance['unrealized_pnl']:.2f} USDT")
 
-        # 顯示各幣種持倉
+        # 顯示各幣種持倉（包含詳細止損狀態）
         positions_count = 0
         for symbol in self.symbols:
             position = self.broker.get_position(symbol)
             if position:
                 positions_count += 1
                 state = self.states[symbol]
+
+                # 計算當前盈虧
+                current_price = self.broker.get_current_price(symbol)
+                if position.side == "LONG":
+                    pnl_pct = (current_price - position.entry_price) / position.entry_price * 100
+                else:
+                    pnl_pct = (position.entry_price - current_price) / position.entry_price * 100
+
                 logger.info(
-                    f"  {symbol}: {position.side} {position.qty} @ {position.entry_price:.2f} "
-                    f"(加倉 {state.add_count}/{self.config['max_add_count']})"
+                    f"  {symbol}: {position.side} {position.qty} @ {position.entry_price:.4f} "
+                    f"| 現價: {current_price:.4f} ({pnl_pct:+.2f}%)"
+                )
+                logger.info(
+                    f"    止損位: {state.stop_loss:.4f if state.stop_loss else 'N/A'} | "
+                    f"連續觸及: {state.below_stop_count}/10 | "
+                    f"加倉: {state.add_count}/{self.config['max_add_count']}"
                 )
 
         if positions_count == 0:
@@ -726,7 +758,7 @@ class MultiSymbolRunner:
         # 統計持倉和盈虧
         position_symbols = []
         positions_pnl = []
-        total_unrealized_pnl = 0.0
+        total_unrealized_pnl = 0.0  # 從每個持倉加總，而非使用帳戶的 crossUnPnl
 
         for symbol in self.symbols:
             position = self.broker.get_position(symbol)
@@ -745,10 +777,8 @@ class MultiSymbolRunner:
                             (position.entry_price - current_price) / position.entry_price * 100
                         )
 
-                    # 計算未實現盈虧金額
-                    unrealized_pnl = (
-                        position.unrealized_pnl if hasattr(position, "unrealized_pnl") else 0
-                    )
+                    # 從 Position 物件取得未實現盈虧（逐倉模式下這是正確的來源）
+                    unrealized_pnl = position.unrealized_pnl
 
                     positions_pnl.append(
                         {
@@ -771,7 +801,8 @@ class MultiSymbolRunner:
             position_info=position_info,
             uptime_hours=uptime_hours,
             positions_pnl=positions_pnl if positions_pnl else None,
-            total_unrealized_pnl=balance.get("unrealized_pnl", 0) if positions_pnl else None,
+            # 使用從各持倉加總的未實現盈虧，而非帳戶的 crossUnPnl（逐倉模式下為 0）
+            total_unrealized_pnl=total_unrealized_pnl if positions_pnl else None,
         )
 
     def run(self, interval_seconds: int = 60):
