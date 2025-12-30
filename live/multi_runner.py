@@ -718,8 +718,9 @@ class MultiSymbolRunner:
                     f"  {symbol}: {position.side} {position.qty} @ {position.entry_price:.4f} "
                     f"| 現價: {current_price:.4f} ({pnl_pct:+.2f}%)"
                 )
+                stop_loss_str = f"{state.stop_loss:.4f}" if state.stop_loss else "N/A"
                 logger.info(
-                    f"    止損位: {state.stop_loss:.4f if state.stop_loss else 'N/A'} | "
+                    f"    止損位: {stop_loss_str} | "
                     f"連續觸及: {state.below_stop_count}/10 | "
                     f"加倉: {state.add_count}/{self.config['max_add_count']}"
                 )
