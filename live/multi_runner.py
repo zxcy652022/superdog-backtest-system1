@@ -34,6 +34,7 @@ from dotenv import load_dotenv  # noqa: E402
 from config.production_phase1 import PHASE1_CONFIG  # noqa: E402
 from live.binance_broker import BinanceFuturesBroker  # noqa: E402
 from live.notifier import SuperDogNotifier  # noqa: E402
+from live.trade_logger import get_trade_logger  # noqa: E402
 
 # 載入環境變數
 load_dotenv()
@@ -90,6 +91,7 @@ class SymbolState:
     current_bar: int = 0  # 當前 K 線編號（用於加倉間隔計算）
     entry_bar: int = 0  # 開倉時的 K 線編號
     last_add_bar: int = 0  # 最後一次加倉的 K 線編號
+    trade_id: Optional[str] = None  # 交易日誌 ID（用於關聯開倉/平倉）
 
 
 class MultiSymbolRunner:
@@ -472,6 +474,18 @@ class MultiSymbolRunner:
 
             logger.info(f"[{symbol}] 進場成功: {direction.upper()} {qty} @ {result.avg_price}")
 
+            # 記錄交易日誌（用於 Phase 1 回顧分析）
+            trade_logger = get_trade_logger()
+            state.trade_id = trade_logger.log_entry(
+                symbol=symbol,
+                direction=direction,
+                qty=qty,
+                price=result.avg_price,
+                stop_loss=state.stop_loss,
+                df=state.data_cache,
+                reason="趨勢進場",
+            )
+
             # 發送通知
             balance = self.broker.get_account_balance()
             self.notifier.send_entry(
@@ -519,6 +533,21 @@ class MultiSymbolRunner:
                     self.daily_wins += 1
                 self.total_pnl += pnl_pct
 
+            # 記錄交易日誌（用於 Phase 1 回顧分析）
+            trade_logger = get_trade_logger()
+            trade_logger.log_exit(
+                symbol=symbol,
+                direction=exit_direction or "unknown",
+                qty=exit_qty,
+                entry_price=exit_entry_price or 0,
+                exit_price=result.avg_price,
+                pnl_pct=pnl_pct * 100,
+                pnl_amount=pnl_amount,
+                reason=reason,
+                df=state.data_cache,
+                entry_id=state.trade_id,
+            )
+
             # 發送通知
             self.notifier.send_exit(
                 direction=exit_direction.upper() if exit_direction else "UNKNOWN",
@@ -538,6 +567,7 @@ class MultiSymbolRunner:
             state.stop_loss = None
             state.add_count = 0
             state.below_stop_count = 0
+            state.trade_id = None
 
             return True
         else:
