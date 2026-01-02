@@ -356,11 +356,19 @@ class BinanceFuturesBroker:
         try:
             data = self._request("POST", "/fapi/v1/order", params, signed=True)
 
+            # 記錄 API 返回以便除錯
+            logger.debug(f"訂單 API 返回: avgPrice={data.get('avgPrice')}, fills={data.get('fills')}")
+
             # 計算平均成交價格
             # 優先從 avgPrice 取得，如果為 0 則從 fills 計算
-            avg_price = float(data.get("avgPrice", 0))
+            avg_price = 0
+            try:
+                avg_price = float(data.get("avgPrice", 0) or 0)
+            except (ValueError, TypeError):
+                avg_price = 0
+
+            # 如果 avgPrice 為 0，從 fills 計算加權平均價格
             if avg_price == 0 and "fills" in data and len(data["fills"]) > 0:
-                # 從成交明細計算加權平均價格
                 total_qty = 0
                 total_value = 0
                 for fill in data["fills"]:
@@ -370,6 +378,15 @@ class BinanceFuturesBroker:
                     total_value += fill_qty * fill_price
                 if total_qty > 0:
                     avg_price = total_value / total_qty
+
+            # 最後保險：如果還是 0，用當前市價
+            if avg_price == 0:
+                try:
+                    current_price = self.get_current_price(symbol)
+                    avg_price = current_price
+                    logger.warning(f"avg_price 為 0，使用當前市價 {current_price}")
+                except Exception as e:
+                    logger.error(f"無法取得當前價格: {e}")
 
             result = OrderResult(
                 order_id=data["orderId"],
