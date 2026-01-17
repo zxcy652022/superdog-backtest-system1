@@ -1,20 +1,28 @@
 """
 BiGe 7x 實盤運行器 v1.1
 
-實盤策略運行腳本 - 連接幣安永續合約
+⚠️ 已棄用 (DEPRECATED) - 請使用 multi_runner.py
 
-功能:
+此模組為單幣種版本，已被 multi_runner.py 取代。
+保留此檔案僅供參考，不建議用於實盤交易。
+
+替代方案：
+    python -m live.multi_runner
+
+歷史功能:
 - 定時獲取 K 線數據
 - 執行策略信號
 - 自動下單
 - 狀態監控與日誌
 - Telegram 通知（警犬風格）
 
-使用方式:
-    python -m live.runner
-
 Version: v1.1 - 新增 Telegram 通知
+Deprecated: 2026-01-17 - 請改用 multi_runner.py
 """
+
+import warnings
+
+warnings.warn("runner.py 已棄用，請使用 multi_runner.py", DeprecationWarning, stacklevel=2)
 
 import logging
 import os
@@ -252,6 +260,10 @@ class LiveStrategyRunner:
         """
         檢查進場信號
 
+        v2.0 優化版：
+        - 加入趨勢強度過濾（MA20/MA60 差距 > 3%）
+        - 減少假信號，提高勝率
+
         Args:
             row: 最新 K 線
 
@@ -268,9 +280,17 @@ class LiveStrategyRunner:
         if pd.isna(avg20) or pd.isna(avg60):
             return None
 
-        # 趨勢判斷（loose 模式）
-        is_uptrend = avg20 > avg60
-        is_downtrend = avg20 < avg60
+        # 趨勢強度過濾（v2.0 新增）
+        trend_strength = p.get("trend_strength", 0.03)  # 預設 3%
+
+        # 防止除以零（與 multi_runner.py 對齊）
+        if avg60 == 0:
+            return None
+        trend_gap = abs(avg20 - avg60) / abs(avg60)
+
+        # 趨勢判斷（需通過強度過濾）
+        is_uptrend = avg20 > avg60 and trend_gap > trend_strength
+        is_downtrend = avg20 < avg60 and trend_gap > trend_strength
 
         # 多單進場：回踩 MA20
         if is_uptrend:
@@ -404,6 +424,21 @@ class LiveStrategyRunner:
         low = row["low"]
         high = row["high"]
         avg20 = row["avg20"]
+
+        # 防止除以零
+        if pd.isna(avg20) or avg20 == 0:
+            return False
+
+        # 🔴 關鍵修復：必須盈利才能加倉（v2.3 配置要求）
+        min_profit = p.get("add_position_min_profit", 0.03)  # 預設 3%
+        if self.entry_price and self.entry_price > 0:
+            if self.position_direction == "long":
+                current_pnl_pct = (close - self.entry_price) / self.entry_price
+            else:
+                current_pnl_pct = (self.entry_price - close) / self.entry_price
+
+            if current_pnl_pct < min_profit:
+                return False
 
         if self.position_direction == "long":
             near_ma20 = abs(low - avg20) / avg20 < p["pullback_tolerance"]

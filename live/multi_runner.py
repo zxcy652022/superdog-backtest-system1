@@ -1,18 +1,26 @@
 """
-BiGe 7x 多幣種實盤運行器 v1.0
+BiGe 幣哥雙均線策略 - 多幣種實盤運行器
 
-同時監控 Top 10 幣種，獨立判斷進出場
+策略版本: v1 (回踩進場策略)
+程式版本: 1.0.2
+
+配置來源: config/production_phase1.py (v2.3)
 
 功能:
 - 同時監控多個交易對
 - 每個幣種獨立策略狀態
 - 資金平均分配
 - Telegram 通知（警犬風格）
+- trend_strength 趨勢過濾
+- add_position_min_profit 加倉盈利檢查
 
 使用方式:
     python -m live.multi_runner
 
-Version: v1.0
+更新日誌:
+- v1.0.0: 初始版本
+- v1.0.1: 修復 trend_strength 過濾缺失
+- v1.0.2: 新增 add_position_min_profit 檢查、除以零保護
 """
 
 import logging
@@ -277,8 +285,14 @@ class MultiSymbolRunner:
         if pd.isna(avg20) or pd.isna(avg60):
             return None
 
-        is_uptrend = avg20 > avg60
-        is_downtrend = avg20 < avg60
+        # 趨勢強度過濾（對齊 runner.py，修復 v1.0.1）
+        trend_strength = p.get("trend_strength", 0.03)  # 預設 3%
+        if avg60 == 0:
+            return None
+        trend_gap = abs(avg20 - avg60) / abs(avg60)
+
+        is_uptrend = (avg20 > avg60) and (trend_gap > trend_strength)
+        is_downtrend = (avg20 < avg60) and (trend_gap > trend_strength)
 
         # 多單進場
         if is_uptrend:
@@ -401,6 +415,21 @@ class MultiSymbolRunner:
         low = row["low"]
         high = row["high"]
         avg20 = row["avg20"]
+
+        # 防止除以零
+        if pd.isna(avg20) or avg20 == 0:
+            return False
+
+        # 🔴 關鍵修復：必須盈利才能加倉（v2.3 配置要求）
+        min_profit = p.get("add_position_min_profit", 0.03)  # 預設 3%
+        if state.entry_price and state.entry_price > 0:
+            if state.position_direction == "long":
+                current_pnl_pct = (close - state.entry_price) / state.entry_price
+            else:
+                current_pnl_pct = (state.entry_price - close) / state.entry_price
+
+            if current_pnl_pct < min_profit:
+                return False
 
         if state.position_direction == "long":
             near_ma20 = abs(low - avg20) / avg20 < p["pullback_tolerance"]
@@ -791,34 +820,35 @@ class MultiSymbolRunner:
         positions_pnl = []
         total_unrealized_pnl = 0.0  # 從每個持倉加總，而非使用帳戶的 crossUnPnl
 
-        for symbol in self.symbols:
-            position = self.broker.get_position(symbol)
-            if position:
-                position_symbols.append(f"{symbol.replace('USDT', '')}")
+        # 使用 get_all_positions 獲取所有持倉（不只是監控的幣種）
+        all_positions = self.broker.get_all_positions()
 
-                # 計算盈虧百分比
-                current_price = self.broker.get_current_price(symbol)
-                if position.entry_price > 0 and current_price > 0:
-                    if position.side.lower() == "long":
-                        pnl_pct = (
-                            (current_price - position.entry_price) / position.entry_price * 100
-                        )
-                    else:
-                        pnl_pct = (
-                            (position.entry_price - current_price) / position.entry_price * 100
-                        )
+        for position in all_positions:
+            symbol = position.symbol
+            position_symbols.append(f"{symbol.replace('USDT', '')}")
 
-                    # 從 Position 物件取得未實現盈虧（逐倉模式下這是正確的來源）
-                    unrealized_pnl = position.unrealized_pnl
+            # 計算盈虧百分比（使用槓桿放大）
+            # 重要：position.unrealized_pnl 已經是實際的 USDT 盈虧
+            # ROI% 需要考慮槓桿：pnl_pct = unrealized_pnl / margin * 100
+            # margin = position_value / leverage = qty * entry_price / leverage
+            if position.entry_price > 0 and position.qty > 0:
+                position_value = position.qty * position.entry_price
+                margin = (
+                    position_value / position.leverage if position.leverage > 0 else position_value
+                )
+                pnl_pct = (position.unrealized_pnl / margin * 100) if margin > 0 else 0
 
-                    positions_pnl.append(
-                        {
-                            "symbol": symbol,
-                            "direction": position.side.upper()[:1],  # L 或 S
-                            "pnl_pct": pnl_pct,
-                        }
-                    )
-                    total_unrealized_pnl += unrealized_pnl
+                # 從 Position 物件取得未實現盈虧（逐倉模式下這是正確的來源）
+                unrealized_pnl = position.unrealized_pnl
+
+                positions_pnl.append(
+                    {
+                        "symbol": symbol,
+                        "direction": position.side.upper()[:1],  # L 或 S
+                        "pnl_pct": pnl_pct,
+                    }
+                )
+                total_unrealized_pnl += unrealized_pnl
 
         position_info = f"持倉: {', '.join(position_symbols)}" if position_symbols else "空倉待命中"
 

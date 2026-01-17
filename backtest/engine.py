@@ -1,5 +1,5 @@
 """
-Backtest Engine v1.0
+Backtest Engine v1.2
 
 Core backtest engine module with position sizing, stop-loss, take-profit, and detailed trade logging.
 Handles main backtest loop: iterate bars, call strategy, manage positions, compute metrics.
@@ -18,6 +18,16 @@ v1.0 新增：
 - 爆倉檢測整合
 - 維持保證金率設定
 
+v1.1 新增（2026-01-05）：
+- StopManager 注入支援（確認式止損、追蹤止損、緊急止損）
+- AddPositionManager 注入支援（加倉管理）
+- 符合 RULES.md 第 2.2 節：執行邏輯從策略分離到引擎
+
+v1.2 新增（2026-01-05）：
+- ExecutionConfig 支援：策略可以提供完整的執行配置
+- 引擎會根據策略的 get_execution_config() 自動配置所有執行邏輯
+- 這讓策略像「食譜」，引擎像「廚師」
+
 Design Reference: docs/v1.0/DESIGN.md
 """
 
@@ -27,9 +37,16 @@ from typing import Any, Dict, List, Optional, Type
 
 import pandas as pd
 
+from backtest.add_position import (
+    AddPositionManager,
+    BaseAddPositionManager,
+    DisabledAddPositionManager,
+)
 from backtest.broker import DirectionType, SimulatedBroker, Trade
 from backtest.metrics import compute_basic_metrics
-from backtest.position_sizer import AllInSizer, BasePositionSizer
+from backtest.position_sizer import AllInSizer, BasePositionSizer, PercentOfEquitySizer
+from backtest.stops import BaseStopManager, ConfirmedStopManager, SimpleStopManager
+from backtest.strategy_config import ExecutionConfig
 
 
 @dataclass
@@ -176,6 +193,9 @@ def run_backtest(
     strategy_params: Optional[Dict[str, Any]] = None,  # v0.7 新增：策略參數
     maintenance_margin_rate: float = 0.005,  # v1.0 新增：維持保證金率
     slippage_rate: Optional[float] = None,  # v1.0 新增：固定滑點率
+    stop_manager: Optional[BaseStopManager] = None,  # v1.1 新增：止損管理器
+    add_position_manager: Optional[BaseAddPositionManager] = None,  # v1.1 新增：加倉管理器
+    execution_config: Optional[ExecutionConfig] = None,  # v1.2 新增：策略執行配置
 ) -> BacktestResult:
     """
     Run backtest with position sizing, stop-loss, and take-profit support
@@ -186,18 +206,24 @@ def run_backtest(
 
     v1.0: 新增滑點和爆倉檢測支援
 
+    v1.1: 新增 StopManager 和 AddPositionManager 注入
+    - stop_manager: 可配置的止損管理器（確認式、追蹤、緊急止損）
+    - add_position_manager: 可配置的加倉管理器
+
     Args:
         data: OHLCV DataFrame with DatetimeIndex
         strategy_cls: Strategy class (v0.3 or v0.5 API)
         initial_cash: Initial capital (default 10000)
         fee_rate: Fee rate (default 0.0005 = 0.05%)
         position_sizer: Position sizer (default AllInSizer)
-        stop_loss_pct: Stop loss percentage (e.g., 0.02 = 2%)
+        stop_loss_pct: Stop loss percentage (e.g., 0.02 = 2%) - 與 stop_manager 互斥
         take_profit_pct: Take profit percentage (e.g., 0.05 = 5%)
         leverage: Leverage multiplier (default 1.0, range 1-100) - v0.3
         strategy_params: Strategy parameters dict - v0.7
         maintenance_margin_rate: Maintenance margin rate for liquidation (default 0.5%) - v1.0
         slippage_rate: Fixed slippage rate (None = no slippage) - v1.0
+        stop_manager: Custom stop manager (v1.1) - 如果提供，會覆蓋 stop_loss_pct
+        add_position_manager: Custom add position manager (v1.1)
 
     Returns:
         BacktestResult containing equity curve, trades, metrics, and trade log
@@ -216,12 +242,92 @@ def run_backtest(
         ...     slippage_rate=0.0005,
         ...     maintenance_margin_rate=0.005
         ... )
+
+        # v1.1 with custom stop manager (BiGe style)
+        >>> from backtest.stops import ConfirmedStopManager
+        >>> from backtest.add_position import AddPositionManager
+        >>> result = run_backtest(
+        ...     data, BiGeSignalStrategy,
+        ...     leverage=7,
+        ...     stop_manager=ConfirmedStopManager(confirm_bars=10, trailing=True),
+        ...     add_position_manager=AddPositionManager(max_count=3, min_profit=0.03),
+        ... )
     """
     _validate_data(data)
 
-    # Use AllInSizer if no position sizer provided
+    # v1.2: 如果策略提供 ExecutionConfig，優先使用策略的配置
+    # 這讓策略像「食譜」，引擎像「廚師」
+    if execution_config is None and hasattr(strategy_cls, "get_execution_config"):
+        try:
+            execution_config = strategy_cls.get_execution_config()
+        except Exception:
+            pass
+
+    # v1.2: 根據 ExecutionConfig 配置所有執行參數
+    if execution_config is not None:
+        # 覆蓋參數（如果調用者沒有明確指定）
+        if leverage == 1.0:  # 使用預設值表示未指定
+            leverage = execution_config.leverage
+        if fee_rate == 0.0005:  # 預設值
+            fee_rate = execution_config.fee_rate
+        if take_profit_pct is None:
+            take_profit_pct = execution_config.take_profit_pct
+
+        # 根據 StopConfig 建立 StopManager
+        if stop_manager is None:
+            sc = execution_config.stop_config
+            if sc.type == "confirmed":
+                stop_manager = ConfirmedStopManager(
+                    confirm_bars=sc.confirm_bars,
+                    trailing=sc.trailing,
+                    trailing_ma_key=sc.trailing_ma_key,
+                    trailing_buffer=sc.trailing_buffer,
+                    emergency_atr_mult=sc.emergency_atr_mult,
+                    atr_key=sc.atr_key,
+                )
+            else:
+                stop_manager = SimpleStopManager()
+
+            # 如果有固定止損百分比，覆蓋
+            if sc.fixed_stop_pct is not None and stop_loss_pct is None:
+                stop_loss_pct = sc.fixed_stop_pct
+
+        # 根據 AddPositionConfig 建立 AddPositionManager
+        if add_position_manager is None:
+            ac = execution_config.add_position_config
+            if ac.enabled:
+                add_position_manager = AddPositionManager(
+                    enabled=True,
+                    max_count=ac.max_count,
+                    size_pct=ac.size_pct,
+                    min_interval=ac.min_interval,
+                    min_profit=ac.min_profit,
+                    pullback_tolerance=ac.pullback_tolerance,
+                    pullback_ma_key=ac.pullback_ma_key,
+                )
+            else:
+                add_position_manager = DisabledAddPositionManager()
+
+        # 根據 PositionSizingConfig 建立 PositionSizer
+        if position_sizer is None:
+            pc = execution_config.position_sizing_config
+            if pc.type == "percent_of_equity":
+                position_sizer = PercentOfEquitySizer(pc.percent, fee_rate=fee_rate)
+            else:
+                position_sizer = AllInSizer(fee_rate=fee_rate)
+
+    # 使用預設值（如果上面沒有配置）
     if position_sizer is None:
         position_sizer = AllInSizer(fee_rate=fee_rate)
+    if stop_manager is None:
+        stop_manager = SimpleStopManager()
+    if add_position_manager is None:
+        add_position_manager = DisabledAddPositionManager()
+
+    # v1.1: 用於追蹤 Manager 狀態
+    _current_stop_price: Optional[float] = None
+    _avg_entry_price: Optional[float] = None
+    _current_qty: float = 0
 
     # v1.0: Pass leverage and maintenance_margin_rate to broker
     broker = SimulatedBroker(
@@ -283,16 +389,83 @@ def run_backtest(
 
         # Check SL/TP if we have position
         if broker.has_position:
-            sl_triggered, tp_triggered, exit_price, exit_reason = _check_sl_tp(
-                row=row,
-                entry_price=broker.position_entry_price,
-                direction=broker.position_direction,  # v0.3: 傳入方向
-                stop_loss_pct=stop_loss_pct,
-                take_profit_pct=take_profit_pct,
+            # v1.1: 優先使用 StopManager（如果有設定止損價）
+            use_stop_manager = _current_stop_price is not None and not isinstance(
+                stop_manager, SimpleStopManager
             )
+
+            if use_stop_manager:
+                # 使用 StopManager 檢查止損
+                # 先更新追蹤止損
+                _current_stop_price = stop_manager.update_trailing(
+                    row, broker.position_direction, _current_stop_price
+                )
+
+                # 檢查是否應該止損
+                stop_result = stop_manager.check(
+                    row=row,
+                    direction=broker.position_direction,
+                    entry_price=broker.position_entry_price,
+                    current_stop=_current_stop_price,
+                )
+
+                sl_triggered = stop_result.should_stop
+                exit_price = stop_result.stop_price
+                exit_reason = f"stop_{stop_result.reason}"
+
+                # TP 仍用固定百分比（如果有設定）
+                tp_triggered = False
+                if not sl_triggered and take_profit_pct is not None:
+                    if broker.is_long:
+                        tp_price = broker.position_entry_price * (1 + take_profit_pct)
+                        if row["high"] >= tp_price:
+                            tp_triggered = True
+                            exit_price = tp_price
+                            exit_reason = "take_profit"
+                    elif broker.is_short:
+                        tp_price = broker.position_entry_price * (1 - take_profit_pct)
+                        if row["low"] <= tp_price:
+                            tp_triggered = True
+                            exit_price = tp_price
+                            exit_reason = "take_profit"
+            else:
+                # 使用傳統固定百分比 SL/TP
+                sl_triggered, tp_triggered, exit_price, exit_reason = _check_sl_tp(
+                    row=row,
+                    entry_price=broker.position_entry_price,
+                    direction=broker.position_direction,  # v0.3: 傳入方向
+                    stop_loss_pct=stop_loss_pct,
+                    take_profit_pct=take_profit_pct,
+                )
 
             # Update MAE/MFE tracking
             position_tracker.update(row["low"], row["high"])
+
+            # v1.1: 檢查加倉（在檢查止損之後、平倉之前）
+            if not sl_triggered and not tp_triggered and _avg_entry_price is not None:
+                add_result = add_position_manager.check(
+                    row=row,
+                    bar_index=i,
+                    direction=broker.position_direction,
+                    avg_entry_price=_avg_entry_price,
+                    current_qty=_current_qty,
+                    current_stop=_current_stop_price or 0,
+                )
+
+                if add_result.should_add and add_result.add_qty > 0:
+                    # 執行加倉
+                    if broker.is_long:
+                        success = broker.buy(add_result.add_qty, row["close"], timestamp)
+                    else:
+                        success = broker.sell(add_result.add_qty, row["close"], timestamp)
+
+                    if success:
+                        # 更新平均進場價和數量
+                        old_value = _avg_entry_price * _current_qty
+                        new_value = row["close"] * add_result.add_qty
+                        _current_qty += add_result.add_qty
+                        _avg_entry_price = (old_value + new_value) / _current_qty
+                        add_position_manager.record_add(i, _current_qty)
 
             # Execute SL/TP if triggered
             if sl_triggered or tp_triggered:
@@ -331,6 +504,13 @@ def run_backtest(
                 # Reset tracker
                 position_tracker.reset()
 
+                # v1.1: Reset Manager states
+                stop_manager.reset()
+                add_position_manager.reset()
+                _current_stop_price = None
+                _avg_entry_price = None
+                _current_qty = 0
+
                 # Update equity
                 broker.update_equity(price=exit_price, time=timestamp)
                 continue
@@ -341,6 +521,34 @@ def run_backtest(
         # If strategy just opened a position, start tracking
         if broker.has_position and not position_tracker.is_active:
             position_tracker.start(i, row["low"], row["high"])
+
+            # v1.1: Initialize Manager states when position opened
+            stop_manager.reset()
+            add_position_manager.reset()
+            if hasattr(add_position_manager, "set_entry_bar"):
+                add_position_manager.set_entry_bar(i)
+
+            _avg_entry_price = broker.position_entry_price
+            _current_qty = broker.position_qty
+
+            # v1.1: 計算初始止損價（如果策略提供了建議）
+            # 這裡使用 MA20 × 0.98 作為預設，但策略可以覆蓋
+            if hasattr(strategy, "get_stop_loss") and callable(strategy.get_stop_loss):
+                _current_stop_price = strategy.get_stop_loss()
+            elif "avg20" in row and not pd.isna(row.get("avg20")):
+                # BiGe 風格：用 MA20 × 0.98 作為初始止損
+                ma20 = row["avg20"]
+                if broker.is_long:
+                    _current_stop_price = ma20 * 0.98
+                else:
+                    _current_stop_price = ma20 * 1.02
+            else:
+                # 沒有 MA 資訊，用固定百分比
+                if stop_loss_pct is not None:
+                    if broker.is_long:
+                        _current_stop_price = broker.position_entry_price * (1 - stop_loss_pct)
+                    else:
+                        _current_stop_price = broker.position_entry_price * (1 + stop_loss_pct)
 
         # If position was closed by strategy (not SL/TP), record details
         if not broker.has_position and position_tracker.is_active:
@@ -361,6 +569,13 @@ def run_backtest(
                 )
 
             position_tracker.reset()
+
+            # v1.1: Reset Manager states when position closed by strategy
+            stop_manager.reset()
+            add_position_manager.reset()
+            _current_stop_price = None
+            _avg_entry_price = None
+            _current_qty = 0
 
         # Update equity
         current_price = row["close"]

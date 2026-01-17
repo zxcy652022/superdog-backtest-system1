@@ -67,3 +67,8 @@ secrets/
 credentials.json
 archive/
 .env
+
+# Temporary files
+*.csv
+常用指令.txt
+老Ｋ/

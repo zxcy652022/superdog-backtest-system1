@@ -51,59 +51,130 @@ lower_case.md              # 子目錄文檔: overview.md, api.md
 
 ### 2.1 核心原則：策略只產生信號
 
+> ⚠️ **強制規範**：這是不可違反的架構原則。所有策略必須遵守此規範。
+
+**廚師與食譜模式**：
+- 策略 = 食譜（Recipe）：定義需要什麼配置，產生進出場信號
+- 引擎 = 廚師（Chef）：理解所有執行技巧，根據食譜執行
+
 ```python
-# ✅ 正確：策略只負責計算進出場信號
+# ✅ 正確：策略只負責計算進出場信號，通過 ExecutionConfig 告訴引擎需要什麼
 class MyStrategy(BaseStrategy):
-    def get_parameters(self) -> Dict[str, ParameterSpec]:
-        return {
-            'ma_short': int_param(20, "短均線週期", 5, 100),
-            'ma_long': int_param(60, "長均線週期", 20, 200),
-        }
+    @classmethod
+    def get_execution_config(cls) -> ExecutionConfig:
+        """食譜：告訴引擎需要什麼執行配置"""
+        return ExecutionConfig(
+            stop_config=StopConfig(type="confirmed", confirm_bars=10),
+            add_position_config=AddPositionConfig(enabled=True, max_count=3),
+            leverage=7.0,
+        )
 
-    def compute_signals(self, data, params) -> pd.Series:
-        close = data['ohlcv']['close']
-        ma_short = close.rolling(params['ma_short']).mean()
-        ma_long = close.rolling(params['ma_long']).mean()
-
-        signals = pd.Series(0, index=close.index)
-        signals[ma_short > ma_long] = 1   # 買入信號
-        signals[ma_short < ma_long] = -1  # 賣出信號
-        return signals
+    def on_bar(self, i: int, row: pd.Series):
+        """只產生進場信號，不處理止損/加倉"""
+        if self._entry_condition(row):
+            self.broker.buy_all(row["close"], row.name)
 ```
 
 ### 2.2 禁止在策略中包含的內容
 
+> ⚠️ **絕對禁止**：違反此規範會導致多路徑執行差異，造成回測與實盤結果不一致。
+
 | 類別 | 禁止內容 | 正確處理方式 |
 |-----|---------|-------------|
-| 執行參數 | leverage, position_size | 傳給 `run_backtest()` |
-| 風控參數 | stop_loss_pct, take_profit_pct | 傳給 `run_backtest()` 或 broker |
-| 倉位管理 | 加倉邏輯、減倉邏輯 | 使用 `PositionSizer` 模組 |
-| 資金管理 | 計算下單數量 | 使用 `PositionSizer` 模組 |
+| 執行參數 | leverage, position_size | `ExecutionConfig` → 引擎處理 |
+| 風控邏輯 | 止損檢查、止盈檢查 | `StopConfig` → `StopManager` 處理 |
+| 倉位管理 | 加倉邏輯、減倉邏輯 | `AddPositionConfig` → `AddPositionManager` 處理 |
+| 資金管理 | 計算下單數量 | `PositionSizingConfig` → `PositionSizer` 處理 |
 
-### 2.3 策略參數 vs 執行參數
+**禁止的代碼模式**：
+```python
+# ❌ 絕對禁止：策略內部處理止損
+def on_bar(self, i, row):
+    if self.broker.has_position:
+        if row["close"] < self.stop_loss_price:  # 錯！
+            self.broker.close_all(row["close"])  # 錯！
+
+# ❌ 絕對禁止：策略內部處理加倉
+def on_bar(self, i, row):
+    if self._should_add_position():  # 錯！
+        self.broker.buy(...)  # 錯！
+
+# ✅ 正確：策略只產生進場信號，執行邏輯由引擎統一處理
+def on_bar(self, i, row):
+    if self.broker.has_position:
+        return  # 有倉位時不做任何事，讓引擎處理
+    if self._entry_condition(row):
+        self.broker.buy_all(row["close"], row.name)
+```
+
+### 2.3 ExecutionConfig 架構（v2.4+）
+
+所有策略必須通過 `get_execution_config()` 提供執行配置：
 
 ```python
-# 策略參數：只影響信號計算
+from backtest.strategy_config import (
+    ExecutionConfig,
+    StopConfig,
+    AddPositionConfig,
+    PositionSizingConfig,
+)
+
+class MyStrategy(BaseStrategy):
+    @classmethod
+    def get_execution_config(cls) -> ExecutionConfig:
+        return ExecutionConfig(
+            # 止損配置
+            stop_config=StopConfig(
+                type="confirmed",        # 確認式止損
+                confirm_bars=10,         # 連續 N 根確認
+                trailing=True,           # 追蹤止損
+                trailing_ma_key="avg20", # 追蹤哪條均線
+                trailing_buffer=0.02,    # 緩衝百分比
+                emergency_atr_mult=3.5,  # 緊急止損 ATR 倍數
+                fixed_stop_pct=0.03,     # 最大止損百分比
+            ),
+            # 加倉配置
+            add_position_config=AddPositionConfig(
+                enabled=True,
+                max_count=3,             # 最多加倉次數
+                size_pct=0.5,            # 每次加倉比例
+                min_interval=6,          # 最小間隔 K 線數
+                min_profit=0.03,         # 最低盈利門檻
+                pullback_tolerance=0.018,# 回踩容許範圍
+                pullback_ma_key="avg20", # 回踩參考均線
+            ),
+            # 倉位配置
+            position_sizing_config=PositionSizingConfig(
+                type="percent_of_equity",
+                percent=0.15,            # 權益百分比
+            ),
+            # 其他
+            take_profit_pct=0.10,        # 止盈百分比
+            leverage=7.0,                # 槓桿
+            fee_rate=0.0005,             # 手續費率
+        )
+```
+
+### 2.4 策略參數 vs 執行參數
+
+```python
+# 策略參數：只影響信號計算（在策略內部）
 strategy_params = {
-    'ma_short': 20,         # 影響信號
-    'ma_long': 60,          # 影響信號
-    'entry_threshold': 0.01 # 影響信號
+    'ma_short': 20,           # 影響信號
+    'ma_long': 60,            # 影響信號
+    'cluster_threshold': 0.03 # 影響信號
 }
 
-# 執行參數：控制回測行為
+# 執行參數：控制回測行為（通過 ExecutionConfig）
+# 這些參數由策略的 get_execution_config() 提供
+# 引擎自動讀取並配置 StopManager, AddPositionManager, PositionSizer
 result = run_backtest(
     data=df,
     strategy_cls=MyStrategy,
-    strategy_params=strategy_params,  # 策略參數
-    # --- 以下是執行參數 ---
-    initial_cash=10000,
-    leverage=10,
-    stop_loss_pct=0.02,
-    take_profit_pct=0.04,
-    fee_rate=0.001,
-    position_sizer=PercentOfEquitySizer(0.5),
+    strategy_params=strategy_params,
+    initial_cash=500,
+    # ExecutionConfig 由策略提供，無需手動傳入
 )
-```
 
 ---
 
